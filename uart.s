@@ -11,9 +11,8 @@ _start:
 main:
 	mov r0, #'A'
 	bl print
-	ldr r0, =hello_world
+	ldr r5, =hello_world
 	ldrb r0, [r5]
-	//mov r0, #'H'
 	bl print
 	mov r0, #'Z'
 	bl print
@@ -30,6 +29,7 @@ _print_string_loopldr:
 	beq _print_string_return
 	bl print
 	add r4, #1
+	b _print_string_loopldr
 _print_string_return:
 	pop {r4, pc}
 
@@ -44,5 +44,4 @@ _print_wait:
 	str r0, [r2]       /* DR has offset 0 */
 	mov pc, lr
 
-.data
 hello_world: .asciz "Hello\n"
