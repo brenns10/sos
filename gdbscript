@@ -1,0 +1,6 @@
+# arm-none-eabi-gdb -x gdbscript
+file test.elf
+set architecture arm
+target extended-remote localhost:9000
+tui enable
+layout regs
