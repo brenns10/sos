@@ -6,30 +6,33 @@ AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc
 
 ASFLAGS = -g
-CFLAGS = -g -nostdlib
+CFLAGS = -g -ffreestanding
+LDFLAGS = -nostdlib
 
-run: test.bin
+run: kernel.bin
 	@echo Running. Exit with Ctrl-A X
 	@echo
-	$(QEMU) -kernel test.bin -nographic
+	$(QEMU) -kernel kernel.bin -nographic
 
-debug: test.bin
+debug: kernel.bin
 	@echo Entering debug mode. Go run \"make gdb\" in another terminal.
 	@echo You can terminate the qemu process with Ctrl-A X
 	@echo
-	$(QEMU) -kernel test.bin -nographic -gdb tcp::9000 -S
+	$(QEMU) -kernel kernel.bin -nographic -gdb tcp::9000 -S
 
 gdb:
 	$(TOOLCHAIN)gdb -x gdbscript
 
 # declare object files here
-test.elf: uart.o
+kernel.elf: uart.o
+kernel.elf: startup.o
+kernel.elf: main.o
 
 %.bin: %.elf
 	$(TOOLCHAIN)objcopy -O binary $< $@
 
 %.elf:
-	$(TOOLCHAIN)ld -T test.ld $^ -o $@
+	$(TOOLCHAIN)ld -T linkscript.ld $^ -o $@
 
 clean:
 	rm -f *.o *.elf *.bin

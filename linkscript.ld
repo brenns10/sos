@@ -2,7 +2,7 @@ ENTRY(_start)
 SECTIONS {
 	. = 0x40010000;
 	.startup . : {
-		uart.o(.text)
+		startup.o(.text)
 	}
 	.text . : {
 		*(.text)

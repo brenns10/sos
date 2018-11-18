@@ -1,5 +1,3 @@
-test.bin
-test.elf
-test
-uart.o
-uart
+*.bin
+*.elf
+*.o
