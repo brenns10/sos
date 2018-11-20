@@ -6,8 +6,9 @@
 .global main
 main:
 	ldr r0, =hello_world
+	push {lr}
 	bl puts
-	mov pc, lr
+	pop {pc}
 
 .data
 hello_world:
