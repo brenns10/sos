@@ -12,6 +12,11 @@ SECTIONS {
 	}
 
 	. = ALIGN(8);
-	. = . + 0x10000; /* 4kB stack memory */
+	. = . + 0x1000; /* 4kB stack memory */
 	stack_top = .;
+
+	. = ALIGN(0x4000); /* 16kB aligned for the full page table */
+	page_table_base = .;
+	. = . + 0x4000;
+	page_table_top = .;
 }

@@ -6,7 +6,7 @@ AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc
 
 ASFLAGS = -g
-CFLAGS = -g -ffreestanding
+CFLAGS = -g -ffreestanding -nostdlib
 LDFLAGS = -nostdlib
 
 run: kernel.bin
@@ -27,6 +27,10 @@ gdb:
 kernel.elf: uart.o
 kernel.elf: startup.o
 kernel.elf: main.o
+kernel.elf: mmu.o
+kernel.elf: mmu_asm.o
+kernel.elf: format.o
+kernel.elf: sysinfo.o
 
 %.bin: %.elf
 	$(TOOLCHAIN)objcopy -O binary $< $@
