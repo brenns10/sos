@@ -1,10 +1,18 @@
 /**
- * format.c: provides sprintf, and printf as well
+ * format.c: simple, stripped-down sprintf (and thus printf) implementation
+ *
+ * Only dependency is a puts() implementation, for printf(). Format specifier
+ * support is quite simplistic. No memory allocation, but beware! we use the
+ * stack to store our output buffer of size 1024 bytes. Depending on your stack
+ * size requirements, you may want to tweak that.
+ *
+ * Stephen Brennan
  */
 #include <stdint.h>
 #include <stdarg.h>
 
-#include "lib.h"
+/* Your puts() should fit this signature (roughly) */
+extern void puts(char *string);
 
 /**
  * This macro assigns a value to the buffer at the given index. It increments
