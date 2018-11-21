@@ -1,3 +1,6 @@
+/**
+ * sysinfo.c: print bits and fields of system registers
+ */
 #include "lib.h"
 
 /**

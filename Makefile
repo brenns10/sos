@@ -36,7 +36,7 @@ kernel.elf: sysinfo.o
 	$(TOOLCHAIN)objcopy -O binary $< $@
 
 %.elf:
-	$(TOOLCHAIN)ld -T linkscript.ld $^ -o $@
+	$(TOOLCHAIN)ld -T $(patsubst %.elf,%.ld,$@) $^ -o $@
 
 clean:
 	rm -f *.o *.elf *.bin

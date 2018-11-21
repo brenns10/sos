@@ -49,7 +49,6 @@
 /* shared */
 #define FL_S (1 << 16)
 
-
 /* TEX+C+B: defines caching, strong ordering. It's probably safe to use 0 */
 
 /* Privileged or User (P / U) + NA=no access, RO=readonly, RW=readwrite */
@@ -83,6 +82,4 @@ void init_page_tables(uint32_t *base)
 
 	/* Next 20B is unmapped. */
 	init_identity_mapping(base + 2048, 2048, FL_UNMAPPED);
-
-
 }
