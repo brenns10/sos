@@ -26,6 +26,7 @@
  * - Ensure S and R are 0 in CP15 register 1
  */
 #include <stdint.h>
+#include "lib.h"
 
 /* FL_: first level constants */
 #define FL_APX (1 << 15)
@@ -82,4 +83,30 @@ void init_page_tables(uint32_t *base)
 
 	/* Next 20B is unmapped. */
 	init_identity_mapping(base + 2048, 2048, FL_UNMAPPED);
+}
+
+void enable_mmu(void)
+{
+	uint32_t x;
+
+	/* page table is 16KB, aligned on 16KB boundary (2^14) */
+	uint32_t *base = alloc_pages(1 << 14, 14);
+
+	/* write our memory mapping */
+	init_page_tables(base);
+
+	/* set page table base */
+	set_cpreg(base, c2, 0, c0, 0);
+
+	/* set up access control for domain 0 */
+	x = 0x1;
+	set_cpreg(x, c3, 0, c0, 0);
+
+	/* there is supposed to be some cache invalidation here, not sure how to
+	 * do it */
+
+	/* enable mmu */
+	get_cpreg(x, c1, 0, c0, 0);
+	x |= 0x00800001; /* xp bit: use vmsa6, and mmu enable */
+	set_cpreg(x, c1, 0, c0, 0);
 }

@@ -28,9 +28,9 @@ kernel.elf: uart.o
 kernel.elf: startup.o
 kernel.elf: main.o
 kernel.elf: mmu.o
-kernel.elf: mmu_asm.o
 kernel.elf: format.o
 kernel.elf: sysinfo.o
+kernel.elf: pages.o
 
 %.bin: %.elf
 	$(TOOLCHAIN)objcopy -O binary $< $@

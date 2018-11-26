@@ -11,12 +11,13 @@ SECTIONS {
 		*(.data)
 	}
 
+	/* Kernel mode stack */
 	. = ALIGN(8);
+	stack_start = .;
 	. = . + 0x1000; /* 4kB stack memory */
-	stack_top = .;
+	stack_end = .;
 
-	. = ALIGN(0x4000); /* 16kB aligned for the full page table */
-	page_table_base = .;
-	. = . + 0x4000;
-	page_table_top = .;
+	/* Dynamic memory begins here */
+	. = ALIGN(0x1000); /* 4kB aligned since dynamic memory is page-by-page */
+	dynamic_start = .;
 }

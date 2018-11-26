@@ -3,18 +3,6 @@
  */
 #include "lib.h"
 
-/**
- * A handy macro that loads coprocessor info into a variable. Much nicer than
- * having to write an assembly function to do it.
- */
-#define get_cpreg(dst, CRn, op1, CRm, op2) \
-	__asm__ __volatile__ ( \
-		"mrc p15, " #op1 ", %[rd], " #CRn ", " #CRm ", " #op2 \
-		: [rd] "=r" (dst) \
-		: \
-		: \
-		)
-
 #define sysinfo_entry(CRn, op1, CRm, op2, fstr) \
 	do { \
 		get_cpreg(ra, CRn, op1, CRm, op2); \
