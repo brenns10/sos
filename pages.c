@@ -17,8 +17,8 @@
  * bytes, containing the start address of the zone.
  */
 struct zone {
-	unsigned int addr : 22;        /* last 10 bits do not matter */
-	unsigned int _unallocated : 9; /* reserved for other uses */
+	unsigned int addr : 20;        /* last 12 bits do not matter */
+	unsigned int _unallocated: 11; /* reserved for other uses */
 	unsigned int free : 1;         /* boolean */
 };
 struct zonehdr {
@@ -43,7 +43,7 @@ void init_pages(void)
 	zonehdr->count = 2;
 	zonehdr->zones[0].addr = (unsigned int) avail >> PAGE_BITS;
 	zonehdr->zones[0].free = 1;
-	zonehdr->zones[1].addr = 0x003FFFFF;
+	zonehdr->zones[1].addr = 0x000FFFFF;
 	zonehdr->zones[1].free = 0;
 }
 
@@ -54,7 +54,7 @@ void show_pages(void)
 
 	printf("BEGIN MEMORY ZONES (%u)\n", hdr->count);
 	for (i = 0; i < hdr->count; i++)
-		printf(" %x: %s\n", hdr->zones[i].addr << 10,
+		printf(" 0x%x: %s\n", hdr->zones[i].addr << PAGE_BITS,
 				hdr->zones[i].free ? "FREE" : "ALLOCATED");
 	printf("END MEMORY ZONES\n");
 }
@@ -69,7 +69,7 @@ bool shift_zones_up(struct zonehdr *hdr, int start, int to_shift)
 	if (hdr->count + start >= MAX_DESCRIPTORS)
 		return false;
 
-	for (i = hdr->count - 1; i >= start; i++)
+	for (i = hdr->count - 1; i >= start; i--)
 		hdr->zones[i + to_shift] = hdr->zones[i];
 
 	return true;
@@ -108,7 +108,7 @@ void *alloc_pages(uint32_t count, uint32_t align)
 		}
 
 		next = hdr->zones[i + 1].addr << PAGE_BITS;
-		if ((alignzone + count << PAGE_BITS) > next) {
+		if (alignzone + count >= next) {
 			/* can't satisfy alignment and/or size in zone */
 			continue;
 		}
@@ -124,20 +124,8 @@ void *alloc_pages(uint32_t count, uint32_t align)
 		 *
 		 * Either the allocation fits perfectly, or we have created
 		 * "free zone holes" on either (or both) side of this zone.
-		 *
-		 * When the allocation fits perfectly, we can simply change this
-		 * zone to allocated and return it. When the allocation does not
-		 * fit perfectly, we must insert either 1, 2, or 3 zone
-		 * descriptors (depending on if we have 0, 1, or 2 holes).
 		 */
-		if (zone == alignzone && alignzone + count == next) {
-			/* The easy case: flip it to allocated and return it */
-			hdr->zones[i].free = 0;
-			return (void*) alignzone;
-		}
-
-		/* The hard case: insert descriptors. */
-		to_insert = 1;
+		to_insert = 0;
 		if (zone != alignzone)
 			to_insert += 1;
 		if (alignzone + count != next)
@@ -148,17 +136,18 @@ void *alloc_pages(uint32_t count, uint32_t align)
 			continue;
 
 		if (zone != alignzone) {
-			hdr->zones[i].addr = zone << PAGE_BITS;
+			hdr->zones[i].addr = zone >> PAGE_BITS;
 			hdr->zones[i].free = 1;
 			i += 1;
 		}
-		hdr->zones[i].addr = alignzone << PAGE_BITS;
+		hdr->zones[i].addr = alignzone >> PAGE_BITS;
 		hdr->zones[i].free = 0;
 		i += 1;
 		if (alignzone + count != next) {
-			hdr->zones[i].addr = (alignzone + count) << PAGE_BITS;
+			hdr->zones[i].addr = (alignzone + count) >> PAGE_BITS;
 			hdr->zones[i].free = 1;
 		}
+		hdr->count += to_insert;
 		return (void*) alignzone;
 	}
 

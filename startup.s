@@ -8,7 +8,7 @@ _start:
 	/* Set stack pointer to top of stack, grows downward.
 	 * Top of stack is defined in the link script.
 	 */
-	ldr sp, =stack_start
+	ldr sp, =stack_end
 
 	bl main
 

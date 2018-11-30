@@ -15,6 +15,8 @@ uint32_t snprintf(char *buf, uint32_t size, const char *format, ...);
 uint32_t printf(const char *format, ...);
 
 /* Allocate pages of memory */
+void init_pages(void);
+void show_pages(void);
 void *alloc_pages(uint32_t count, uint32_t align);
 
 /* assemply function, so that we can access page table location */
@@ -43,8 +45,8 @@ void sysinfo(void);
  */
 #define set_cpreg(src, CRn, op1, CRm, op2) \
  __asm__ __volatile__ ( \
-  "mcr p15, " #op1 ", %[rd], " #CRn ", " #CRm ", " #op2 \
-  : [rd] "=r" (src) \
+  "mcr p15, " #op1 ", %[rs], " #CRn ", " #CRm ", " #op2 \
+  : [rs] "+r" (src) \
   : \
   : \
   )
