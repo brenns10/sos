@@ -22,67 +22,107 @@
  * we're going to leave un-mapped, using them some other time.
  *
  * Notes:
- * - Ensure subpages enabled (I think?) CP15 reg 1 XP=1
+ * - Ensure subpages disabled
  * - Ensure S and R are 0 in CP15 register 1
  */
 #include <stdint.h>
+#include "kernel.h"
 #include "lib.h"
 
-/* FL_: first level constants */
-#define FL_APX (1 << 15)
-#define FL_AP1 (1 << 11)
-#define FL_AP0 (1 << 10)
+/* first level descriptor types */
+#define FLD_UNMAPPED 0x00
+#define FLD_COARSE   0x01
+#define FLD_SECTION  0x02
 
-/* should be used whenever doing a section or supersection */
-#define FL_SECTION (2)
-#define FL_COARSE  (1)
-#define FL_UNMAPPED (0)
+#define FLD_MASK     0x03
 
-/* should be used for supersection */
-#define FL_SUPERSECTION (1 << 18)
+/* second level descriptor types */
+#define SLD_UNMAPPED 0x00
+#define SLD_LARGE    0x01
+#define SLD_SMALL    0x02
 
-/* eXecute Never */
-#define FL_XN (1 << 4)
+/* access control for second level */
+#define NOT_GLOBAL   (0x1 << 11)
+#define PRW_UNA      0x10        /* AP=0b01, APX=0 */
+#define PRW_URO      0x20        /* AP=0b10, APX=0 */
+#define PRW_URW      0x30        /* AP=0b11, APX=0 */
+#define PRO_UNA      0x210       /* AP=0b01, APX=1 */
+#define PRO_URO      0x220       /* AP=0b10, APX=1 */
+#define EXECUTE_NEVER 0x01
 
-/* not global */
-#define FL_NG (1 << 17)
-
-/* shared */
-#define FL_S (1 << 16)
-
-/* TEX+C+B: defines caching, strong ordering. It's probably safe to use 0 */
-
-/* Privileged or User (P / U) + NA=no access, RO=readonly, RW=readwrite */
-#define FL_PNA_UNA 0                          /* apx 0, ap 00 */
-#define FL_PRW_UNA (FL_AP0)                   /* apx 0, ap 01 */
-#define FL_PRW_URO (FL_AP1)                   /* apx 0, ap 10 */
-#define FL_PRW_URW (FL_AP1 | FL_AP0)          /* apx 0, ap 11 */
-#define FL_PRO_UNA (FL_APX | FL_AP0)          /* apx 1, ap 01 */
-#define FL_PRO_URO (FL_APX | FL_AP1)          /* apx 1, ap 10 */
-
-void init_identity_mapping(uint32_t *base, uint32_t len, uint32_t attrs)
+/**
+ * Initialize first level page descriptor table to an entirely empty mapping,
+ * which points to a coarse table located directly after the first level table.
+ */
+void init_first_level(uint32_t *base)
 {
 	uint32_t i;
-	for (i = 0; i < len; i++) {
-		base[i] = (i << 20) | attrs;
+	for (i = 0; i < 4096; i++) {
+		base[i] = (uint32_t)&base[4096 + i * 256] & FLD_UNMAPPED;
 	}
+}
+
+/**
+ * Initialize second level page descriptor table to an entirely empty mapping.
+ */
+void init_second_level(uint32_t *second)
+{
+	uint32_t i;
+	for (i = 0; i < 1024; i++)
+		second[i] = 0;
+}
+
+/**
+ * Insert a mapping from a virtual to a physical page.
+ * base: page descriptor table base
+ * virt: physical virtual address (should be page aligned)
+ * phys: physical virtual address (should be page aligned)
+ * attrs: access control attributes
+ */
+void map_page(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t attrs)
+{
+	uint32_t first_idx = virt >> 20;
+	uint32_t second_idx = (virt >> 12) & 0xFF;
+	uint32_t *second = (uint32_t*)(base[first_idx] & 0xFFFFFC00);
+
+	if (base[first_idx] & FLD_MASK != FLD_COARSE) {
+		base[first_idx] &= ~FLD_MASK;
+		base[first_idx] |= FLD_COARSE;
+		init_second_level(second);
+	}
+
+	second[second_idx] = phys & 0xFFFFF000 | attrs;
+}
+
+void map_pages(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs)
+{
+	uint32_t i;
+	for (i = 0; i < len; i += 4096)
+		map_page(base, virt + i, phys + i, attrs);
 }
 
 void init_page_tables(uint32_t *base)
 {
-	/* First 2GB is identity mapping, not accessible to user, but accessible
-	 * to SVC mode. */
-	init_identity_mapping(base, 2048,
-		/* Just use regular sections, no supersection */
-		FL_SECTION |
-		/* Privileged RW, User NA */
-		FL_PRW_UNA |
-		/* Global and shared, no caching, strong ordering */
-		0
-	);
+	uint32_t lo = 0x40010000, hi = 0xC0000000, len;
 
-	/* Next 20B is unmapped. */
-	init_identity_mapping(base + 2048, 2048, FL_UNMAPPED);
+	init_first_level(base);
+
+	/* Map code above split and to current location */
+	len = (uint32_t)&code_end - (uint32_t)&code_start;
+	map_pages(base, hi, (uint32_t)&code_start, len, PRO_UNA);
+	map_pages(base, lo, (uint32_t)&code_start, len, PRO_UNA);
+	hi += len;
+	lo += len;
+
+	/* Same with data + stack + page tables */
+	len = (uint32_t)&stack_end - (uint32_t)&data_start + 0x00404000;
+	map_pages(base, hi, (uint32_t)&data_start, len, PRW_UNA & EXECUTE_NEVER);
+	map_pages(base, lo, (uint32_t)&data_start, len, PRW_UNA & EXECUTE_NEVER);
+	lo += len;
+	hi += len;
+
+	/* Finally include the UART address so we can still print. */
+	map_page(base, 0x09000000, 0x09000000, PRW_UNA & EXECUTE_NEVER);
 }
 
 void enable_mmu(void)
@@ -90,7 +130,7 @@ void enable_mmu(void)
 	uint32_t x;
 
 	/* page table is 16KB, aligned on 16KB boundary (2^14) */
-	uint32_t *base = alloc_pages(1 << 14, 14);
+	uint32_t *base = (uint32_t*)&unused_start;
 
 	/* write our memory mapping */
 	init_page_tables(base);
