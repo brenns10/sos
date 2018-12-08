@@ -6,7 +6,7 @@ AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc
 
 ASFLAGS = -g
-CFLAGS = -g -ffreestanding -nostdlib
+CFLAGS = -g -ffreestanding -nostdlib -fPIC
 LDFLAGS = -nostdlib
 
 run: kernel.bin
@@ -37,6 +37,7 @@ kernel.elf: pages.o
 
 %.elf:
 	$(TOOLCHAIN)ld -T $(patsubst %.elf,%.ld,$@) $^ -o $@
+	$(TOOLCHAIN)ld -T post_mmu.ld $^ -o post_mmu.elf
 
 clean:
 	rm -f *.o *.elf *.bin

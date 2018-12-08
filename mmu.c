@@ -100,6 +100,23 @@ void map_page(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t attrs)
 	second[second_idx] = phys & 0xFFFFF000 | attrs | SLD_SMALL;
 }
 
+/**
+ * Lookup virtual address of virt in page table. Only supports the mechanism we
+ * use to setup the MMU.
+ */
+uint32_t lookup_phys(void *virt_ptr)
+{
+	uint32_t *base = (uint32_t*)&unused_start;
+	uint32_t virt = (uint32_t) virt_ptr;
+	uint32_t first_idx = virt >> 20;
+	uint32_t *second = (uint32_t*)(base[first_idx] & 0xFFFFFC00);
+	uint32_t second_idx = (virt >> 12) & 0xFF;
+	return (
+		(second[second_idx] & top_n_bits(20)) |
+		(virt & bot_n_bits(12))
+	);
+}
+
 void map_pages(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs)
 {
 	uint32_t i;

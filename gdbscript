@@ -1,7 +1,8 @@
 # arm-none-eabi-gdb -x gdbscript
 
 # Gives info about where symbols are!
-file kernel.elf
+#file kernel.elf
+file post_mmu.elf
 
 # May not be necessary?
 set architecture arm
@@ -15,7 +16,5 @@ layout regs
 
 # These guys skip over the initial instructions which will jump to the entry
 # point. GDB gets (rightfully) confused about them.
-stepi
-stepi
-stepi
-stepi
+break main
+continue

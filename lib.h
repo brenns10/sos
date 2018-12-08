@@ -21,6 +21,7 @@ void *alloc_pages(uint32_t count, uint32_t align);
 
 /* assemply function, so that we can access page table location */
 void enable_mmu(void);
+uint32_t lookup_phys(void *virt_ptr);
 
 /* C helper for creating page tables, called by enable_mmu */
 void init_page_tables(uint32_t *base);
