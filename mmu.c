@@ -41,6 +41,8 @@
 #define SLD_LARGE    0x01
 #define SLD_SMALL    0x02
 
+#define SLD_MASK     0x03
+
 /* access control for second level */
 #define NOT_GLOBAL   (0x1 << 11)
 #define PRW_UNA      0x10        /* AP=0b01, APX=0 */
@@ -50,6 +52,9 @@
 #define PRO_URO      0x220       /* AP=0b10, APX=1 */
 #define EXECUTE_NEVER 0x01
 
+#define top_n_bits(n) (0xFFFFFFFF << (32 - n))
+#define bot_n_bits(n) (0xFFFFFFFF >> (32 - n))
+
 /**
  * Initialize first level page descriptor table to an entirely empty mapping,
  * which points to a coarse table located directly after the first level table.
@@ -58,9 +63,10 @@ void init_first_level(uint32_t *base)
 {
 	uint32_t i;
 	for (i = 0; i < 4096; i++) {
-		base[i] = (uint32_t)&base[4096 + i * 256] & FLD_UNMAPPED;
+		base[i] = (uint32_t)&base[4096 + i * 256] | FLD_UNMAPPED;
 	}
 }
+
 
 /**
  * Initialize second level page descriptor table to an entirely empty mapping.
@@ -68,7 +74,7 @@ void init_first_level(uint32_t *base)
 void init_second_level(uint32_t *second)
 {
 	uint32_t i;
-	for (i = 0; i < 1024; i++)
+	for (i = 0; i < 256; i++)
 		second[i] = 0;
 }
 
@@ -85,13 +91,13 @@ void map_page(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t attrs)
 	uint32_t second_idx = (virt >> 12) & 0xFF;
 	uint32_t *second = (uint32_t*)(base[first_idx] & 0xFFFFFC00);
 
-	if (base[first_idx] & FLD_MASK != FLD_COARSE) {
+	if ((base[first_idx] & FLD_MASK) != FLD_COARSE) {
 		base[first_idx] &= ~FLD_MASK;
 		base[first_idx] |= FLD_COARSE;
 		init_second_level(second);
 	}
 
-	second[second_idx] = phys & 0xFFFFF000 | attrs;
+	second[second_idx] = phys & 0xFFFFF000 | attrs | SLD_SMALL;
 }
 
 void map_pages(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs)
@@ -99,6 +105,62 @@ void map_pages(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t len, uint3
 	uint32_t i;
 	for (i = 0; i < len; i += 4096)
 		map_page(base, virt + i, phys + i, attrs);
+}
+
+void print_second_level(uint32_t virt_base, uint32_t *second)
+{
+	uint32_t i;
+	for (i = 0; i < 256; i++) {
+		switch (second[i] & SLD_MASK) {
+			case SLD_LARGE:
+				printf("\t0x%x: 0x%x (large)\n",
+					virt_base + (i << 12),
+					second[i] & top_n_bits(16)
+				);
+				break;
+			case 0x3:
+			case SLD_SMALL:
+				printf("\t0x%x: 0x%x (small), xn=%u, tex=%u, ap=%u, apx=%u\n",
+					virt_base + (i << 12),
+					second[i] & top_n_bits(20),
+					second[i] & 0x1,
+					(second[i] >> 6) & 0x7,
+					(second[i] >> 4) & 0x3,
+					(second[i] & (1 << 9)) ? 1 : 0
+				);
+				break;
+		}
+	}
+}
+
+void print_first_level(uint32_t *base)
+{
+	uint32_t i;
+	for (i = 0; i < 4096; i++) {
+		switch (base[i] & FLD_MASK) {
+			case FLD_SECTION:
+				printf("0x%x: 0x%x (section), domain=%u\n",
+					i << 20,
+					base[i] & top_n_bits(10),
+					(base[i] >> 5) & 0xF
+				);
+				break;
+			case FLD_COARSE:
+				printf("0x%x: 0x%x (second level), domain=%u\n",
+					i << 20,
+					base[i] & top_n_bits(22),
+					(base[i] >> 5) & 0xF
+				);
+				print_second_level(
+					i << 20,
+					(uint32_t*) (base[i] & top_n_bits(22))
+				);
+				break;
+			case FLD_UNMAPPED:
+			default:
+				break;
+		}
+	}
 }
 
 void init_page_tables(uint32_t *base)
@@ -116,13 +178,13 @@ void init_page_tables(uint32_t *base)
 
 	/* Same with data + stack + page tables */
 	len = (uint32_t)&stack_end - (uint32_t)&data_start + 0x00404000;
-	map_pages(base, hi, (uint32_t)&data_start, len, PRW_UNA & EXECUTE_NEVER);
-	map_pages(base, lo, (uint32_t)&data_start, len, PRW_UNA & EXECUTE_NEVER);
+	map_pages(base, hi, (uint32_t)&data_start, len, PRW_UNA | EXECUTE_NEVER);
+	map_pages(base, lo, (uint32_t)&data_start, len, PRW_UNA | EXECUTE_NEVER);
 	lo += len;
 	hi += len;
 
 	/* Finally include the UART address so we can still print. */
-	map_page(base, 0x09000000, 0x09000000, PRW_UNA & EXECUTE_NEVER);
+	map_page(base, 0x09000000, 0x09000000, PRW_UNA | EXECUTE_NEVER);
 }
 
 void enable_mmu(void)
@@ -134,6 +196,7 @@ void enable_mmu(void)
 
 	/* write our memory mapping */
 	init_page_tables(base);
+	/*print_first_level(base);*/
 
 	/* set page table base */
 	set_cpreg(base, c2, 0, c0, 0);
