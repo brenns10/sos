@@ -1,20 +1,23 @@
-# arm-none-eabi-gdb -x gdbscript
+## arm-none-eabi-gdb -x gdbscript
 
-# Gives info about where symbols are!
-#file kernel.elf
-file post_mmu.elf
+## Gives GDB info about where symbols are!
+##   use kernel.elf for debugging post-MMU code
+##   use pre_mmu.elf for debugging pre-MMU code
+file kernel.elf
+#file pre_mmu.elf
 
-# May not be necessary?
+## May not be necessary?
 set architecture arm
 
-# Connect to qemu remotely on port 9000
+## Connect to qemu remotely on port 9000
 target remote localhost:9000
 
-# Gets us a nice GUI
+## Gets us a nice GUI
 tui enable
 layout regs
 
-# These guys skip over the initial instructions which will jump to the entry
-# point. GDB gets (rightfully) confused about them.
+## These are useful for waiting until the MMU has been setup and we're in the
+## main C function. If you debug the startup asm, you'll want to comment these
+## out and do 4 stepi instructions (to get past some firmware instructions).
 break main
 continue

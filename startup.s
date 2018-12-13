@@ -74,7 +74,19 @@ _start:
 	mrc p15, 0, a1, c1, c0, 0
 	ldr a2, =0x00800001
 	orr a1, a1, a2
-	mcr p15, 0, a1, c1, c0, 0 /* set vmsa6 bit, set mmu enable *l
+	mcr p15, 0, a1, c1, c0, 0 /* set vmsa6 bit, set mmu enable */
+
+	/*
+	 * Step 4.5: Branch above the kernel/user space split. We use ldr to
+	 * ensure that we are actually loading the linker-provided address for
+	 * trampoline, which should be the virtual address.
+	 *
+	 * This ensures that when we branch and link, the return address on the
+	 * stack will be in kernel-space and not user space.
+	 */
+	ldr pc, =_trampoline
+.globl _trampoline
+_trampoline:
 
 	/*
 	 * Step 5: Branch into C code! (after the stack pointer is set)
