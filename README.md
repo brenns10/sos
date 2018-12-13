@@ -2,10 +2,20 @@ arm
 ===
 
 Currently toying with writing code to run on a "bare metal" ARM processor.
-Hoping to work up to a small operating system. Right now, hello world works.
+Hoping to work up to a small operating system. Things that work now:
 
-You'll probably need to install the arm-non-eabi toolchain, and qemu for ARM.
-Then you can do:
+* Hello world, using the UART to print to the console
+* Basic string formatting to the UART
+* MMU enabled in assembly, and can be re-configured in C
+* Memory allocator code written, unused so far
+
+Some things to do in the future:
+
+* Proper interrupt / exception handling
+* Basic process abstraction with separate address space in user mode
+
+If you want to work with the code, you can install qemu, the arm eabi toolchain,
+and then use the commands below:
 
     # run the code
     make run

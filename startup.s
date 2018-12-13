@@ -1,15 +1,18 @@
 /*
- * Startup stub
+ * startup.s: Kernel entry point. Does low-level MMU initialization and
+ * branching into the correct memory location. Sets up stackc. Calls C main().
+ *
+ * No routine in this file should make use of the stack, all arguments should be
+ * passed in registers. This speeds things up and prevents us from having to
+ * setup the stack until after MMU is enabled.
  */
 .text
 
 .globl _start
 _start:
 	/*
-	 * We must enable the MMU, and then we can setup the stack and go into C
-	 * code.
-	 *
-	 * Step 1: Figure out where base belongs and initialize it.
+	 * Step 1: Figure out where the translation table base belongs and
+	 * initialize it.
 	 */
 	adr a1, _start
 

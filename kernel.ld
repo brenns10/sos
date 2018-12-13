@@ -1,3 +1,11 @@
+/*
+ * This file specifies locations in the virtual address space where the final
+ * sections will be located.
+ *
+ * On startup, QEMU loads the code at the physical address, 0x4001000. However,
+ * the exact address should not matter. startup.s is position-independent, and
+ * maps the code to the addresses specified by the linker symbols defined here.
+ */
 ENTRY(_start)
 SECTIONS {
 	. = 0xC0000000;
