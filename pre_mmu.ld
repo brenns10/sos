@@ -1,6 +1,6 @@
 ENTRY(_start)
 SECTIONS {
-	. = 0xC0000000;
+	. = 0x40010000;
 	code_start = .;
 	.startup . : {
 		startup.o(.text)

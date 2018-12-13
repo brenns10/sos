@@ -37,7 +37,7 @@ kernel.elf: pages.o
 
 %.elf:
 	$(TOOLCHAIN)ld -T $(patsubst %.elf,%.ld,$@) $^ -o $@
-	$(TOOLCHAIN)ld -T post_mmu.ld $^ -o post_mmu.elf
+	$(TOOLCHAIN)ld -T pre_mmu.ld $^ -o pre_mmu.elf
 
 clean:
 	rm -f *.o *.elf *.bin
