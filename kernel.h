@@ -13,3 +13,8 @@ extern uint8_t stack_start[];
 extern uint8_t stack_end[];
 extern uint8_t unused_start[];
 extern uint8_t dynamic_start[];
+
+/*
+ * Address of the UART
+ */
+uint32_t uart_base;
