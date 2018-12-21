@@ -136,8 +136,8 @@ void map_pages(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t len, uint3
 void unmap_pages(uint32_t *base, uint32_t start, uint32_t len)
 {
 	uint32_t idx;
+	idx = start >> 20;
 	while (len > 0x00100000) {
-		idx = start >> 20;
 		if ((base[idx] & FLD_MASK) != FLD_UNMAPPED) {
 			base[idx] &= ~FLD_MASK;
 			base[idx] |= FLD_UNMAPPED; /* noop actually */
@@ -145,6 +145,7 @@ void unmap_pages(uint32_t *base, uint32_t start, uint32_t len)
 				second_level_table + (idx * 1024));
 		}
 		len -= 0x00100000;
+		idx += 1;
 	}
 }
 
