@@ -2,6 +2,15 @@
  * startup.s: Kernel entry point. Does low-level MMU initialization and
  * branching into the correct memory location. Sets up stackc. Calls C main().
  *
+ * This stub requires linker symbols:
+ *
+ *   - code_start: the VIRTUAL address where _start should end up mapped to
+ *   - first_level_table: The VIRTUAL address where the first level page table
+ *     should end up. This is directly after code, data, and stack.
+ *
+ * The physical address at which this code is loaded should not matter, provided
+ * it is aligned to a 16KB (0x4000) boundary.
+ *
  * No routine in this file should make use of the stack, all arguments should be
  * passed in registers. This speeds things up and prevents us from having to
  * setup the stack until after MMU is enabled.
@@ -13,14 +22,24 @@ _start:
 	/*
 	 * Step 1: Figure out where the translation table base belongs and
 	 * initialize it.
+	 *
+	 * Symbols loaded via the adr instruction are pc-relative, and thus are
+	 * nearby (physical addresses).
 	 */
 	adr a1, _start
 
-	ldr a2, =code_start /* these are virtual */
-	ldr a3, =stack_end
-
-	sub a3, a3, a2 /* a3 = length of code + data section */
-	add a1, a1, a3 /* a1 = phys base of table */
+	/*
+	 * Linker symbols loaded via ldr are virtual addresses, and may be far
+	 * away from here.
+	 *
+	 * Compute the physical address of the first level table by computing an
+	 * offset from the code start, and adding that to the physical address
+	 * of the code start.
+	 */
+	ldr a2, =code_start
+	ldr a3, =first_level_table
+	sub a3, a3, a2
+	add a1, a1, a3
 
 	/* align to 14 bits (0x4000) for page table base */
 	sub a1, a1, #1

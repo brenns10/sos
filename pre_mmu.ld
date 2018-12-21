@@ -28,4 +28,5 @@ SECTIONS {
 	. = ALIGN(0x4000);
 	unused_start = .;
 	dynamic_start = .;
+	first_level_table = .;
 }
