@@ -1,7 +1,6 @@
 /*
  * Entry point for C code. At this point, the MMU is enabled.
  */
-#include "lib.h"
 #include "kernel.h"
 
 void main(uint32_t phys)

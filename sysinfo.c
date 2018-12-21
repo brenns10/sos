@@ -1,7 +1,7 @@
 /**
  * sysinfo.c: print bits and fields of system registers
  */
-#include "lib.h"
+#include "kernel.h"
 
 #define sysinfo_entry(CRn, op1, CRm, op2, fstr) \
 	do { \

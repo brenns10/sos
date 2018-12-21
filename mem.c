@@ -1,9 +1,7 @@
 /*
  * Memory routines and initialization
  */
-#include <stdint.h>
 #include "kernel.h"
-#include "lib.h"
 
 /*
  * MMU Constants

@@ -2,7 +2,6 @@
  * pages.c - manages pages of physical memory
  */
 #include "kernel.h"
-#include "lib.h"
 
 #define PAGE_SIZE 4096
 #define PAGE_BITS 12
