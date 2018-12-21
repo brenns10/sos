@@ -35,5 +35,6 @@ _print_wait:
 
 .data
 
+.align 4
 .global uart_base
 uart_base: .word 0x09000000
