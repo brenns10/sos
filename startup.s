@@ -98,6 +98,7 @@ _start:
 	orr a1, a1, a2
 	mcr p15, 0, a1, c1, c0, 0 /* set vmsa6 bit, set mmu enable */
 
+	adr a1, _start /* put physical address of start as first arg to main */
 	/*
 	 * Step 4.5: Branch above the kernel/user space split. We use ldr to
 	 * ensure that we are actually loading the linker-provided address for
