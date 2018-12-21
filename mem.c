@@ -1,33 +1,13 @@
 /*
- * Memory Management Unit configuration
- *
- * In the qemu virt machine, physical memory begins at 0x40000000 (1GB).
- *
- * We assume that there are 3GB of physical memory, thus we have the entire
- * remaining physical address space. Further, to simplify things, the operating
- * system will have an identity mapping, and 1GB of memory dedicated to it.
- *
- * Applications are given the virtual memory section starting from 0x80000000.
- * The mapping there may not be identity, since the goal is to have multiple
- * applications having isolated memory mappings.
- *
- * MMU is described in ARM Architecture Reference section B4. For now, we'll use
- * first-layer only, which maps the most significant 12 bits into a table, with
- * each entry taking up 4 bytes. The table must be 4 * 2^12 bits long, or 16KB.
- * We can further subdivide into second-layer mappings, but I'm not implementing
- * that yet.
- *
- * The first 2GB (= 2048 entries, = 8192 bytes) therefore are identity mappings,
- * and we'll use the 16MB super-section format to hold them. The remaining 2GB
- * we're going to leave un-mapped, using them some other time.
- *
- * Notes:
- * - Ensure subpages disabled
- * - Ensure S and R are 0 in CP15 register 1
+ * Memory routines and initialization
  */
 #include <stdint.h>
 #include "kernel.h"
 #include "lib.h"
+
+/*
+ * MMU Constants
+ */
 
 /* first level descriptor types */
 #define FLD_UNMAPPED 0x00
@@ -55,18 +35,30 @@
 #define top_n_bits(n) (0xFFFFFFFF << (32 - n))
 #define bot_n_bits(n) (0xFFFFFFFF >> (32 - n))
 
-/**
- * Initialize first level page descriptor table to an entirely empty mapping,
- * which points to a coarse table located directly after the first level table.
+/*
+ * Well-known physical addresses (computed from linker symbols on startup)
  */
-void init_first_level(uint32_t *base)
-{
-	uint32_t i;
-	for (i = 0; i < 4096; i++) {
-		base[i] = (uint32_t)&base[4096 + i * 256] | FLD_UNMAPPED;
-	}
-}
+uint32_t phys_code_start;
+uint32_t phys_code_end;
+uint32_t phys_data_start;
+uint32_t phys_data_end;
+uint32_t phys_stack_start;
+uint32_t phys_stack_end;
+uint32_t phys_first_level_table;
+uint32_t phys_second_level_table;
+uint32_t phys_dynamic;
 
+/*
+ * Well-known runtime virtual memory locations.
+ */
+void *second_level_table;
+void *dynamic;
+
+/*
+ * Allocators.
+ */
+void *phys_allocator;
+void *kern_virt_allocator;
 
 /**
  * Initialize second level page descriptor table to an entirely empty mapping.
@@ -89,7 +81,13 @@ void map_page(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t attrs)
 {
 	uint32_t first_idx = virt >> 20;
 	uint32_t second_idx = (virt >> 12) & 0xFF;
-	uint32_t *second = (uint32_t*)(base[first_idx] & 0xFFFFFC00);
+	/*
+	 * While normally, you would think that we would determine the second
+	 * level table by reading it from the first level descriptor, that won't
+	 * work, because it is a physical address. We need to compute a virtual
+	 * address for it.
+	 */
+	uint32_t *second = second_level_table + (first_idx * 1024);
 
 	if ((base[first_idx] & FLD_MASK) != FLD_COARSE) {
 		base[first_idx] &= ~FLD_MASK;
@@ -109,7 +107,13 @@ uint32_t lookup_phys(void *virt_ptr)
 	uint32_t *base = (uint32_t*)&unused_start;
 	uint32_t virt = (uint32_t) virt_ptr;
 	uint32_t first_idx = virt >> 20;
-	uint32_t *second = (uint32_t*)(base[first_idx] & 0xFFFFFC00);
+	/*
+	 * While normally, you would think that we would determine the second
+	 * level table by reading it from the first level descriptor, that won't
+	 * work, because it is a physical address. We need to compute a virtual
+	 * address for it.
+	 */
+	uint32_t *second = second_level_table + (first_idx * 1024);
 	uint32_t second_idx = (virt >> 12) & 0xFF;
 	return (
 		(second[second_idx] & top_n_bits(20)) |
@@ -170,7 +174,7 @@ void print_first_level(uint32_t *base)
 				);
 				print_second_level(
 					i << 20,
-					(uint32_t*) (base[i] & top_n_bits(22))
+					second_level_table + (i * 1024)
 				);
 				break;
 			case FLD_UNMAPPED:
@@ -180,53 +184,58 @@ void print_first_level(uint32_t *base)
 	}
 }
 
-void init_page_tables(uint32_t *base)
+void mem_init(uint32_t phys)
 {
-	uint32_t lo = 0x40010000, hi = 0xC0000000, len;
+	uint32_t new_uart;
+	/*
+	 * First, setup some global well-known variables to help ourselves out.
+	 */
+	phys_code_start = phys + ((void*)code_start - (void*)code_start);
+	phys_code_end = phys + ((void*)code_end - (void*)code_start);
+	phys_data_start = phys + ((void*)data_start - (void*)code_start);
+	phys_data_end = phys + ((void*)data_end - (void*)code_start);
+	phys_stack_start = phys + ((void*)stack_start - (void*)code_start);
+	phys_stack_end = phys + ((void*)stack_end - (void*)code_start);
+	phys_first_level_table = phys + ((void*)first_level_table - (void*)code_start);
+	phys_second_level_table = phys_first_level_table + 0x4000;
+	phys_dynamic = phys_second_level_table + 0x00400000;
+	second_level_table = (void*) first_level_table + 0x4000;
+	dynamic = second_level_table + 0x00400000;
 
-	init_first_level(base);
+	printf("\tphys_code_start = 0x%x\n", phys_code_start);
+	printf("\tphys_code_end = 0x%x\n", phys_code_end);
+	printf("\tphys_data_start = 0x%x\n", phys_data_start);
+	printf("\tphys_data_end = 0x%x\n", phys_data_end);
+	printf("\tphys_stack_start = 0x%x\n", phys_stack_start);
+	printf("\tphys_stack_end = 0x%x\n", phys_stack_end);
+	printf("\tphys_first_level_table = 0x%x\n", phys_first_level_table);
+	printf("\tphys_second_level_table = 0x%x\n", phys_second_level_table);
+	printf("\tphys_dynamic = 0x%x\n", phys_dynamic);
+	printf("\tsecond_level_table = 0x%x\n", second_level_table);
+	printf("\tdynamic = 0x%x\n", dynamic);
 
-	/* Map code above split and to current location */
-	len = (uint32_t)&code_end - (uint32_t)&code_start;
-	map_pages(base, hi, (uint32_t)&code_start, len, PRO_UNA);
-	map_pages(base, lo, (uint32_t)&code_start, len, PRO_UNA);
-	hi += len;
-	lo += len;
+	/*
+	 * Now, let's map some memory and use it to establish two allocators:
+	 * (a) Physical memory allocator
+	 * (b) Kernel virtual memory allocator
+	 */
+	phys_allocator = dynamic;
+	kern_virt_allocator = dynamic + 0x1000;
+	map_pages(first_level_table, (uint32_t) dynamic, phys_dynamic, 0x2000, PRW_UNA | EXECUTE_NEVER);
+	init_page_allocator(phys_allocator, phys_dynamic + 0x2000, 0xFFFFFFFF);
+	init_page_allocator(kern_virt_allocator, (uint32_t) dynamic + 0x2000, 0xFFFFFFFF);
 
-	/* Same with data + stack + page tables */
-	len = (uint32_t)&stack_end - (uint32_t)&data_start + 0x00404000;
-	map_pages(base, hi, (uint32_t)&data_start, len, PRW_UNA | EXECUTE_NEVER);
-	map_pages(base, lo, (uint32_t)&data_start, len, PRW_UNA | EXECUTE_NEVER);
-	lo += len;
-	hi += len;
+	printf("We have allocators now!\n");
 
-	/* Finally include the UART address so we can still print. */
-	map_page(base, 0x09000000, 0x09000000, PRW_UNA | EXECUTE_NEVER);
-}
+	/*
+	 * Now that we have our allocators, let's allocate some virtual memory
+	 * to map the UART at
+	 */
+	new_uart = (uint32_t) alloc_pages(kern_virt_allocator, 0x1000, 0);
+	printf("Old UART was 0x%x, new will be 0x%x\n", uart_base, new_uart);
+	map_page(first_level_table, new_uart, uart_base, PRW_UNA | EXECUTE_NEVER);
+	uart_base = new_uart;
+	printf("We have made the swap\n");
 
-void enable_mmu(void)
-{
-	uint32_t x;
-
-	/* page table is 16KB, aligned on 16KB boundary (2^14) */
-	uint32_t *base = (uint32_t*)&unused_start;
-
-	/* write our memory mapping */
-	init_page_tables(base);
-	/*print_first_level(base);*/
-
-	/* set page table base */
-	set_cpreg(base, c2, 0, c0, 0);
-
-	/* set up access control for domain 0 */
-	x = 0x1;
-	set_cpreg(x, c3, 0, c0, 0);
-
-	/* there is supposed to be some cache invalidation here, not sure how to
-	 * do it */
-
-	/* enable mmu */
-	get_cpreg(x, c1, 0, c0, 0);
-	x |= 0x00800001; /* xp bit: use vmsa6, and mmu enable */
-	set_cpreg(x, c1, 0, c0, 0);
+	show_pages(kern_virt_allocator);
 }

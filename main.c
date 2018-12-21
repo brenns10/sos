@@ -11,5 +11,6 @@ void main(uint32_t phys)
 	printf("The physical location of the code was originally 0x%x\n", phys);
 	printf("It is now 0x%x\n", &code_start);
 
-	sysinfo();
+	printf("\nInitializing memory...\n");
+	mem_init(phys);
 }

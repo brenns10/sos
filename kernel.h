@@ -15,6 +15,11 @@ extern uint8_t unused_start[];
 extern uint8_t dynamic_start[];
 
 /*
+ * NB: this is actually a uint32_t array because it points to a table of words
+ */
+extern uint32_t first_level_table[];
+
+/*
  * Address of the UART
  */
 uint32_t uart_base;

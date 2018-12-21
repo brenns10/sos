@@ -29,27 +29,29 @@ struct zonehdr {
 
 /**
  * Set up the page list.
+ * allocator: Pointer to 4096-byte page which holds allocator itself
+ * start: start of range to manage
+ * end: end of range to manage (exclusive)
  */
-void init_pages(void)
+void init_page_allocator(void *allocator, uint32_t start, uint32_t end)
 {
 	/*
 	 * We assume there are 3GB of available memory, starting at 0x40000000.
 	 * Everything beginning at dynamic_start and ending at 0xFFFFFFFF is
 	 * assumed to be available for us to allocate.
 	 */
-	struct zonehdr *zonehdr = (struct zonehdr*) dynamic_start;
-	void *avail = (void *)dynamic_start + PAGE_SIZE;
+	struct zonehdr *zonehdr = (struct zonehdr*) allocator;
 	zonehdr->next = 0;
 	zonehdr->count = 2;
-	zonehdr->zones[0].addr = (unsigned int) avail >> PAGE_BITS;
+	zonehdr->zones[0].addr = start >> PAGE_BITS;
 	zonehdr->zones[0].free = 1;
-	zonehdr->zones[1].addr = 0x000FFFFF;
+	zonehdr->zones[1].addr = end >> PAGE_BITS;
 	zonehdr->zones[1].free = 0;
 }
 
-void show_pages(void)
+void show_pages(void *allocator)
 {
-	struct zonehdr *hdr = (struct zonehdr*) dynamic_start;
+	struct zonehdr *hdr = (struct zonehdr*) allocator;
 	int i;
 
 	printf("BEGIN MEMORY ZONES (%u)\n", hdr->count);
@@ -85,11 +87,11 @@ bool shift_zones_up(struct zonehdr *hdr, int start, int to_shift)
  * return: physical pointer to contiguous pages
  *   NULL if the memory could not be allocated
  */
-void *alloc_pages(uint32_t count, uint32_t align)
+void *alloc_pages(void *allocator, uint32_t count, uint32_t align)
 {
 	uint32_t i, align_mask, zone, alignzone, next;
 	int to_insert;
-	struct zonehdr *hdr = (struct zonehdr*) dynamic_start;
+	struct zonehdr *hdr = (struct zonehdr*) allocator;
 
 	/* threshold alignment between PAGE_BITS <= align <= 32 */
 	align = (align < PAGE_BITS ? PAGE_BITS : align);

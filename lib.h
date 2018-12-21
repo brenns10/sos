@@ -14,17 +14,15 @@ extern void puts(char *string);
 uint32_t snprintf(char *buf, uint32_t size, const char *format, ...);
 uint32_t printf(const char *format, ...);
 
+/* Initialize memory system */
+void mem_init(uint32_t phys);
+
 /* Allocate pages of memory */
-void init_pages(void);
-void show_pages(void);
-void *alloc_pages(uint32_t count, uint32_t align);
+void init_page_allocator(void *allocator, uint32_t start, uint32_t end);
+void show_pages(void *allocator);
+void *alloc_pages(void *allocator, uint32_t count, uint32_t align);
 
-/* assemply function, so that we can access page table location */
-void enable_mmu(void);
 uint32_t lookup_phys(void *virt_ptr);
-
-/* C helper for creating page tables, called by enable_mmu */
-void init_page_tables(uint32_t *base);
 
 void sysinfo(void);
 
