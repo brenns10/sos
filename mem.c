@@ -128,6 +128,26 @@ void map_pages(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t len, uint3
 		map_page(base, virt + i, phys + i, attrs);
 }
 
+/**
+ * Unmap pages beginning at start, for a total length of len.
+ * NOTE: curerntly, start must be aligned to 1 MB, and len must be in increments
+ * of 1MB. This will likely change, but right now I'm lazy.
+ */
+void unmap_pages(uint32_t *base, uint32_t start, uint32_t len)
+{
+	uint32_t idx;
+	while (len > 0x00100000) {
+		idx = start >> 20;
+		if ((base[idx] & FLD_MASK) != FLD_UNMAPPED) {
+			base[idx] &= ~FLD_MASK;
+			base[idx] |= FLD_UNMAPPED; /* noop actually */
+			init_second_level(
+				second_level_table + (idx * 1024));
+		}
+		len -= 0x00100000;
+	}
+}
+
 void print_second_level(uint32_t virt_base, uint32_t *second)
 {
 	uint32_t i;
@@ -229,7 +249,7 @@ void mem_init(uint32_t phys)
 
 	/*
 	 * Now that we have our allocators, let's allocate some virtual memory
-	 * to map the UART at
+	 * to map the UART at.
 	 */
 	new_uart = (uint32_t) alloc_pages(kern_virt_allocator, 0x1000, 0);
 	printf("Old UART was 0x%x, new will be 0x%x\n", uart_base, new_uart);
@@ -238,4 +258,24 @@ void mem_init(uint32_t phys)
 	printf("We have made the swap\n");
 
 	show_pages(kern_virt_allocator);
+
+	/*
+	 * With the UART moved into kernel space, let's unmap everything before
+	 * the kernel-user split.
+	 */
+	unmap_pages(first_level_table, 0, 0xC0000000);
+	printf("We're all in kernel space!\n");
+
+	/*
+	 * At this point, we can adjust the flags on the code to be read-only,
+	 * and the flags on the data to be execute never. This is safer and
+	 * generally a bit more secure.
+	 */
+	map_pages(first_level_table, (uint32_t) code_start, phys_code_start,
+			(uint32_t)(code_end - code_start), PRO_UNA);
+	map_pages(first_level_table, (uint32_t) data_start, phys_data_start,
+			((uint32_t)first_level_table + 0x00404000 - (uint32_t)data_start),
+			PRW_UNA | EXECUTE_NEVER);
+
+	printf("We have adjusted memory permissions!\n");
 }
