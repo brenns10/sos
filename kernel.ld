@@ -16,18 +16,24 @@ SECTIONS {
 	.text . : {
 		*(.text)
 	}
+	code_end = .;
 
 	/* data on separate page to allow enforcing execute never */
 	. = ALIGN(0x1000);
-	code_end = .;
 	data_start = .;
+	.rodata . : {
+		*(.rodata)
+	}
 	.data . : {
 		*(.data)
 	}
+	.bss . : {
+		*(.bss)
+	}
+	data_end = .;
 
 	/* Kernel mode stack */
 	. = ALIGN(8);
-	data_end = .;
 	stack_start = .;
 	. = . + 0x1000; /* 4kB stack memory */
 	stack_end = .;
