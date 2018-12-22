@@ -75,6 +75,11 @@ void *alloc_pages(void *allocator, uint32_t count, uint32_t align);
  */
 void sysinfo(void);
 
+/*
+ * Set up the stack for all the other modes ahead of time, so we can use them.
+ */
+void setup_stacks(void *location);
+
 /**
  * Load coprocessor register into dst.
  */

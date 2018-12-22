@@ -5,8 +5,8 @@ TOOLCHAIN = arm-none-eabi-
 AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc
 
-ASFLAGS = -g
-CFLAGS = -g -ffreestanding -nostdlib -fPIC
+ASFLAGS = -g -march=armv6
+CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=armv6
 LDFLAGS = -nostdlib
 
 run: kernel.bin

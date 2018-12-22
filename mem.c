@@ -203,9 +203,24 @@ void print_first_level(uint32_t *base)
 	}
 }
 
+/**
+ * Get mapped pages. That is, allocate some physical memory, allocate some
+ * virtual memory, and map the virtual to the physical and return it.
+ * bytes: count of bytes to allocate (increments of 4096 bytes)
+ * align: alignment (only applied to the virtual address allocation)
+ */
+void *get_mapped_pages(uint32_t bytes, uint32_t align)
+{
+	void *virt = alloc_pages(kern_virt_allocator, bytes, align);
+	uint32_t phys = (uint32_t) alloc_pages(phys_allocator, bytes, 0);
+	map_pages(first_level_table, (uint32_t) virt, phys, bytes, PRW_UNA | EXECUTE_NEVER);
+	return virt;
+}
+
 void mem_init(uint32_t phys)
 {
 	uint32_t new_uart;
+	void *stack;
 	/*
 	 * First, setup some global well-known variables to help ourselves out.
 	 */
@@ -277,4 +292,17 @@ void mem_init(uint32_t phys)
 			PRW_UNA | EXECUTE_NEVER);
 
 	printf("We have adjusted memory permissions!\n");
+
+	/*
+	 * Setup stacks for other modes, and map the first code page at 0x00 so
+	 * we can handle exceptions.
+	 */
+	stack = get_mapped_pages(4096, 0);
+	setup_stacks(stack);
+	map_page(first_level_table, (uint32_t) code_start, 0x00, PRO_UNA);
+
+	printf("We have setup interrupt mode stacks!\n");
+
+	uint32_t *blah = (uint32_t*)0x12345678;
+	printf("blah%x\n", *blah);
 }
