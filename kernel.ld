@@ -11,8 +11,12 @@ SECTIONS {
 	. = 0xC0000000;
 	code_start = .;
 	.startup . : {
-		startup.o(.text)
+		startup.o(*)
 	}
+	.entry . : {
+		entry.o(*)
+	}
+	ASSERT(. < 0xC0001000, "more than one page of memory for startup + ISR")
 	.text . : {
 		*(.text)
 	}

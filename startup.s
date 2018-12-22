@@ -17,8 +17,31 @@
  */
 .text
 
+/*
+ * Hey look, it's an interrupt vector! Have some commentary about it:
+ *
+ * Code from startup.s resides at the beginning of the code section, on a page
+ * boundary. We map this page to address 0x00 (in addition to the normal address
+ * for this code) so that it can also serve as the interrupt vector.
+ *
+ * Code from entry.s resides directly after. It contains the _impls for these
+ * branches, which are the Interrupt Service Routines. The linker will ensure
+ * our ISRs reside completely within this first page.
+ *
+ * We should never really use the "reset" vector. I suspect this code might
+ * break if it was used diretly.
+ */
 .globl _start
-_start:
+_start: b _start_impl
+_undefined: b _undefined_impl
+_swi: b _swi_impl
+_prefetch_abort: b _prefetch_abort_impl
+_data_abort: b _data_abort
+_undefined_interrupt: nop
+_irq: b _irq_impl
+_fiq: b _fiq_impl
+
+_start_impl:
 	/*
 	 * Step 1: Figure out where the translation table base belongs and
 	 * initialize it.
