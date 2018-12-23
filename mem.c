@@ -299,7 +299,7 @@ void mem_init(uint32_t phys)
 	 */
 	stack = get_mapped_pages(4096, 0);
 	setup_stacks(stack);
-	map_page(first_level_table, (uint32_t) code_start, 0x00, PRO_UNA);
+	map_page(first_level_table, 0x00, phys_code_start, PRO_UNA);
 
 	printf("We have setup interrupt mode stacks!\n");
 

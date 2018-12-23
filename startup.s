@@ -36,7 +36,7 @@ _start: b _start_impl
 _undefined: b _undefined_impl
 _swi: b _swi_impl
 _prefetch_abort: b _prefetch_abort_impl
-_data_abort: b _data_abort
+_data_abort: b _data_abort_impl
 _undefined_interrupt: nop
 _irq: b _irq_impl
 _fiq: b _fiq_impl
