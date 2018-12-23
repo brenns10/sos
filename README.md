@@ -8,10 +8,10 @@ Hoping to work up to a small operating system. Things that work now:
 * Basic string formatting to the UART
 * MMU enabled in assembly, and can be re-configured in C
 * Memory allocator code written, unused so far
+* Proper interrupt / exception handling
 
 Some things to do in the future:
 
-* Proper interrupt / exception handling
 * Basic process abstraction with separate address space in user mode
 
 If you want to work with the code, you can install qemu, the arm eabi toolchain,
