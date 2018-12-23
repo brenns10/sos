@@ -302,7 +302,4 @@ void mem_init(uint32_t phys)
 	map_page(first_level_table, 0x00, phys_code_start, PRO_UNA);
 
 	printf("We have setup interrupt mode stacks!\n");
-
-	uint32_t *blah = (uint32_t*)0x12345678;
-	printf("blah%x\n", *blah);
 }

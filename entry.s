@@ -1,26 +1,44 @@
-.data
-message: .asciz "Data abort!\n"
 .text
 
 .global undefined_impl
-undefined_impl: nop
+undefined_impl: sub pc, pc, #8
 
 .global swi_impl
-swi_impl: nop
+swi_impl:
+	stmfd sp, {r0-r12}
+	srsfd #0x13 /* supervisor */
+	bl swi
+	nop
+	sub pc, pc, #8
 
 .global prefetch_abort_impl
-prefetch_abort_impl: nop
+prefetch_abort_impl:
+	stmfd sp, {r0-r12}
+	srsfd #0x17 /* abort */
+	bl prefetch_abort
+	nop
+	sub pc, pc, #8
 
 .global irq_impl
-irq_impl: nop
+irq_impl:
+	stmfd sp, {r0-r12}
+	srsfd #0x12
+	bl irq
+	nop
+	sub pc, pc, #8
 
 .global fiq_impl
-fiq_impl: nop
+fiq_impl:
+	stmfd sp, {r0-r12}
+	srsfd #0x11
+	bl fiq
+	nop
+	sub pc, pc, #8
 
 .global data_abort_impl
 data_abort_impl:
 	stmfd sp, {r0-r12}
-	srsfd #0x17
+	srsfd #0x17 /* abort */
 	bl data_abort
 	nop
 	sub pc, pc, #8
