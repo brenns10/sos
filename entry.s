@@ -2,29 +2,26 @@
 message: .asciz "Data abort!\n"
 .text
 
-.global _undefined_impl
-_undefined_impl: nop
+.global undefined_impl
+undefined_impl: nop
 
-.global _swi_impl
-_swi_impl: nop
+.global swi_impl
+swi_impl: nop
 
-.global _prefetch_abort_impl
-_prefetch_abort_impl: nop
+.global prefetch_abort_impl
+prefetch_abort_impl: nop
 
-.global _irq_impl
-_irq_impl: nop
+.global irq_impl
+irq_impl: nop
 
-.global _fiq_impl
-_fiq_impl: nop
+.global fiq_impl
+fiq_impl: nop
 
-.global _data_abort_impl
-_data_abort_impl:
+.global data_abort_impl
+data_abort_impl:
 	stmfd sp, {r0-r12}
 	srsfd #0x17
-	ldr pc, =_data_abort_trampoline
-_data_abort_trampoline:
-	ldr a1, =message
-	bl puts
+	bl data_abort
 	nop
 	sub pc, pc, #8
 

@@ -32,16 +32,16 @@
  * break if it was used diretly.
  */
 .globl _start
-_start: b _start_impl
-_undefined: b _undefined_impl
-_swi: b _swi_impl
-_prefetch_abort: b _prefetch_abort_impl
-_data_abort: b _data_abort_impl
+_start: b start_impl
+_undefined: ldr pc, =undefined_impl
+_swi: ldr pc, =swi_impl
+_prefetch_abort: ldr pc, =prefetch_abort_impl
+_data_abort: ldr pc, =data_abort_impl
 _undefined_interrupt: nop
-_irq: b _irq_impl
-_fiq: b _fiq_impl
+_irq: ldr pc, =irq_impl
+_fiq: ldr pc, =fiq_impl
 
-_start_impl:
+start_impl:
 	/*
 	 * Step 1: Figure out where the translation table base belongs and
 	 * initialize it.

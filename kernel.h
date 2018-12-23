@@ -80,6 +80,11 @@ void sysinfo(void);
  */
 void setup_stacks(void *location);
 
+/*
+ * C Entry Points
+ */
+void data_abort(void);
+
 /**
  * Load coprocessor register into dst.
  */

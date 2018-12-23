@@ -32,6 +32,7 @@ kernel.elf: format.o
 kernel.elf: sysinfo.o
 kernel.elf: pages.o
 kernel.elf: entry.o
+kernel.elf: c_entry.o
 
 %.bin: %.elf
 	$(TOOLCHAIN)objcopy -O binary $< $@
