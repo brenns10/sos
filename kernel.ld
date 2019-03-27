@@ -8,7 +8,7 @@
  */
 ENTRY(_start)
 SECTIONS {
-	. = 0xC0000000;
+	. = 0x00000000;
 	code_start = .;
 	.startup . : {
 		startup.o(*)

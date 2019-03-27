@@ -3,7 +3,7 @@
  */
 #include "kernel.h"
 
-#define VERBOSE false
+#define VERBOSE true
 
 void main(uint32_t phys)
 {

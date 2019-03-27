@@ -6,6 +6,9 @@
 /*
  * MMU Constants
  */
+#define SLD__AP2 (1 << 9)
+#define SLD__AP1 (1 << 5)
+#define SLD__AP0 (1 << 4)
 
 /* first level descriptor types */
 #define FLD_UNMAPPED 0x00
@@ -23,11 +26,11 @@
 
 /* access control for second level */
 #define NOT_GLOBAL   (0x1 << 11)
-#define PRW_UNA      0x10        /* AP=0b01, APX=0 */
-#define PRW_URO      0x20        /* AP=0b10, APX=0 */
-#define PRW_URW      0x30        /* AP=0b11, APX=0 */
-#define PRO_UNA      0x210       /* AP=0b01, APX=1 */
-#define PRO_URO      0x220       /* AP=0b10, APX=1 */
+#define PRW_UNA      (SLD__AP0)            /* AP=0b001 */
+#define PRW_URO      (SLD__AP1)            /* AP=0b010 */
+#define PRW_URW      (SLD__AP1 | SLD__AP0) /* AP=0b011 */
+#define PRO_UNA      (SLD__AP2 | SLD__AP0) /* AP=0b101 */
+#define PRO_URO      (SLD__AP2 | SLD__AP1) /* AP=0b110 */
 #define EXECUTE_NEVER 0x01
 
 #define top_n_bits(n) (0xFFFFFFFF << (32 - n))
@@ -307,6 +310,8 @@ void mem_init(uint32_t phys, bool verbose)
 	/* This may be a no-op, but let's map the interrupt vector at 0x0 */
 	map_page(first_level_table, 0x00, phys_code_start, PRO_UNA);
 
-	if (verbose)
+	if (verbose) {
 		printf("We have setup interrupt mode stacks!\n");
+		/*print_first_level(first_level_table);*/
+	}
 }

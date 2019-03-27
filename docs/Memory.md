@@ -17,11 +17,18 @@ format" described in the ARMv7 Reference, Section B3.5. We use "small pages" of
 size 4KB. While this is almost certainly not an optimal choice, it gives us lots
 of flexibility in allocations, permissions, etc.
 
-The ARMv7 MMU supports multiple translation tables, so that we can separate the
-kernel translation tables from each process's translation table. We do not
-currently use that, but in the future we will, by using 0x00000000-0x02000000
-(virtual) for kernel memory, and everything beyond that as process address
-space.
+Our virtual memory layout will one day be:
+
+    0x00000000  # interrupt vector, startup code
+      # code
+      # static
+      # kernel-mode stack
+      # first & second level translation tables (for kernel)
+      # dynamic memory for kernel
+      ...
+    0x02000000  # begin user address space
+
+We will use different translation table base addresses for user-mode memory.
 
 Initialization
 --------------
