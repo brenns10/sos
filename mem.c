@@ -128,7 +128,7 @@ void map_pages(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t len, uint3
 
 /**
  * Unmap pages beginning at start, for a total length of len.
- * NOTE: curerntly, start must be aligned to 1 MB, and len must be in increments
+ * NOTE: currently, start must be aligned to 1 MB, and len must be in increments
  * of 1MB. This will likely change, but right now I'm lazy.
  */
 void unmap_pages(uint32_t *base, uint32_t start, uint32_t len)
@@ -217,7 +217,7 @@ void *get_mapped_pages(uint32_t bytes, uint32_t align)
 	return virt;
 }
 
-void mem_init(uint32_t phys)
+void mem_init(uint32_t phys, bool verbose)
 {
 	uint32_t new_uart;
 	void *stack;
@@ -236,6 +236,20 @@ void mem_init(uint32_t phys)
 	second_level_table = (void*) first_level_table + 0x4000;
 	dynamic = second_level_table + 0x00400000;
 
+	if (verbose) {
+		printf("\tphys_code_start = 0x%x\n", phys_code_start);
+		printf("\tphys_code_end = 0x%x\n", phys_code_end);
+		printf("\tphys_data_start = 0x%x\n", phys_data_start);
+		printf("\tphys_data_end = 0x%x\n", phys_data_end);
+		printf("\tphys_stack_start = 0x%x\n", phys_stack_start);
+		printf("\tphys_stack_end = 0x%x\n", phys_stack_end);
+		printf("\tphys_first_level_table = 0x%x\n", phys_first_level_table);
+		printf("\tphys_second_level_table = 0x%x\n", phys_second_level_table);
+		printf("\tphys_dynamic = 0x%x\n", phys_dynamic);
+		printf("\tsecond_level_table = 0x%x\n", second_level_table);
+		printf("\tdynamic = 0x%x\n", dynamic);
+	}
+
 	/*
 	 * Now, let's map some memory and use it to establish two allocators:
 	 * (a) Physical memory allocator
@@ -247,19 +261,27 @@ void mem_init(uint32_t phys)
 	init_page_allocator(phys_allocator, phys_dynamic + 0x2000, 0xFFFFFFFF);
 	init_page_allocator(kern_virt_allocator, (uint32_t) dynamic + 0x2000, 0xFFFFFFFF);
 
+	if (verbose)
+		printf("We have allocators now!\n");
+
 	/*
 	 * Now that we have our allocators, let's allocate some virtual memory
 	 * to map the UART at.
 	 */
 	new_uart = (uint32_t) alloc_pages(kern_virt_allocator, 0x1000, 0);
+	if (verbose)
+		printf("Old UART was 0x%x, new will be 0x%x\n", uart_base, new_uart);
 	map_page(first_level_table, new_uart, uart_base, PRW_UNA | EXECUTE_NEVER);
 	uart_base = new_uart;
 
+	if (verbose) {
+		printf("We have made the swap\n");
+		show_pages(kern_virt_allocator);
+	}
+
 	/*
-	 * With the UART moved into kernel space, let's unmap everything before
-	 * the kernel-user split.
+	 * TODO: unmap the old code identity mapping and UART identity mapping
 	 */
-	unmap_pages(first_level_table, 0, 0xC0000000);
 
 	/*
 	 * At this point, we can adjust the flags on the code to be read-only,
@@ -272,11 +294,19 @@ void mem_init(uint32_t phys)
 			((uint32_t)first_level_table + 0x00404000 - (uint32_t)data_start),
 			PRW_UNA | EXECUTE_NEVER);
 
+	if (verbose)
+		printf("We have adjusted memory permissions!\n");
+
 	/*
 	 * Setup stacks for other modes, and map the first code page at 0x00 so
 	 * we can handle exceptions.
 	 */
 	stack = get_mapped_pages(4096, 0);
 	setup_stacks(stack);
+
+	/* This may be a no-op, but let's map the interrupt vector at 0x0 */
 	map_page(first_level_table, 0x00, phys_code_start, PRO_UNA);
+
+	if (verbose)
+		printf("We have setup interrupt mode stacks!\n");
 }

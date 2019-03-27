@@ -56,7 +56,7 @@ uint32_t printf(const char *format, ...);
 /*
  * Initialize memory system (see mem.c for details)
  */
-void mem_init(uint32_t phys);
+void mem_init(uint32_t phys, bool verbose);
 
 /*
  * Look up the physical address corresponding to a virtual address
