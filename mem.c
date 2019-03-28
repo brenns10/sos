@@ -165,7 +165,7 @@ void print_second_level(uint32_t virt_base, uint32_t *second)
 			case SLD_SMALL:
 				printf("\t0x%x: 0x%x (small), xn=%u, tex=%u, ap=%u, apx=%u\n",
 					virt_base + (i << 12),
-					second[i]/& top_n_bits(20),
+					second[i] & top_n_bits(20),
 					second[i] & 0x1,
 					(second[i] >> 6) & 0x7,
 					(second[i] >> 4) & 0x3,
