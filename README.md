@@ -4,15 +4,24 @@ arm
 Currently toying with writing code to run on a "bare metal" ARM processor.
 Hoping to work up to a small operating system. Things that work now:
 
-* Hello world, using the UART to print to the console
+* Using the UART to print to the console
 * Basic string formatting to the UART
 * MMU enabled in assembly, and can be re-configured in C
-* Memory allocator code written, unused so far
-* Proper interrupt / exception handling
+* Memory allocators for physical and virtual address spaces
+* Interrupt handling (simply reporting faults to UART, etc)
+* "Processes" with:
+  - separate stacks
+  - shared address space
+  - user mode
+  - single system call
 
-Some things to do in the future:
+Next steps:
 
-* Basic process abstraction with separate address space in user mode
+* Get a proof-of-concept with cooperative multi-tasking processes
+* Expose UART as a system call
+* Compile processes as separate binary files built-in to the kernel image, and
+  load them into a "user address space" (while still sharing address space)
+* Separate address spaces per-process
 
 If you want to work with the code, you can install qemu, the arm eabi toolchain,
 and then use the commands below:
