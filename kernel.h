@@ -7,6 +7,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include "list.h"
+
 /*
  * Linker symbols for virtual memory addresses.
  */
@@ -69,6 +71,7 @@ uint32_t lookup_phys(void *virt_ptr);
 void init_page_allocator(void *allocator, uint32_t start, uint32_t end);
 void show_pages(void *allocator);
 void *alloc_pages(void *allocator, uint32_t count, uint32_t align);
+void *get_mapped_pages(uint32_t bytes, uint32_t align);
 
 /*
  * System info debugging command (see sysinfo.c for details)
@@ -106,3 +109,33 @@ void data_abort(void);
   : \
   : \
   )
+
+/*
+ * Processes!
+ */
+
+/* The "userspace code" we run in a process */
+typedef void (*process_start_t)(void*);
+
+/**
+ * This "process" is hardly a process. It runs in user mode, but shares its
+ * memory space with the kernel. It has a separate stack and separate registers,
+ * and it can call a "relinquish()" method which swi's back into svc mode. This
+ * simulates a process without actually doing anything.
+ */
+struct process {
+	uint32_t *sp;
+	struct list_head list; /* global process list */
+	process_start_t startup;
+	void *arg;
+};
+
+/* Create a process with a stack. */
+struct process *create_process(process_start_t startup, void *arg);
+
+/* Start a process running, never return. */
+void start_process(struct process *p);
+void start_process_asm(void *arg, process_start_t startup, void *sp);
+
+/* For processes, this is a system call to return back to the kernel. */
+void relinquish(void);

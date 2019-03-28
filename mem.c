@@ -165,7 +165,7 @@ void print_second_level(uint32_t virt_base, uint32_t *second)
 			case SLD_SMALL:
 				printf("\t0x%x: 0x%x (small), xn=%u, tex=%u, ap=%u, apx=%u\n",
 					virt_base + (i << 12),
-					second[i] & top_n_bits(20),
+					second[i]/& top_n_bits(20),
 					second[i] & 0x1,
 					(second[i] >> 6) & 0x7,
 					(second[i] >> 4) & 0x3,
@@ -216,7 +216,7 @@ void *get_mapped_pages(uint32_t bytes, uint32_t align)
 {
 	void *virt = alloc_pages(kern_virt_allocator, bytes, align);
 	uint32_t phys = (uint32_t) alloc_pages(phys_allocator, bytes, 0);
-	map_pages(first_level_table, (uint32_t) virt, phys, bytes, PRW_UNA | EXECUTE_NEVER);
+	map_pages(first_level_table, (uint32_t) virt, phys, bytes, PRW_URW | EXECUTE_NEVER);
 	return virt;
 }
 
@@ -260,7 +260,7 @@ void mem_init(uint32_t phys, bool verbose)
 	 */
 	phys_allocator = dynamic;
 	kern_virt_allocator = dynamic + 0x1000;
-	map_pages(first_level_table, (uint32_t) dynamic, phys_dynamic, 0x2000, PRW_UNA | EXECUTE_NEVER);
+	map_pages(first_level_table, (uint32_t) dynamic, phys_dynamic, 0x2000, PRW_URW | EXECUTE_NEVER);
 	init_page_allocator(phys_allocator, phys_dynamic + 0x2000, 0xFFFFFFFF);
 	init_page_allocator(kern_virt_allocator, (uint32_t) dynamic + 0x2000, 0xFFFFFFFF);
 
@@ -274,7 +274,7 @@ void mem_init(uint32_t phys, bool verbose)
 	new_uart = (uint32_t) alloc_pages(kern_virt_allocator, 0x1000, 0);
 	if (verbose)
 		printf("Old UART was 0x%x, new will be 0x%x\n", uart_base, new_uart);
-	map_page(first_level_table, new_uart, uart_base, PRW_UNA | EXECUTE_NEVER);
+	map_page(first_level_table, new_uart, uart_base, PRW_URW | EXECUTE_NEVER);
 	uart_base = new_uart;
 
 	if (verbose) {
@@ -292,10 +292,10 @@ void mem_init(uint32_t phys, bool verbose)
 	 * generally a bit more secure.
 	 */
 	map_pages(first_level_table, (uint32_t) code_start, phys_code_start,
-			(uint32_t)(code_end - code_start), PRO_UNA);
+			(uint32_t)(code_end - code_start), PRO_URO);
 	map_pages(first_level_table, (uint32_t) data_start, phys_data_start,
 			((uint32_t)first_level_table + 0x00404000 - (uint32_t)data_start),
-			PRW_UNA | EXECUTE_NEVER);
+			PRW_URW | EXECUTE_NEVER);
 
 	if (verbose)
 		printf("We have adjusted memory permissions!\n");
@@ -308,7 +308,7 @@ void mem_init(uint32_t phys, bool verbose)
 	setup_stacks(stack);
 
 	/* This may be a no-op, but let's map the interrupt vector at 0x0 */
-	map_page(first_level_table, 0x00, phys_code_start, PRO_UNA);
+	map_page(first_level_table, 0x00, phys_code_start, PRO_URO);
 
 	if (verbose) {
 		printf("We have setup interrupt mode stacks!\n");

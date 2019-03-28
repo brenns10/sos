@@ -5,42 +5,43 @@ undefined_impl: sub pc, pc, #8
 
 .global swi_impl
 swi_impl:
-	stmfd sp, {r0-r12}
-	srsfd #0x13 /* supervisor */
+	/* go ahead and dump everything at the base of the user-mode stack */
+	srsfd sp!, #0x13
+	push {v1-v8}
 	bl swi
-	nop
-	sub pc, pc, #8
+	pop {v1-v8}
+	rfefd sp!
 
 .global prefetch_abort_impl
 prefetch_abort_impl:
-	stmfd sp, {r0-r12}
-	srsfd #0x17 /* abort */
+	srsfd sp!, #0x17 /* abort */
+	push {r0-r12}
 	bl prefetch_abort
-	nop
+	nop  /* infinite loop since it broke */
 	sub pc, pc, #8
 
 .global irq_impl
 irq_impl:
-	stmfd sp, {r0-r12}
-	srsfd #0x12
+	srsfd sp!, #0x12 /* irq */
+	push {r0-r12}
 	bl irq
-	nop
+	nop  /* infinite loop since irq disabled */
 	sub pc, pc, #8
 
 .global fiq_impl
 fiq_impl:
-	stmfd sp, {r0-r12}
-	srsfd #0x11
+	srsfd sp!, #0x11
+	push {r0-r12} /* lol these are probably not the right registers */
 	bl fiq
-	nop
+	nop  /* infinite loop since it what even is fiq */
 	sub pc, pc, #8
 
 .global data_abort_impl
 data_abort_impl:
-	stmfd sp, {r0-r12}
-	srsfd #0x17 /* abort */
+	srsfd sp!, #0x17 /* abort */
+	push {r0-r12}
 	bl data_abort
-	nop
+	nop  /* infinite loop since it broke */
 	sub pc, pc, #8
 
 /*
@@ -63,3 +64,31 @@ setup_stacks:
 	mov sp, a1
 	cps #0x13
 	mov pc, lr
+
+/*
+ * A "system call" whose sole purpose is to return control to the kernel, and
+ * then resume once we're resumed again.
+ */
+.global relinquish
+relinquish:
+	svc #1
+	mov pc, lr
+
+/*
+ * Start a process running, assembly helper.
+ * a1: arg to process
+ * a2: place to branch
+ * a3: stack pointer
+ */
+.global start_process_asm
+start_process_asm:
+	/* we don't need to save any state because we don't expect to return */
+
+	/* TODO reset the stack pointer, we won't need anything in the stack
+	 * from here on out */
+
+	cps #0x10
+	add lr, pc, #8  /* link register = instruction two after this */
+	mov sp, a3
+	mov pc, a2
+	b relinquish /* relinquish after for safety */
