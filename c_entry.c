@@ -18,10 +18,12 @@ void print_fault(uint32_t fsr, uint32_t far)
 				far, (fsr >> 4) & 0xF);
 		break;
 	case 0xD:
-		printf("Permission fault (section): 0x%x\n", far);
+		printf("Permission fault (section): FAR=0x%x, FSR=0x%x\n",
+				far, fsr);
 		break;
 	case 0xF:
-		printf("Permission fault (page): 0x%x\n", far);
+		printf("Permission fault (page): FAR=0x%x, FSR=0x%x\n",
+				far, fsr);
 		break;
 	default:
 		printf("Some other fault\n");
@@ -34,7 +36,7 @@ void data_abort(void)
 	uint32_t dfsr, dfar;
 	get_cpreg(dfsr, c5, 0, c0, 0);
 	get_cpreg(dfar, c6, 0, c0, 0);
-	puts("Uh-oh... data abort!\n");
+	printf("Uh-oh... data abort! DFSR=%x DFAR=%x\n", dfsr, dfar);
 	print_fault(dfsr, dfar);
 }
 
@@ -43,7 +45,7 @@ void prefetch_abort(void)
 	uint32_t fsr, far;
 	get_cpreg(fsr, c5, 0, c0, 1);
 	get_cpreg(far, c6, 0, c0, 2);
-	puts("Uh-oh... prefetch abort!\n");
+	printf("Uh-oh... prefetch abort! FSR=%x IFAR=%x\n", fsr, far);
 	print_fault(fsr, far);
 }
 
