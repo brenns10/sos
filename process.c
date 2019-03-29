@@ -21,7 +21,7 @@ struct process *create_process(process_start_t startup)
 	void *buffer = get_mapped_pages(stack_size, 0);
 	/* place the process struct at the lowest address of the buffer */
 	struct process *p = (struct process *) buffer;
-	p->context[PROC_CTX_LR] = (uint32_t)startup;
+	p->context[PROC_CTX_RET] = (uint32_t)startup;
 	/* It is very important to setup the SPSR, otherwise the CPU will stay
 	 * in SVC mode when we swap to the new process :| */
 	p->context[PROC_CTX_SPSR] = 0x10;
@@ -36,7 +36,7 @@ void start_process(struct process *p)
 	current = p;
 	printf("[kernel] start process %u\n", p->id);
 	start_process_asm(
-		(process_start_t)p->context[PROC_CTX_LR],
+		(process_start_t)p->context[PROC_CTX_RET],
 		(void*)p->context[PROC_CTX_SP]
 	);
 }
