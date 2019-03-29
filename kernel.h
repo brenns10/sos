@@ -138,7 +138,7 @@ void data_abort(void);
  */
 
 /* The "userspace code" we run in a process */
-typedef void (*process_start_t)(void*);
+typedef void (*process_start_t)(void);
 
 /**
  * This "process" is hardly a process. It runs in user mode, but shares its
@@ -152,9 +152,6 @@ struct process {
 
 	/** Global process list entry. */
 	struct list_head list;
-
-	/** Startup arg */
-	void *arg;
 
 	uint32_t id;
 };
@@ -173,11 +170,11 @@ struct process {
 #define PROC_CTX_SP 0
 
 /* Create a process with a stack. */
-struct process *create_process(process_start_t startup, void *arg);
+struct process *create_process(process_start_t startup);
 
 /* Start a process running, never return. */
 void start_process(struct process *p);
-void start_process_asm(void *arg, process_start_t startup, void *sp);
+void start_process_asm(process_start_t startup, void *sp);
 
 /* Schedule (i.e. choose and contextswitch a new process) */
 void schedule(void);

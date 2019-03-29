@@ -14,7 +14,7 @@ struct process *current;
  * take this process and either start it using start_process(), or context
  * switch it in later.
  */
-struct process *create_process(process_start_t startup, void *arg)
+struct process *create_process(process_start_t startup)
 {
 	static uint32_t pid = 0;
 	const uint32_t stack_size = 4096;
@@ -26,7 +26,6 @@ struct process *create_process(process_start_t startup, void *arg)
 	 * in SVC mode when we swap to the new process :| */
 	p->context[PROC_CTX_SPSR] = 0x10;
 	p->context[PROC_CTX_SP] = (uint32_t)buffer + stack_size;
-	p->arg = arg;
 	p->id = pid++;
 	list_insert(&process_list, &p->list);
 	return p;
@@ -37,7 +36,6 @@ void start_process(struct process *p)
 	current = p;
 	printf("[kernel] start process %u\n", p->id);
 	start_process_asm(
-		p->arg,
 		(process_start_t)p->context[PROC_CTX_LR],
 		(void*)p->context[PROC_CTX_SP]
 	);

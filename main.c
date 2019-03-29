@@ -5,7 +5,7 @@
 
 #define VERBOSE false
 
-void my_other_process(void *arg)
+void my_other_process()
 {
 	puts("[pid 1] Salutations world #1!\n");
 	relinquish();
@@ -17,7 +17,7 @@ void my_other_process(void *arg)
 	while (1) {};
 }
 
-void my_process(void* arg)
+void my_process()
 {
 	puts("[pid 0] Hello world #1!\n");
 	relinquish();
@@ -42,7 +42,7 @@ void main(uint32_t phys)
 	printf("Initializing memory...\n");
 	mem_init(phys, VERBOSE);
 
-	struct process *first = create_process(my_process, NULL);
-	struct process *second = create_process(my_other_process, NULL);
+	struct process *first = create_process(my_process);
+	struct process *second = create_process(my_other_process);
 	start_process(first);
 }
