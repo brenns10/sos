@@ -49,9 +49,14 @@ void prefetch_abort(void)
 	print_fault(fsr, far);
 }
 
-void swi(void)
+void sys_relinquish(void)
 {
-	puts("Software interrupt!\n");
+	puts("Relinquish()\n");
+}
+
+void swi(uint32_t svc_num)
+{
+	printf("ERR: unknown syscall %u!\n", svc_num);
 }
 
 void irq(void)

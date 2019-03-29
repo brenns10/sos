@@ -28,9 +28,13 @@ void start_process(struct process *p)
 
 void my_process(void* arg)
 {
-	printf("I'm a process, and now I'll syscall.\n");
+	puts("I'm a process, and now I'll syscall.\n");
 	relinquish();
-	printf("I've returned from the syscall.\n");
+	puts("I've returned from the syscall.\n");
+	sys0(SYS_RELINQUISH);
+	puts("Back again!\n");
+	sys0(1);
+	puts("oops that was not the right syscall\n");
 	while (1) {};
 }
 

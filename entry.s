@@ -5,10 +5,26 @@ undefined_impl: sub pc, pc, #8
 
 .global swi_impl
 swi_impl:
-	/* go ahead and dump everything at the base of the user-mode stack */
+	/* Dump LR and SPSR to the kernel-mode stack. */
 	srsfd sp!, #0x13
 	push {v1-v8}
-	bl swi
+
+	/* Look at the SWI instruction and get the interrupt number. */
+	ldr v1, [lr, #-4]
+	bic v1, v1, #0xFF000000
+
+	adr lr, _swi_ret           /* set our return address */
+	cmp v1, #0                 /* compare to max syscall number */
+	movhi a1, v1               /* if higher, go to generic swi() with */
+	bhi swi                    /* syscall number as arg */
+	add pc, pc, v1, lsl #2     /* branch to pc + interrupt number * 4 */
+	nop
+
+	/* SYSTEM CALL TABLE */
+	/* 0 */ b sys_relinquish
+	/* END. Please update max syscall number above. */
+
+_swi_ret:
 	pop {v1-v8}
 	rfefd sp!
 
@@ -71,7 +87,7 @@ setup_stacks:
  */
 .global relinquish
 relinquish:
-	svc #1
+	svc #0
 	mov pc, lr
 
 /*
