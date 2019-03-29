@@ -5,15 +5,27 @@
 
 #define VERBOSE false
 
+void my_other_process(void *arg)
+{
+	puts("[pid 1] Salutations world #1!\n");
+	relinquish();
+	puts("[pid 1] Salutations world #2!\n");
+	relinquish();
+	puts("[pid 1] Salutations world #3!\n");
+	relinquish();
+	puts("[pid 1] Salutations world #4!\n");
+	while (1) {};
+}
+
 void my_process(void* arg)
 {
-	puts("I'm a process, and now I'll syscall.\n");
+	puts("[pid 0] Hello world #1!\n");
 	relinquish();
-	puts("I've returned from the syscall.\n");
-	sys0(SYS_RELINQUISH);
-	puts("Back again!\n");
+	puts("[pid 0] Hello world #2!\n");
+	relinquish();
+	puts("[pid 0] Hello world #3!\n");
 	sys0(1);
-	puts("oops that was not the right syscall\n");
+	puts("[pid 0] Hello world #4! (after making incorrect syscall)\n");
 	while (1) {};
 }
 
@@ -30,9 +42,7 @@ void main(uint32_t phys)
 	printf("Initializing memory...\n");
 	mem_init(phys, VERBOSE);
 
-	printf("Done! main is %x\n", main);
-	printf("Done! start_process_asm is %x\n", start_process_asm);
-
-	struct process *p = create_process(my_process, NULL);
-	start_process(p);
+	struct process *first = create_process(my_process, NULL);
+	struct process *second = create_process(my_other_process, NULL);
+	start_process(first);
 }

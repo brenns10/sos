@@ -51,7 +51,8 @@ void prefetch_abort(void)
 
 void sys_relinquish(void)
 {
-	puts("Relinquish()\n");
+	puts("[kernel] Relinquish()\n");
+	schedule();
 }
 
 void swi(uint32_t svc_num)

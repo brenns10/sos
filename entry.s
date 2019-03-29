@@ -5,15 +5,19 @@ undefined_impl: sub pc, pc, #8
 
 .global swi_impl
 swi_impl:
-	/* Dump LR and SPSR to the kernel-mode stack. */
+	/*
+	 * Dump LR and SPSR to the kernel-mode stack.
+	 * TODO: we could even dump this directly into current_process->context
+	 */
 	srsfd sp!, #0x13
 	push {v1-v8}
 
-	/* Save sp */
+	/* Save SP_usr and LR_usr */
 	cps #0x1F  /* system */
 	mov v1, sp
+	mov v2, lr
 	cps #0x13  /* svc */
-	push {v1}
+	push {v1, v2}
 
 	/* Look at the SWI instruction and get the interrupt number. */
 	ldr v1, [lr, #-4]
@@ -31,10 +35,11 @@ swi_impl:
 	/* END. Please update max syscall number above. */
 
 _swi_ret:
-	/* Restore sp */
-	pop {v1}
+	/* Restore SP_usr and LR_usr */
+	pop {v1, v2}
 	cps #0x1F  /* system */
 	mov sp, v1
+	mov lr, v2
 	cps #0x13  /* svc */
 
 	pop {v1-v8}
@@ -110,13 +115,9 @@ relinquish:
  */
 .global start_process_asm
 start_process_asm:
-	/* we don't need to save any state because we don't expect to return */
-
 	/* reset the stack pointer cause we don't need it any more */
 	ldr sp, =stack_end
 
 	cps #0x10
-	add lr, pc, #8  /* link register = instruction two after this */
 	mov sp, a3
 	mov pc, a2
-	b relinquish /* relinquish after for safety */

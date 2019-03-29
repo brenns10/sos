@@ -14,10 +14,11 @@ Hoping to work up to a small operating system. Things that work now:
   - shared address space
   - user mode
   - single system call
+* Context switching between processes, and scheduling using a very basic round
+  robin scheduler
 
 Next steps:
 
-* Get a proof-of-concept with cooperative multi-tasking processes
 * Expose UART as a system call
 * Compile processes as separate binary files built-in to the kernel image, and
   load them into a "user address space" (while still sharing address space)

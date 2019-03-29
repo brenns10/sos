@@ -147,20 +147,30 @@ typedef void (*process_start_t)(void*);
  * simulates a process without actually doing anything.
  */
 struct process {
-
-	/** The initial stack pointer assigned to the process (not updated) */
-	uint32_t *sp;
+	/** Context kept for context switching */
+	uint32_t context[11]; /* lr + spsr + sp + v1-v8 */
 
 	/** Global process list entry. */
 	struct list_head list;
 
-	/** Startup function & arg */
-	process_start_t startup;
+	/** Startup arg */
 	void *arg;
 
-	/** Context kept for context switching */
-	uint32_t context[10]; /* lr + spsr + sp + v1-v8 */
+	uint32_t id;
 };
+
+/**
+ * Indices of important data within the process context:
+ * - LR: (link register) aka where we will return to when we resume/start the
+ *   process. This is stored by srs instruction, and it is at the lower byte
+ *   address at the top of the stack.
+ * - SPSR: saved cpsr
+ * - SP: (stack pointer) is the last thing pushed to the stack, so it's the
+ *   first item in the context array.
+ */
+#define PROC_CTX_LR 9
+#define PROC_CTX_SPSR 10
+#define PROC_CTX_SP 0
 
 /* Create a process with a stack. */
 struct process *create_process(process_start_t startup, void *arg);
