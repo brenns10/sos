@@ -24,23 +24,18 @@ void my_other_process()
 	proc_print("Salutations world #3!\n");
 	relinquish();
 
+	proc_print("And now we forever sleep\n");
 	while (1) {};
 }
 
 void my_process()
 {
-	uint32_t pid, sp;
+	uint32_t pid, sp, i;
 
-	proc_print("Hello world #1\n");
-	relinquish();
-
-	proc_print("Hello world #2\n");
-	relinquish();
-
-	proc_print("Hello world #3\n");
-	sys0(1);
-
-	proc_print("Hello world #4 (made wrong syscall)\n");
+	for (i = 0; i < 8; i++) {
+		proc_print("Hello world\n");
+		relinquish();
+	}
 
 	while (1) {};
 }
@@ -60,5 +55,6 @@ void main(uint32_t phys)
 
 	struct process *first = create_process(my_process);
 	struct process *second = create_process(my_other_process);
+	struct process *third = create_process(my_other_process);
 	start_process(first);
 }
