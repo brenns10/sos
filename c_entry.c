@@ -55,6 +55,11 @@ void sys_relinquish(void)
 	schedule();
 }
 
+void sys_display(char *buffer)
+{
+	puts(buffer);
+}
+
 void swi(uint32_t svc_num)
 {
 	printf("ERR: unknown syscall %u!\n", svc_num);

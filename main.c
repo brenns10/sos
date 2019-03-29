@@ -33,6 +33,7 @@ void my_process()
 	uint32_t pid, sp, i;
 
 	for (i = 0; i < 8; i++) {
+		sys1(SYS_DISPLAY, "Hello world, via system call!\n");
 		proc_print("Hello world\n");
 		relinquish();
 	}

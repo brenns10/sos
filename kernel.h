@@ -131,7 +131,8 @@ void data_abort(void);
  * System calls!
  */
 #define SYS_RELINQUISH 0
-#define MAX_SYS 0
+#define SYS_DISPLAY    1
+#define MAX_SYS 1
 
 /**
  * Generic system call, no args.
@@ -141,6 +142,18 @@ void data_abort(void);
 		"svc #" kern_expand_and_quote(sys_n) \
 		: /* output operands */ \
 		: /* input operands */ \
+		: /* clobbers */ "a1", "a2", "a3", "a4" \
+		)
+
+/**
+ * Generic system call, one arg.
+ */
+#define sys1(sys_n, arg1) \
+	__asm__ __volatile__ ( \
+		"mov a1, %[a1]\n" \
+		"svc #" kern_expand_and_quote(sys_n) \
+		: /* output operands */  \
+		: /* input operands */ [a1] "r" (arg1) \
 		: /* clobbers */ "a1", "a2", "a3", "a4" \
 		)
 
