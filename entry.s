@@ -9,6 +9,12 @@ swi_impl:
 	srsfd sp!, #0x13
 	push {v1-v8}
 
+	/* Save sp */
+	cps #0x1F  /* system */
+	mov v1, sp
+	cps #0x13  /* svc */
+	push {v1}
+
 	/* Look at the SWI instruction and get the interrupt number. */
 	ldr v1, [lr, #-4]
 	bic v1, v1, #0xFF000000
@@ -25,6 +31,12 @@ swi_impl:
 	/* END. Please update max syscall number above. */
 
 _swi_ret:
+	/* Restore sp */
+	pop {v1}
+	cps #0x1F  /* system */
+	mov sp, v1
+	cps #0x13  /* svc */
+
 	pop {v1-v8}
 	rfefd sp!
 

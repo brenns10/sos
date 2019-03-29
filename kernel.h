@@ -147,11 +147,19 @@ typedef void (*process_start_t)(void*);
  * simulates a process without actually doing anything.
  */
 struct process {
+
+	/** The initial stack pointer assigned to the process (not updated) */
 	uint32_t *sp;
-	struct list_head list; /* global process list */
+
+	/** Global process list entry. */
+	struct list_head list;
+
+	/** Startup function & arg */
 	process_start_t startup;
 	void *arg;
-	uint32_t context[10]; /* lr + spsr + v1-v8 */
+
+	/** Context kept for context switching */
+	uint32_t context[10]; /* lr + spsr + sp + v1-v8 */
 };
 
 /* Create a process with a stack. */
