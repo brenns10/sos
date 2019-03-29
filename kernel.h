@@ -112,6 +112,17 @@ void data_abort(void);
   : \
   )
 
+/**
+ * Load stack pointer
+ */
+#define get_sp(dst) \
+ __asm__ __volatile__ ( \
+  "mov %[rd], sp" \
+  : [rd] "=r" (dst) \
+  : \
+  : \
+  )
+
 /* macro quoting utilities */
 #define kern_quote(blah) #blah
 #define kern_expand_and_quote(blah) kern_quote(blah)

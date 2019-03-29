@@ -51,7 +51,7 @@ void prefetch_abort(void)
 
 void sys_relinquish(void)
 {
-	puts("[kernel] Relinquish()\n");
+	puts("[kernel]\t\tRelinquish()\n");
 	schedule();
 }
 

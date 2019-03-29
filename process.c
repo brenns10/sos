@@ -34,7 +34,7 @@ struct process *create_process(process_start_t startup)
 void start_process(struct process *p)
 {
 	current = p;
-	printf("[kernel] start process %u\n", p->id);
+	printf("[kernel]\t\tstart process %u\n", p->id);
 	start_process_asm(
 		(process_start_t)p->context[PROC_CTX_RET],
 		(void*)p->context[PROC_CTX_SP]
@@ -46,7 +46,7 @@ void context_switch(struct process *new_process)
 	uint32_t *context = (uint32_t *)&stack_end - nelem(current->context);
 	uint32_t i;
 
-	printf("[kernel] swap current process %u for new process %u\n",
+	printf("[kernel]\t\tswap current process %u for new process %u\n",
 			current->id, new_process->id);
 	if (new_process == current)
 		return;

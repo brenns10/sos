@@ -5,27 +5,43 @@
 
 #define VERBOSE false
 
+#define proc_print(msg) do {\
+	pid = current->id; \
+	get_sp(sp); \
+	printf("[pid=%u sp=0x%x]\t" msg, pid, sp); \
+} while (0);
+
 void my_other_process()
 {
-	puts("[pid 1] Salutations world #1!\n");
+	uint32_t pid, sp;
+
+	proc_print("Salutations world #1!\n");
 	relinquish();
-	puts("[pid 1] Salutations world #2!\n");
+
+	proc_print("Salutations world #2!\n");
 	relinquish();
-	puts("[pid 1] Salutations world #3!\n");
+
+	proc_print("Salutations world #3!\n");
 	relinquish();
-	puts("[pid 1] Salutations world #4!\n");
+
 	while (1) {};
 }
 
 void my_process()
 {
-	puts("[pid 0] Hello world #1!\n");
+	uint32_t pid, sp;
+
+	proc_print("Hello world #1\n");
 	relinquish();
-	puts("[pid 0] Hello world #2!\n");
+
+	proc_print("Hello world #2\n");
 	relinquish();
-	puts("[pid 0] Hello world #3!\n");
+
+	proc_print("Hello world #3\n");
 	sys0(1);
-	puts("[pid 0] Hello world #4! (after making incorrect syscall)\n");
+
+	proc_print("Hello world #4 (made wrong syscall)\n");
+
 	while (1) {};
 }
 
