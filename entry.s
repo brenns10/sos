@@ -100,8 +100,8 @@ relinquish:
 start_process_asm:
 	/* we don't need to save any state because we don't expect to return */
 
-	/* TODO reset the stack pointer, we won't need anything in the stack
-	 * from here on out */
+	/* reset the stack pointer cause we don't need it any more */
+	ldr sp, =stack_end
 
 	cps #0x10
 	add lr, pc, #8  /* link register = instruction two after this */

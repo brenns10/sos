@@ -45,6 +45,11 @@ struct list_head {
 void list_insert(struct list_head *head, struct list_head *item);
 
 /**
+ * Insert `item` at the end of the list.
+ */
+void list_insert_end(struct list_head *head, struct list_head *item);
+
+/**
  * Remove `item` from the list it is contained in.
  */
 void list_remove(struct list_head *item);
@@ -100,8 +105,8 @@ void list_remove(struct list_head *item);
  *
  */
 #define list_for_each_entry(var_ptr, head, field_name, container_type) \
-	for (var_ptr = container_of(head->next, container_type, field_name); \
-			&var_ptr->field_name != head; \
+	for (var_ptr = container_of((head)->next, container_type, field_name); \
+			&var_ptr->field_name != (head); \
 			var_ptr = container_of(var_ptr->field_name.next, container_type, field_name))
 
 

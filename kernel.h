@@ -9,6 +9,8 @@
 
 #include "list.h"
 
+#define nelem(x) (sizeof(x) / sizeof(x[0]))
+
 /*
  * Linker symbols for virtual memory addresses.
  */
@@ -149,6 +151,7 @@ struct process {
 	struct list_head list; /* global process list */
 	process_start_t startup;
 	void *arg;
+	uint32_t context[10]; /* lr + spsr + v1-v8 */
 };
 
 /* Create a process with a stack. */
@@ -158,5 +161,12 @@ struct process *create_process(process_start_t startup, void *arg);
 void start_process(struct process *p);
 void start_process_asm(void *arg, process_start_t startup, void *sp);
 
+/* Schedule (i.e. choose and contextswitch a new process) */
+void schedule(void);
+
 /* For processes, this is a system call to return back to the kernel. */
 void relinquish(void);
+
+/* The current process */
+extern struct process *current;
+extern struct list_head process_list;
