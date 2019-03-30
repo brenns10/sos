@@ -8,6 +8,7 @@
 #include <stdbool.h>
 
 #include "list.h"
+#include "format.h"
 
 #define nelem(x) (sizeof(x) / sizeof(x[0]))
 

@@ -6,7 +6,7 @@ AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc
 
 ASFLAGS = -g -march=armv6
-CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=armv6
+CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=armv6 -Ilib
 LDFLAGS = -nostdlib
 
 run: kernel.bin
@@ -28,13 +28,14 @@ kernel.elf: uart.o
 kernel.elf: startup.o
 kernel.elf: main.o
 kernel.elf: mem.o
-kernel.elf: format.o
 kernel.elf: sysinfo.o
 kernel.elf: pages.o
 kernel.elf: entry.o
 kernel.elf: c_entry.o
-kernel.elf: list.o
 kernel.elf: process.o
+
+kernel.elf: lib/list.o
+kernel.elf: lib/format.o
 
 %.bin: %.elf
 	$(TOOLCHAIN)objcopy -O binary $< $@
@@ -44,6 +45,4 @@ kernel.elf: process.o
 	$(TOOLCHAIN)ld -T pre_mmu.ld $^ -o pre_mmu.elf
 
 clean:
-	rm -f *.o *.elf *.bin
-
-
+	rm -f *.o *.elf *.bin lib/*.o
