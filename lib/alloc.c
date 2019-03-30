@@ -1,11 +1,15 @@
 /**
- * pages.c - manages pages of physical memory
+ * alloc.c: allocates pages of memory, physical or virtual
  */
-#include "kernel.h"
+#include "alloc.h"
 
-#define PAGE_SIZE 4096
-#define PAGE_BITS 12
 #define MAX_DESCRIPTORS 1023
+
+/**
+ * Declare this so we don't depend on any particular library providing printf,
+ * whether it's the standard library or my own printf implementation...
+ */
+extern int printf(const char *fmt, ...);
 
 /**
  * Zone descriptors manage zones of memory. The minimum zone that can be managed
@@ -26,12 +30,6 @@ struct zonehdr {
 	struct zone zones[];           /* array of zones */
 };
 
-/**
- * Set up the page list.
- * allocator: Pointer to 4096-byte page which holds allocator itself
- * start: start of range to manage
- * end: end of range to manage (exclusive)
- */
 void init_page_allocator(void *allocator, uint32_t start, uint32_t end)
 {
 	/*
@@ -63,7 +61,7 @@ void show_pages(void *allocator)
 /**
  * Move zones to the right by `to_shift` descriptors, starting at `start`.
  */
-bool shift_zones_up(struct zonehdr *hdr, int start, int to_shift)
+static bool shift_zones_up(struct zonehdr *hdr, int start, int to_shift)
 {
 	int i;
 

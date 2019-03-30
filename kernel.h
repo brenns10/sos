@@ -9,6 +9,7 @@
 
 #include "list.h"
 #include "format.h"
+#include "alloc.h"
 
 #define nelem(x) (sizeof(x) / sizeof(x[0]))
 
@@ -69,11 +70,8 @@ void mem_init(uint32_t phys, bool verbose);
 uint32_t lookup_phys(void *virt_ptr);
 
 /*
- * Page allocator routines (see pages.c for details)
+ * Wraps the virtual and physical allocators
  */
-void init_page_allocator(void *allocator, uint32_t start, uint32_t end);
-void show_pages(void *allocator);
-void *alloc_pages(void *allocator, uint32_t count, uint32_t align);
 void *get_mapped_pages(uint32_t bytes, uint32_t align);
 
 /*

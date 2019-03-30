@@ -29,13 +29,13 @@ kernel.elf: startup.o
 kernel.elf: main.o
 kernel.elf: mem.o
 kernel.elf: sysinfo.o
-kernel.elf: pages.o
 kernel.elf: entry.o
 kernel.elf: c_entry.o
 kernel.elf: process.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o
+kernel.elf: lib/alloc.o
 
 lib/%.to: lib/%.c
 	gcc -g -c $< -o $@ -Ilib/
