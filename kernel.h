@@ -133,7 +133,8 @@ void data_abort(void);
  */
 #define SYS_RELINQUISH 0
 #define SYS_DISPLAY    1
-#define MAX_SYS 1
+#define SYS_EXIT       2
+#define MAX_SYS 2
 
 /**
  * Generic system call, no args.
@@ -205,6 +206,9 @@ struct process *create_process(process_start_t startup);
 /* Start a process running, never return. */
 void start_process(struct process *p);
 void start_process_asm(process_start_t startup, void *sp);
+
+/* Remove a process from the list and free it. Must reschedule after. */
+void destroy_process(struct process *p);
 
 /* Schedule (i.e. choose and contextswitch a new process) */
 void schedule(void);

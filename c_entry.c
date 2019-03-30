@@ -60,6 +60,18 @@ void sys_display(char *buffer)
 	puts(buffer);
 }
 
+void sys_exit(uint32_t code)
+{
+	printf("[kernel]\t\tProcess %u exited with code %u.\n", current->id, code);
+	destroy_process(current);
+	/*
+	 * Mark current AS null for schedule(), to inform it that we can't
+	 * continue running this even if there are no other options.
+	 */
+	current = NULL;
+	schedule();
+}
+
 void swi(uint32_t svc_num)
 {
 	printf("ERR: unknown syscall %u!\n", svc_num);

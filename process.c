@@ -16,7 +16,7 @@ struct process *current;
  */
 struct process *create_process(process_start_t startup)
 {
-	static uint32_t pid = 0;
+	static uint32_t pid = 1;
 	const uint32_t stack_size = 4096;
 	void *buffer = get_mapped_pages(stack_size, 0);
 	/* place the process struct at the lowest address of the buffer */
@@ -29,6 +29,12 @@ struct process *create_process(process_start_t startup)
 	p->id = pid++;
 	list_insert(&process_list, &p->list);
 	return p;
+}
+
+void destroy_process(struct process *proc)
+{
+	list_remove(&proc->list);
+	/* TODO: free the process data */
 }
 
 void start_process(struct process *p)
@@ -47,13 +53,17 @@ void context_switch(struct process *new_process)
 	uint32_t i;
 
 	printf("[kernel]\t\tswap current process %u for new process %u\n",
-			current->id, new_process->id);
+			current ? current->id : 0, new_process->id);
 	if (new_process == current)
 		return;
 
-	/* Save current context to the current process struct. */
-	for (i = 0; i < nelem(current->context); i++) {
-		current->context[i] = context[i];
+	/* save current context if the process is alive */
+	if (current)
+		for (i = 0; i < nelem(current->context); i++)
+			current->context[i] = context[i];
+
+	/* load new context */
+	for (i = 0; i < nelem(new_process->context); i++) {
 		context[i] = new_process->context[i];
 	}
 
@@ -67,6 +77,7 @@ void context_switch(struct process *new_process)
 void schedule(void)
 {
 	struct process *iter, *chosen=NULL;
+
 	list_for_each_entry(iter, &process_list, list, struct process) {
 		if (iter != current) {
 			chosen = iter;
@@ -74,12 +85,25 @@ void schedule(void)
 		}
 	}
 
-	/* a new process is chosen, move it to the end to give other processes a
-	 * chance (round robin scheduler) */
 	if (chosen) {
+		/*
+		 * A new process is chosen, move it to the end to give other
+		 * processes a chance (round robin scheduler).
+		 */
 		list_remove(&chosen->list);
 		list_insert_end(&process_list, &chosen->list);
 
 		context_switch(chosen);
+	} else if (current) {
+		/*
+		 * There are no other options, continue executing this.
+		 */
+		return;
+	} else {
+		/*
+		 * No remaining processes, do an infinite loop.
+		 */
+		printf("[kernel]\t\tNo processes remain.\n");
+		while (1){};
 	}
 }

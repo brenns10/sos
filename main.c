@@ -24,8 +24,7 @@ void my_other_process()
 	proc_print("Salutations world #3!\n");
 	relinquish();
 
-	proc_print("And now we forever sleep\n");
-	while (1) {};
+	sys1(SYS_EXIT, 1);
 }
 
 void my_process()
@@ -38,7 +37,7 @@ void my_process()
 		relinquish();
 	}
 
-	while (1) {};
+	sys1(SYS_EXIT, 0);
 }
 
 void main(uint32_t phys)
