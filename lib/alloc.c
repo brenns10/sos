@@ -60,6 +60,9 @@ void show_pages(void *allocator)
 
 /**
  * Move zones to the right by `to_shift` descriptors, starting at `start`.
+ * This can fail if there's not enough room. Theoretically, we have a spot in
+ * the zonehdr to point to a new page to store more zones, but hell if I'm going
+ * to implement that.
  */
 static bool shift_zones_up(struct zonehdr *hdr, int start, int to_shift)
 {
@@ -71,6 +74,110 @@ static bool shift_zones_up(struct zonehdr *hdr, int start, int to_shift)
 	for (i = hdr->count - 1; i >= start; i--)
 		hdr->zones[i + to_shift] = hdr->zones[i];
 
+	hdr->count += to_shift;
+	return true;
+}
+
+static void shift_zones_down(struct zonehdr *hdr, int dst, int to_shift)
+{
+	int i;
+
+	for (i = dst; i < hdr->count - to_shift; i++)
+		hdr->zones[i] = hdr->zones[i + to_shift];
+
+	hdr->count -= to_shift;
+}
+
+/**
+ * Change the allocation status of region `exact` of length `count` within the
+ * (potentially larger) region `region`.
+ */
+static bool change_status(
+	struct zonehdr *hdr, uint32_t exact, uint32_t count, uint32_t region,
+	uint32_t index, int status
+)
+{
+	int to_insert = 0;
+	uint32_t next = 0;
+
+	bool have_left_zone = (index > 0);
+	bool have_right_zone = (index < hdr->count - 1);
+	bool exact_on_left=false, exact_on_right=false;
+
+	if (have_right_zone) {
+		next = hdr->zones[index+1].addr << PAGE_BITS;
+		exact_on_right = (exact + count == next);
+	}
+	exact_on_left = (region == exact);
+
+	if (exact_on_left && exact_on_right) {
+		/* there must be a right zone */
+		if (have_left_zone) {
+			/*
+			 * aaa  BBB  aaa
+			 *
+			 * We delete the last two and shift everything after
+			 * down by two:
+			 *
+			 * aaaAAAaaa
+			 */
+			shift_zones_down(hdr, index, 2);
+		} else {
+			/*
+			 * BBB aaa
+			 *
+			 * Shift everything down by one and modify the AAA zone
+			 * to have our exact left address:
+			 *
+			 * AAAAAA
+			 */
+			shift_zones_down(hdr, index, 1);
+			hdr->zones[index].addr = (exact>>PAGE_BITS);
+		}
+	} else if (exact_on_left) {
+		/*
+		 * ?a? BBBbb (aaa)
+		 *
+		 * We move the current zone up to (exact+count). If
+		 * there's a left zone, we're set. Otherwise, we insert
+		 * one and set it to the correct status. We don't care if
+		 * there's a right zone.
+		 *
+		 * ?a?AAA bb AAA
+		 */
+		if (have_left_zone) {
+			hdr->zones[index].addr = ((exact+count)>>PAGE_BITS);
+		} else {
+			if (!shift_zones_up(hdr, index, 1))
+				return false;
+			hdr->zones[index+1].addr = ((exact+count)>>PAGE_BITS);
+			hdr->zones[index].free = status;
+		}
+	} else if (exact_on_right) {
+		/*
+		 * ?a? bbBBB aaa
+		 *
+		 * We know there's a right zone, we just slide that one down.
+		 *
+		 * ?a? bb AAAaaa
+		 */
+		hdr->zones[index+1].addr = (exact>>PAGE_BITS);
+	} else {
+		/*
+		 * ?a? bbBBBbb ?a?
+		 *
+		 * We must shift up two, insert a descriptor for the new AAA
+		 * zone, and a descriptor for the right side bb zone.
+		 *
+		 * ?a? bb AAA bb ?a?
+		 */
+		if (!shift_zones_up(hdr, index, 2))
+			return false;
+		hdr->zones[index+1].addr = (exact >> PAGE_BITS);
+		hdr->zones[index+1].free = status;
+		hdr->zones[index+2].addr = ((exact+count) >> PAGE_BITS);
+		hdr->zones[index+2].free = hdr->zones[index].free;
+	}
 	return true;
 }
 
@@ -84,11 +191,11 @@ static bool shift_zones_up(struct zonehdr *hdr, int start, int to_shift)
  * return: physical pointer to contiguous pages
  *   NULL if the memory could not be allocated
  */
-void *alloc_pages(void *allocator, uint32_t count, uint32_t align)
+uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align)
 {
 	uint32_t i, align_mask, zone, alignzone, next;
-	int to_insert;
 	struct zonehdr *hdr = (struct zonehdr*) allocator;
+	bool result = false;
 
 	/* threshold alignment between PAGE_BITS <= align <= 32 */
 	align = (align < PAGE_BITS ? PAGE_BITS : align);
@@ -112,43 +219,31 @@ void *alloc_pages(void *allocator, uint32_t count, uint32_t align)
 			continue;
 		}
 
-		/*
-		 * At this point we have:
-		 *   zone: beginning of free zone
-		 *   alignzone: beginning of area we'll allocate
-		 *   alignzone + count: start of next free zone
-		 * Further, we know the allocation will fit within the zone.
-		 * Finally, we know the zones on either side of this one MUST
-		 * NOT be free (otherwise, they would be merged with this zone).
-		 *
-		 * Either the allocation fits perfectly, or we have created
-		 * "free zone holes" on either (or both) side of this zone.
-		 */
-		to_insert = 0;
-		if (zone != alignzone)
-			to_insert += 1;
-		if (alignzone + count != next)
-			to_insert += 1;
-
-		/* Shift zone descriptors over, or fail. */
-		if (!shift_zones_up(hdr, i, to_insert))
-			continue;
-
-		if (zone != alignzone) {
-			hdr->zones[i].addr = zone >> PAGE_BITS;
-			hdr->zones[i].free = 1;
-			i += 1;
+		result = change_status(
+			hdr, alignzone, count, zone, i, 0
+		);
+		if (result) {
+			return alignzone;
 		}
-		hdr->zones[i].addr = alignzone >> PAGE_BITS;
-		hdr->zones[i].free = 0;
-		i += 1;
-		if (alignzone + count != next) {
-			hdr->zones[i].addr = (alignzone + count) >> PAGE_BITS;
-			hdr->zones[i].free = 1;
-		}
-		hdr->count += to_insert;
-		return (void*) alignzone;
 	}
 
-	return NULL;
+	return 0;
 }
+
+bool free_pages(void *allocator, uint32_t start, uint32_t count)
+{
+	uint32_t i, addr;
+	struct zonehdr *hdr = (struct zonehdr *)allocator;
+
+	for (i = 0; i < hdr->count; i++) {
+		addr = hdr->zones[i].addr << PAGE_BITS;
+		if (start >= addr) {
+			/* TODO check whether this actually fits in the zone
+			 */
+			return change_status(
+				hdr, start, count, addr, i, 1);
+		}
+	}
+	return false;
+}
+

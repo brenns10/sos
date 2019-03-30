@@ -35,4 +35,4 @@ void show_pages(void *allocator);
  * return: physical pointer to contiguous pages
  *   NULL if the memory could not be allocated
  */
-void *alloc_pages(void *allocator, uint32_t count, uint32_t align);
+uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align);

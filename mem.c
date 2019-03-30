@@ -214,8 +214,8 @@ void print_first_level(uint32_t *base)
  */
 void *get_mapped_pages(uint32_t bytes, uint32_t align)
 {
-	void *virt = alloc_pages(kern_virt_allocator, bytes, align);
-	uint32_t phys = (uint32_t) alloc_pages(phys_allocator, bytes, 0);
+	void *virt = (void*)alloc_pages(kern_virt_allocator, bytes, align);
+	uint32_t phys = alloc_pages(phys_allocator, bytes, 0);
 	map_pages(first_level_table, (uint32_t) virt, phys, bytes, PRW_URW | EXECUTE_NEVER);
 	return virt;
 }
@@ -271,7 +271,7 @@ void mem_init(uint32_t phys, bool verbose)
 	 * Now that we have our allocators, let's allocate some virtual memory
 	 * to map the UART at.
 	 */
-	new_uart = (uint32_t) alloc_pages(kern_virt_allocator, 0x1000, 0);
+	new_uart = alloc_pages(kern_virt_allocator, 0x1000, 0);
 	if (verbose)
 		printf("Old UART was 0x%x, new will be 0x%x\n", uart_base, new_uart);
 	map_page(first_level_table, new_uart, uart_base, PRW_URW | EXECUTE_NEVER);
