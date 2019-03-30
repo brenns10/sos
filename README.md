@@ -35,6 +35,11 @@ and then use the commands below:
     # (in another terminal)
     make gdb
 
+If you want to run the tests (yes there are tests for some things), run the
+following: (no need for qemu or special toolchains)
+
+    make test
+
 
 Resources
 ---------

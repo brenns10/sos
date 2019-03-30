@@ -1,4 +1,4 @@
-.PHONY: clean debug run gdb
+.PHONY: clean debug run gdb test
 
 QEMU = qemu-system-arm -M virt
 TOOLCHAIN = arm-none-eabi-
@@ -37,6 +37,17 @@ kernel.elf: process.o
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o
 
+lib/%.to: lib/%.c
+	gcc -g -c $< -o $@ -Ilib/
+tests/%.to: tests/%.c
+	gcc -g -c $< -o $@ -Ilib/
+
+tests/test_list: tests/test_list.to lib/list.to lib/unittest.to
+	gcc -o $@ $^
+
+test: tests/test_list
+	@tests/test_list
+
 %.bin: %.elf
 	$(TOOLCHAIN)objcopy -O binary $< $@
 
@@ -45,4 +56,4 @@ kernel.elf: lib/format.o
 	$(TOOLCHAIN)ld -T pre_mmu.ld $^ -o pre_mmu.elf
 
 clean:
-	rm -f *.o *.elf *.bin lib/*.o
+	rm -f *.o *.elf *.bin lib/*.o test/*.to lib/*.to
