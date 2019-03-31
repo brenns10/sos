@@ -75,6 +75,11 @@ uint32_t lookup_phys(void *virt_ptr);
 void *get_mapped_pages(uint32_t bytes, uint32_t align);
 
 /*
+ * Free what was returned by get_mapped_pages()
+ */
+void free_mapped_pages(void *virt_ptr, uint32_t len);
+
+/*
  * System info debugging command (see sysinfo.c for details)
  */
 void sysinfo(void);

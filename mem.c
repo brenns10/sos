@@ -129,31 +129,97 @@ void map_pages(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t len, uint3
 		map_page(base, virt + i, phys + i, attrs);
 }
 
+bool unmap_second(uint32_t *second, uint32_t start, uint32_t len)
+{
+	uint32_t i;
+	uint32_t base = (start >> 12) & 0xFF;
+	uint32_t num_descriptors = (len >> 12) & 0xFF;
+	for (i = base; i < base + num_descriptors; i++) {
+		second[i] = 0;
+	}
+
+	/*
+	 * For cleanliness, we now check if all second level descriptors are now
+	 * unmapped. If so, return true that we can unmap the first level block.
+	 */
+	for (i = 0; i < 256; i++)
+		if (second[i] & SLD_MASK != SLD_UNMAPPED)
+			return false;
+	return true;
+}
+
 /**
  * Unmap pages beginning at start, for a total length of len.
- * NOTE: currently, start must be aligned to 1 MB, and len must be in increments
- * of 1MB. This will likely change, but right now I'm lazy.
  */
 void unmap_pages(uint32_t *base, uint32_t start, uint32_t len)
 {
-	uint32_t idx;
-	idx = start >> 20;
+	/*
+	 * First, unmap any second level descriptors before the first 1MB
+	 * boundary, if there are any.
+	 */
+	if (start & bot_n_bits(20)) {
+		uint32_t first_idx = start >> 20;
+		uint32_t to_unmap;
+		uint32_t next_mb = (start & top_n_bits(12)) + (1 << 20);
+		uint32_t *second = second_level_table + (first_idx * 1024);
+		if (next_mb - start < len)
+			to_unmap = next_mb - start;
+		else
+			to_unmap = len;
+		if (unmap_second(second, start, to_unmap)) {
+			base[first_idx] &= ~FLD_MASK;
+			base[first_idx] |= FLD_UNMAPPED;
+		}
+		len -= to_unmap;
+		start = next_mb;
+	}
+
+	/*
+	 * Next, unmap all 1MB regions, if there are any. We erase their
+	 * second-level tables too, for safety, but it's not really necessary,
+	 * because map_pages() will erase them when in re-maps a 1MB block.
+	 */
 	while (len > 0x00100000) {
+		uint32_t idx = start >> 20;
 		if ((base[idx] & FLD_MASK) != FLD_UNMAPPED) {
 			base[idx] &= ~FLD_MASK;
 			base[idx] |= FLD_UNMAPPED; /* noop actually */
 			init_second_level(
 				second_level_table + (idx * 1024));
 		}
-		len -= 0x00100000;
-		idx += 1;
+		len -= 1 << 20;
+		start += 1 << 20;
+	}
+
+	/*
+	 * Finally, unmap any second-level descriptors after the last 1MB block,
+	 * if there are any.
+	 */
+	if (len) {
+		uint32_t first_idx = start >> 20;
+		uint32_t *second = second_level_table + (first_idx * 1024);
+		if (unmap_second(second, start, len)) {
+			base[first_idx] &= ~FLD_MASK;
+			base[first_idx] |= FLD_UNMAPPED;
+		}
 	}
 }
 
-void print_second_level(uint32_t virt_base, uint32_t *second)
+/**
+ * Print out second level table entries.
+ * second: pointer to the second level table
+ * start: first virtual address to print entries for
+ * end: last virtual address to print entries for (may be outside of range)
+ *
+ * For start and end, we really only care about the middle bits that determine
+ * which second level descriptor to use.
+ */
+void print_second_level(uint32_t *second, uint32_t start, uint32_t end)
 {
-	uint32_t i;
-	for (i = 0; i < 256; i++) {
+	uint32_t virt_base = start & top_n_bits(12);
+	uint32_t i = (start >> 12) & 0xFF;
+
+	while (start < end && i < 256) {
 		switch (second[i] & SLD_MASK) {
 			case SLD_LARGE:
 				printf("\t0x%x: 0x%x (large)\n",
@@ -172,14 +238,20 @@ void print_second_level(uint32_t virt_base, uint32_t *second)
 					(second[i] & (1 << 9)) ? 1 : 0
 				);
 				break;
+			default:
+				printf("\t0x%x: unmapped\n", virt_base + (i<<12));
 		}
+		i += 1;
+		start = virt_base | (i << 12);
 	}
 }
 
-void print_first_level(uint32_t *base)
+void print_first_level(uint32_t start, uint32_t stop)
 {
-	uint32_t i;
-	for (i = 0; i < 4096; i++) {
+	uint32_t *base = first_level_table;
+	uint32_t i = start >> 20;
+	uint32_t stop_idx = stop >> 20;
+	while (i <= stop_idx) {
 		switch (base[i] & FLD_MASK) {
 			case FLD_SECTION:
 				printf("0x%x: 0x%x (section), domain=%u\n",
@@ -195,14 +267,16 @@ void print_first_level(uint32_t *base)
 					(base[i] >> 5) & 0xF
 				);
 				print_second_level(
-					i << 20,
-					second_level_table + (i * 1024)
+					second_level_table + (i * 1024),
+					start, stop
 				);
 				break;
 			case FLD_UNMAPPED:
 			default:
 				break;
 		}
+		i += 1;
+		start = i << 20;
 	}
 }
 
@@ -220,9 +294,30 @@ void *get_mapped_pages(uint32_t bytes, uint32_t align)
 	return virt;
 }
 
+/**
+ * Free memory which was allocated via get_mapped_pages. This involves:
+ * 1. Determine the physical address, we can do this via a software page table
+ *    walk.
+ * 2. Free the memory segments from the physical and virtual allocators.
+ * 3. Unmap the virtual memory range.
+ *
+ * virt_ptr: virtual address pointer (must be page aligned)
+ * len: length (must be page aligned)
+ */
+void free_mapped_pages(void *virt_ptr, uint32_t len)
+{
+	uint32_t phys = lookup_phys(virt_ptr);
+	uint32_t virt = (uint32_t) virt_ptr;
+
+	free_pages(phys_allocator, phys, len);
+	free_pages(kern_virt_allocator, virt, len);
+
+	unmap_pages(first_level_table, virt, len);
+}
+
 void mem_init(uint32_t phys, bool verbose)
 {
-	uint32_t new_uart;
+	uint32_t new_uart, old_uart;
 	void *stack;
 	/*
 	 * First, setup some global well-known variables to help ourselves out.
@@ -272,8 +367,9 @@ void mem_init(uint32_t phys, bool verbose)
 	 * to map the UART at.
 	 */
 	new_uart = alloc_pages(kern_virt_allocator, 0x1000, 0);
+	old_uart = uart_base;
 	if (verbose)
-		printf("Old UART was 0x%x, new will be 0x%x\n", uart_base, new_uart);
+		printf("Old UART was 0x%x, new will be 0x%x\n", old_uart, new_uart);
 	map_page(first_level_table, new_uart, uart_base, PRW_URW | EXECUTE_NEVER);
 	uart_base = new_uart;
 
@@ -283,8 +379,11 @@ void mem_init(uint32_t phys, bool verbose)
 	}
 
 	/*
-	 * TODO: unmap the old code identity mapping and UART identity mapping
+	 * Here we unmap the old physical code locations, and the old UART
+	 * location.
 	 */
+	unmap_pages(first_level_table, phys_code_start, phys_dynamic - phys_code_start);
+	unmap_pages(first_level_table, old_uart, 0x1000);
 
 	/*
 	 * At this point, we can adjust the flags on the code to be read-only,
@@ -312,6 +411,6 @@ void mem_init(uint32_t phys, bool verbose)
 
 	if (verbose) {
 		printf("We have setup interrupt mode stacks!\n");
-		/*print_first_level(first_level_table);*/
+		/*print_first_level(0, 0xFFFFFFFF);*/
 	}
 }

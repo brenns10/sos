@@ -6,6 +6,8 @@
 struct list_head process_list;
 struct process *current;
 
+#define stack_size 4096
+
 /**
  * Create a process.
  *
@@ -17,7 +19,6 @@ struct process *current;
 struct process *create_process(process_start_t startup)
 {
 	static uint32_t pid = 1;
-	const uint32_t stack_size = 4096;
 	void *buffer = get_mapped_pages(stack_size, 0);
 	/* place the process struct at the lowest address of the buffer */
 	struct process *p = (struct process *) buffer;
@@ -33,8 +34,9 @@ struct process *create_process(process_start_t startup)
 
 void destroy_process(struct process *proc)
 {
+	printf("[kernel]\t\tdestroy process %u (p=0x%x)\n", proc->id, proc);
 	list_remove(&proc->list);
-	/* TODO: free the process data */
+	free_mapped_pages(proc, stack_size);
 }
 
 void start_process(struct process *p)
