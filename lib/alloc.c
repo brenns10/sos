@@ -2,6 +2,7 @@
  * alloc.c: allocates pages of memory, physical or virtual
  */
 #include "alloc.h"
+#include "alloc_private.h"
 
 #define MAX_DESCRIPTORS 1023
 
@@ -10,25 +11,6 @@
  * whether it's the standard library or my own printf implementation...
  */
 extern int printf(const char *fmt, ...);
-
-/**
- * Zone descriptors manage zones of memory. The minimum zone that can be managed
- * by this mechanism is one 4096-byte page.
- *
- * Zone descriptors are kept in a sorted array (the zonelist), which may
- * dynamically expand and contract as needed. Each entry in the array is 4
- * bytes, containing the start address of the zone.
- */
-struct zone {
-	unsigned int addr : 20;        /* last 12 bits do not matter */
-	unsigned int _unallocated: 11; /* reserved for other uses */
-	unsigned int free : 1;         /* boolean */
-};
-struct zonehdr {
-	unsigned int next : 22;        /* last 10 bits do not matter */
-	unsigned int count : 10;       /* number of zone structs */
-	struct zone zones[];           /* array of zones */
-};
 
 void init_page_allocator(void *allocator, uint32_t start, uint32_t end)
 {
@@ -120,6 +102,8 @@ static bool change_status(
 			 * down by two:
 			 *
 			 * aaaAAAaaa
+			 *
+			 * (test_free)
 			 */
 			shift_zones_down(hdr, index, 2);
 		} else {
@@ -214,7 +198,7 @@ uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align)
 		}
 
 		next = hdr->zones[i + 1].addr << PAGE_BITS;
-		if (alignzone + count >= next) {
+		if (alignzone + count > next) {
 			/* can't satisfy alignment and/or size in zone */
 			continue;
 		}
@@ -232,14 +216,17 @@ uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align)
 
 bool free_pages(void *allocator, uint32_t start, uint32_t count)
 {
-	uint32_t i, addr;
+	uint32_t i, addr, next;
 	struct zonehdr *hdr = (struct zonehdr *)allocator;
 
 	for (i = 0; i < hdr->count; i++) {
 		addr = hdr->zones[i].addr << PAGE_BITS;
 		if (start >= addr) {
-			/* TODO check whether this actually fits in the zone
-			 */
+			if (i+1 < hdr->count) {
+				next = hdr->zones[i+1].addr << PAGE_BITS;
+				if (start + count > next)
+					return false;
+			}
 			return change_status(
 				hdr, start, count, addr, i, 1);
 		}

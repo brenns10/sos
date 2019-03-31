@@ -9,6 +9,8 @@ ASFLAGS = -g -march=armv6
 CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=armv6 -Ilib
 LDFLAGS = -nostdlib
 
+TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g
+
 run: kernel.bin
 	@echo Running. Exit with Ctrl-A X
 	@echo
@@ -38,18 +40,20 @@ kernel.elf: lib/format.o
 kernel.elf: lib/alloc.o
 
 lib/%.to: lib/%.c
-	gcc -g -c $< -o $@ -Ilib/
+	gcc $(TEST_CFLAGS) -g -c $< -o $@ -Ilib/
 tests/%.to: tests/%.c
-	gcc -g -c $< -o $@ -Ilib/
+	gcc $(TEST_CFLAGS) -g -c $< -o $@ -Ilib/
 
 tests/test_list: tests/test_list.to lib/list.to lib/unittest.to
-	gcc -o $@ $^
+	gcc $(TEST_CFLAGS) -o $@ $^
 tests/test_alloc: tests/test_alloc.to lib/alloc.to lib/unittest.to
-	gcc -o $@ $^
+	gcc $(TEST_CFLAGS) -o $@ $^
 
 test: tests/test_list tests/test_alloc
+	rm -f cov*.html *.gcda lib/*.gcda tests/*.gcda
 	@tests/test_list
 	@tests/test_alloc
+	gcovr -r . --html --html-details -o cov.html lib/ tests/
 
 %.bin: %.elf
 	$(TOOLCHAIN)objcopy -O binary $< $@

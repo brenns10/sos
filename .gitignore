@@ -3,3 +3,9 @@
 *.o
 *.swp
 *.to
+*.gcda
+*.gcno
+cov*.html
+
+tests/test_alloc
+tests/test_list
