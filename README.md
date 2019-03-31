@@ -6,23 +6,27 @@ Hoping to work up to a small operating system. Things that work now:
 
 * Using the UART to print to the console
 * Basic string formatting to the UART
-* MMU enabled in assembly, and can be re-configured in C
-* Memory allocators for physical and virtual address spaces
+* MMU enabled in assembly, and can be re-configured in C (both mapping and
+  unmapping memory)
+* Memory allocators for physical and virtual address spaces, which are able to
+  allocate AND free memory (sounds stupid to mention that but freeing memory is
+  actually very hard).
 * Interrupt handling (simply reporting faults to UART, etc)
 * "Processes" with:
   - separate stacks
   - shared address space
   - user mode
-  - single system call
 * Context switching between processes, and scheduling using a very basic round
   robin scheduler
+* System calls:
+  - relinquish() for cooperative multi-tasking
+  - display() for printing to the UART
 
 Next steps:
 
-* Expose UART as a system call
 * Compile processes as separate binary files built-in to the kernel image, and
   load them into a "user address space" (while still sharing address space)
-* Separate address spaces per-process
+* Separate address spaces per-process - this will be very involved
 
 If you want to work with the code, you can install qemu, the arm eabi toolchain,
 and then use the commands below:
