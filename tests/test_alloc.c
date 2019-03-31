@@ -139,12 +139,14 @@ void test_free(struct unittest *test)
 	 * Test that freeing works in a basic scenario
 	 */
 	uint32_t allocated;
+	bool result;
 	
 	init(test);
 	allocated = alloc_pages(allocator, PAGE_SIZE, 0);
 	UNITTEST_EXPECT_EQ(test, allocated, 0x1000);
 
-	free_pages(allocator, allocated, PAGE_SIZE);
+	result = free_pages(allocator, allocated, PAGE_SIZE);
+	UNITTEST_EXPECT_EQ(test, result, true);
 
 	struct zone zones[] = {
 		ZONE(0x1000, FREE),
@@ -152,6 +154,50 @@ void test_free(struct unittest *test)
 		{}
 	};
 	expect_zones(test, zones);
+}
+
+void test_free_after_free_region(struct unittest *test)
+{
+	/*
+	 * Test freeing when it's not the first region in the list.
+	 */
+	uint32_t allocated;
+	bool result;
+	
+	init(test);
+	/* should get 0x2000 - 0x6000 */
+	allocated = alloc_pages(allocator, PAGE_SIZE * 4, PAGE_BITS + 1);
+	UNITTEST_EXPECT_EQ(test, allocated, 0x2000);
+
+	result = free_pages(allocator, 0x3000, PAGE_SIZE);
+	UNITTEST_EXPECT_EQ(test, result, true);
+
+	result = free_pages(allocator, 0x5000, PAGE_SIZE);
+	UNITTEST_EXPECT_EQ(test, result, true);
+
+	struct zone zones[] = {
+		ZONE(0x1000, FREE),
+		ZONE(0x2000, ALLOC),
+		ZONE(0x3000, FREE),
+		ZONE(0x4000, ALLOC),
+		ZONE(0x5000, FREE),
+		ZONE(0x100000, ALLOC),
+		{}
+	};
+	expect_zones(test, zones);
+
+	result = free_pages(allocator, 0x4000, PAGE_SIZE);
+	UNITTEST_EXPECT_EQ(test, result, true);
+
+	result = free_pages(allocator, 0x2000, PAGE_SIZE);
+	UNITTEST_EXPECT_EQ(test, result, true);
+
+	struct zone final_zones[] = {
+		ZONE(0x1000, FREE),
+		ZONE(0x100000, ALLOC),
+		{}
+	};
+	expect_zones(test, final_zones);
 }
 
 void test_alloc_whole_thing(struct unittest *test)
@@ -236,6 +282,21 @@ void test_unsatisfiable_free(struct unittest *test)
 	expect_zones(test, zones);
 }
 
+void test_free_already_freed(struct unittest *test)
+{
+	bool result;
+	init(test);
+	result = free_pages(allocator, 0x1000, 0x1000);
+	UNITTEST_EXPECT_EQ(test, result, false);
+
+	struct zone zones[] = {
+		ZONE(0x1000, FREE),
+		ZONE(0x100000, ALLOC),
+		{}
+	};
+	expect_zones(test, zones);
+}
+
 struct unittest_case cases[] = {
 	UNITTEST_CASE(test_first_fit),
 	UNITTEST_CASE(test_combine_adjacent),
@@ -243,10 +304,12 @@ struct unittest_case cases[] = {
 	UNITTEST_CASE(test_skip_hole),
 	UNITTEST_CASE(test_exact_hole),
 	UNITTEST_CASE(test_free),
+	UNITTEST_CASE(test_free_after_free_region),
 	UNITTEST_CASE(test_alloc_whole_thing),
 	UNITTEST_CASE(test_free_exact_on_right_but_not_left),
 	UNITTEST_CASE(test_unsatisfiable_allocation),
 	UNITTEST_CASE(test_unsatisfiable_free),
+	UNITTEST_CASE(test_free_already_freed),
 	{0}
 };
 

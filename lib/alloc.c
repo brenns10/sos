@@ -217,19 +217,31 @@ uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align)
 bool free_pages(void *allocator, uint32_t start, uint32_t count)
 {
 	uint32_t i, addr, next;
+	bool has_next;
 	struct zonehdr *hdr = (struct zonehdr *)allocator;
 
 	for (i = 0; i < hdr->count; i++) {
 		addr = hdr->zones[i].addr << PAGE_BITS;
-		if (start >= addr) {
-			if (i+1 < hdr->count) {
-				next = hdr->zones[i+1].addr << PAGE_BITS;
-				if (start + count > next)
-					return false;
-			}
-			return change_status(
-				hdr, start, count, addr, i, 1);
-		}
+		has_next = i+1 < hdr->count;
+
+		/* Trying to free a region from before the allocator's memory. */
+		if (addr > start)
+			return false;
+
+		/* Compute next */
+		if (has_next)
+			next = hdr->zones[i+1].addr << PAGE_BITS;
+
+		/* If the zone doesn't fit within this block, continue */
+		if (has_next && start + count > next)
+			continue;
+
+		/* already freed, or never even allocated */
+		if (hdr->zones[i].free)
+			return false;
+
+		return change_status(
+			hdr, start, count, addr, i, 1);
 	}
 	return false;
 }
