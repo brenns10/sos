@@ -11,35 +11,6 @@
 	printf("[pid=%u sp=0x%x]\t" msg, pid, sp); \
 } while (0);
 
-void my_other_process()
-{
-	uint32_t pid, sp;
-
-	proc_print("Salutations world #1!\n");
-	relinquish();
-
-	proc_print("Salutations world #2!\n");
-	relinquish();
-
-	proc_print("Salutations world #3!\n");
-	relinquish();
-
-	sys1(SYS_EXIT, 1);
-}
-
-void my_process()
-{
-	uint32_t pid, sp, i;
-
-	for (i = 0; i < 8; i++) {
-		sys1(SYS_DISPLAY, "Hello world, via system call!\n");
-		proc_print("Hello world\n");
-		relinquish();
-	}
-
-	sys1(SYS_EXIT, 0);
-}
-
 void main(uint32_t phys)
 {
 	puts("Hello world!\n");
@@ -52,9 +23,6 @@ void main(uint32_t phys)
 
 	printf("Initializing memory...\n");
 	mem_init(phys, VERBOSE);
+	printf("Done!\n");
 
-	struct process *first = create_process(my_process);
-	struct process *second = create_process(my_other_process);
-	struct process *third = create_process(my_other_process);
-	start_process(first);
 }

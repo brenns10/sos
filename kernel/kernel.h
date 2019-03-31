@@ -127,41 +127,6 @@ void data_abort(void);
   : \
   )
 
-/* macro quoting utilities */
-#define kern_quote(blah) #blah
-#define kern_expand_and_quote(blah) kern_quote(blah)
-
-/*
- * System calls!
- */
-#define SYS_RELINQUISH 0
-#define SYS_DISPLAY    1
-#define SYS_EXIT       2
-#define MAX_SYS 2
-
-/**
- * Generic system call, no args.
- */
-#define sys0(sys_n) \
-	__asm__ __volatile__ ( \
-		"svc #" kern_expand_and_quote(sys_n) \
-		: /* output operands */ \
-		: /* input operands */ \
-		: /* clobbers */ "a1", "a2", "a3", "a4" \
-		)
-
-/**
- * Generic system call, one arg.
- */
-#define sys1(sys_n, arg1) \
-	__asm__ __volatile__ ( \
-		"mov a1, %[a1]\n" \
-		"svc #" kern_expand_and_quote(sys_n) \
-		: /* output operands */  \
-		: /* input operands */ [a1] "r" (arg1) \
-		: /* clobbers */ "a1", "a2", "a3", "a4" \
-		)
-
 /*
  * Processes!
  */

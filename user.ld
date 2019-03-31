@@ -8,22 +8,16 @@
  */
 ENTRY(_start)
 SECTIONS {
-	. = 0x00000000;
+	. = 0x20000000;
 	code_start = .;
 	.startup . : {
-		kernel/startup.o(*)
+		user/startup.o(*)
 	}
-	.entry . : {
-		kernel/entry.o(*)
-	}
-	ASSERT(. < 0xC0001000, "more than one page of memory for startup + ISR")
 	.text . : {
 		*(.text)
 	}
 	code_end = .;
 
-	/* data on separate page to allow enforcing execute never */
-	. = ALIGN(0x1000);
 	data_start = .;
 	.rodata . : {
 		*(.rodata)
@@ -34,9 +28,6 @@ SECTIONS {
 	.bss . : {
 		*(.bss)
 	}
-	.rawdata . : {
-		*(.rawdata)
-	}
 	data_end = .;
 
 	/* Kernel mode stack */
@@ -44,10 +35,4 @@ SECTIONS {
 	stack_start = .;
 	. = . + 0x1000; /* 4kB stack memory */
 	stack_end = .;
-
-	/* Unused memory here */
-	. = ALIGN(0x4000);
-	unused_start = .;
-	dynamic_start = .;
-	first_level_table = .;
 }
