@@ -36,3 +36,10 @@ void show_pages(void *allocator);
  *   NULL if the memory could not be allocated
  */
 uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align);
+
+/**
+ * Free physical pages.
+ * addr: address of range to free
+ * count: number of bytes to free
+ */
+bool free_pages(void *allocator, uint32_t addr, uint32_t count);
