@@ -26,14 +26,14 @@ gdb:
 	$(TOOLCHAIN)gdb -x gdbscript
 
 # declare object files here
-kernel.elf: uart.o
-kernel.elf: startup.o
-kernel.elf: main.o
-kernel.elf: mem.o
-kernel.elf: sysinfo.o
-kernel.elf: entry.o
-kernel.elf: c_entry.o
-kernel.elf: process.o
+kernel.elf: kernel/uart.o
+kernel.elf: kernel/startup.o
+kernel.elf: kernel/main.o
+kernel.elf: kernel/mem.o
+kernel.elf: kernel/sysinfo.o
+kernel.elf: kernel/entry.o
+kernel.elf: kernel/c_entry.o
+kernel.elf: kernel/process.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o

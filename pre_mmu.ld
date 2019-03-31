@@ -3,10 +3,10 @@ SECTIONS {
 	. = 0x40010000;
 	code_start = .;
 	.startup . : {
-		startup.o(*)
+		kernel/startup.o(*)
 	}
 	.entry . : {
-		entry.o(*)
+		kernel/entry.o(*)
 	}
 	ASSERT(. < 0x40011000, "more than one page of memory for startup + ISR")
 	.text . : {
