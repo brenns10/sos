@@ -297,6 +297,72 @@ void test_free_already_freed(struct unittest *test)
 	expect_zones(test, zones);
 }
 
+void test_mark_alloc(struct unittest *test)
+{
+	/*
+	 * We should be able to take any region which isn't already allocated,
+	 * and make it our own.
+	 */
+	bool result;
+	init(test);
+
+	result = mark_alloc(allocator, 0x1000, 0x1000);
+	UNITTEST_EXPECT_EQ(test, result, true);
+
+	result = mark_alloc(allocator, 0x2000, 0x1000);
+	UNITTEST_EXPECT_EQ(test, result, true);
+
+	result = mark_alloc(allocator, 0x4000, 0x1000);
+	UNITTEST_EXPECT_EQ(test, result, true);
+
+	result = mark_alloc(allocator, 0x100000-0x1000, 0x1000);
+	UNITTEST_EXPECT_EQ(test, result, true);
+
+	struct zone zones[] = {
+	 ZONE(0x1000, ALLOC),
+	 ZONE(0x3000, FREE),
+	 ZONE(0x4000, ALLOC),
+	 ZONE(0x5000, FREE),
+	 ZONE(0x100000-0x1000, ALLOC),
+	 {}
+	};
+	expect_zones(test, zones);
+}
+
+void test_mark_alloc_already_alloced(struct unittest *test)
+{
+	/*
+	 * If we try to allocated memory that is already allocated, it will
+	 * fail.
+	 */
+	bool result;
+	init(test);
+
+	result = mark_alloc(allocator, 0x2000, 0x2000);
+	UNITTEST_EXPECT_EQ(test, result, true);
+
+	result = mark_alloc(allocator, 0x2000, 0x3000);
+	UNITTEST_EXPECT_EQ(test, result, false);
+
+	result = mark_alloc(allocator, 0x1000, 0x3000);
+	UNITTEST_EXPECT_EQ(test, result, false);
+
+	result = mark_alloc(allocator, 0x1000, 0x4000);
+	UNITTEST_EXPECT_EQ(test, result, false);
+
+	result = mark_alloc(allocator, 0x2000, 0x1000);
+	UNITTEST_EXPECT_EQ(test, result, false);
+
+	struct zone zones[] = {
+		ZONE(0x1000, FREE),
+		ZONE(0x2000, ALLOC),
+		ZONE(0x4000, FREE),
+		ZONE(0X100000, ALLOC),
+		{}
+	};
+	expect_zones(test, zones);
+}
+
 struct unittest_case cases[] = {
 	UNITTEST_CASE(test_first_fit),
 	UNITTEST_CASE(test_combine_adjacent),
@@ -310,6 +376,8 @@ struct unittest_case cases[] = {
 	UNITTEST_CASE(test_unsatisfiable_allocation),
 	UNITTEST_CASE(test_unsatisfiable_free),
 	UNITTEST_CASE(test_free_already_freed),
+	UNITTEST_CASE(test_mark_alloc),
+	UNITTEST_CASE(test_mark_alloc_already_alloced),
 	{0}
 };
 
