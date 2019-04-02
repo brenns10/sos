@@ -3,36 +3,6 @@
  */
 #include "kernel.h"
 
-/*
- * MMU Constants
- */
-#define SLD__AP2 (1 << 9)
-#define SLD__AP1 (1 << 5)
-#define SLD__AP0 (1 << 4)
-
-/* first level descriptor types */
-#define FLD_UNMAPPED 0x00
-#define FLD_COARSE   0x01
-#define FLD_SECTION  0x02
-
-#define FLD_MASK     0x03
-
-/* second level descriptor types */
-#define SLD_UNMAPPED 0x00
-#define SLD_LARGE    0x01
-#define SLD_SMALL    0x02
-
-#define SLD_MASK     0x03
-
-/* access control for second level */
-#define NOT_GLOBAL   (0x1 << 11)
-#define PRW_UNA      (SLD__AP0)            /* AP=0b001 */
-#define PRW_URO      (SLD__AP1)            /* AP=0b010 */
-#define PRW_URW      (SLD__AP1 | SLD__AP0) /* AP=0b011 */
-#define PRO_UNA      (SLD__AP2 | SLD__AP0) /* AP=0b101 */
-#define PRO_URO      (SLD__AP2 | SLD__AP1) /* AP=0b110 */
-#define EXECUTE_NEVER 0x01
-
 #define top_n_bits(n) (0xFFFFFFFF << (32 - n))
 #define bot_n_bits(n) (0xFFFFFFFF >> (32 - n))
 

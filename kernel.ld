@@ -34,9 +34,6 @@ SECTIONS {
 	.bss . : {
 		*(.bss)
 	}
-	.rawdata . : {
-		*(.rawdata)
-	}
 	data_end = .;
 
 	/* Kernel mode stack */

@@ -80,6 +80,37 @@ void *get_mapped_pages(uint32_t bytes, uint32_t align);
 void free_mapped_pages(void *virt_ptr, uint32_t len);
 
 /*
+ * MMU Constants
+ */
+#define SLD__AP2 (1 << 9)
+#define SLD__AP1 (1 << 5)
+#define SLD__AP0 (1 << 4)
+
+/* first level descriptor types */
+#define FLD_UNMAPPED 0x00
+#define FLD_COARSE   0x01
+#define FLD_SECTION  0x02
+
+#define FLD_MASK     0x03
+
+/* second level descriptor types */
+#define SLD_UNMAPPED 0x00
+#define SLD_LARGE    0x01
+#define SLD_SMALL    0x02
+
+#define SLD_MASK     0x03
+
+/* access control for second level */
+#define NOT_GLOBAL   (0x1 << 11)
+#define PRW_UNA      (SLD__AP0)            /* AP=0b001 */
+#define PRW_URO      (SLD__AP1)            /* AP=0b010 */
+#define PRW_URW      (SLD__AP1 | SLD__AP0) /* AP=0b011 */
+#define PRO_UNA      (SLD__AP2 | SLD__AP0) /* AP=0b101 */
+#define PRO_URO      (SLD__AP2 | SLD__AP1) /* AP=0b110 */
+#define EXECUTE_NEVER 0x01
+void map_pages(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs);
+
+/*
  * System info debugging command (see sysinfo.c for details)
  */
 void sysinfo(void);
@@ -131,9 +162,6 @@ void data_abort(void);
  * Processes!
  */
 
-/* The "userspace code" we run in a process */
-typedef void (*process_start_t)(void);
-
 /**
  * This "process" is hardly a process. It runs in user mode, but shares its
  * memory space with the kernel. It has a separate stack and separate registers,
@@ -156,6 +184,9 @@ struct process {
 	struct list_head list;
 
 	uint32_t id;
+
+	uint32_t size;
+	uint32_t phys;
 };
 
 /**
@@ -168,12 +199,14 @@ struct process {
 #define PROC_CTX_SPSR 11
 #define PROC_CTX_SP    0
 
-/* Create a process with a stack. */
-struct process *create_process(process_start_t startup);
+/* Create a process */
+struct process *create_process(struct process *p, uint32_t binary);
+#define BIN_SALUTATIONS 0
+#define BIN_HELLO       1
 
 /* Start a process running, never return. */
 void start_process(struct process *p);
-void start_process_asm(process_start_t startup, void *sp);
+void start_process_asm(void *startup);
 
 /* Remove a process from the list and free it. Must reschedule after. */
 void destroy_process(struct process *p);
@@ -187,3 +220,11 @@ void relinquish(void);
 /* The current process */
 extern struct process *current;
 extern struct list_head process_list;
+
+/*
+ * Pre-built binary processes
+ */
+extern uint32_t process_salutations_start[];
+extern uint32_t process_salutations_end[];
+extern uint32_t process_hello_start[];
+extern uint32_t process_hello_end[];

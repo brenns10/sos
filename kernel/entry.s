@@ -112,12 +112,10 @@ relinquish:
 /*
  * Start a process running, assembly helper.
  * a1: place to branch
- * a2: stack pointer
  */
 .global start_process_asm
 start_process_asm:
 	/* reset the stack pointer cause we don't need it any more */
 	ldr sp, =stack_end
 	cps #0x10
-	mov sp, a2
 	mov pc, a1

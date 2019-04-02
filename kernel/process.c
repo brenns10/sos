@@ -8,6 +8,17 @@ struct process *current;
 
 #define stack_size 4096
 
+struct static_binary {
+	void *start;
+	void *end;
+};
+
+struct static_binary binaries[] = {
+	{.start=process_salutations_start, .end=process_salutations_end},
+	{.start=process_hello_start, .end=process_hello_end},
+	{}
+};
+
 /**
  * Create a process.
  *
@@ -16,19 +27,49 @@ struct process *current;
  * take this process and either start it using start_process(), or context
  * switch it in later.
  */
-struct process *create_process(process_start_t startup)
+struct process *create_process(struct process *p, uint32_t binary)
 {
 	static uint32_t pid = 1;
-	void *buffer = get_mapped_pages(stack_size, 0);
-	/* place the process struct at the lowest address of the buffer */
-	struct process *p = (struct process *) buffer;
-	p->context[PROC_CTX_RET] = (uint32_t)startup;
-	/* It is very important to setup the SPSR, otherwise the CPU will stay
-	 * in SVC mode when we swap to the new process :| */
-	p->context[PROC_CTX_SPSR] = 0x10;
-	p->context[PROC_CTX_SP] = (uint32_t)buffer + stack_size;
+	uint32_t size, phys, i, *dst, *src;
+	/*
+	 * Determine the size of the "process image" rounded to a whole page
+	 */
+	size = (
+		/* subtract start from end */
+		(uint32_t) binaries[binary].end
+		- (uint32_t) binaries[binary].start
+		/* object file doesn't include stack space, so we assume 8 bytes
+		 * of alignment and a page of stack */
+		+ 0x1000 + 8
+	);
+	size = ((size >> PAGE_BITS) + 1) << PAGE_BITS;
+
+	/*
+	 * Allocate physical memory for the process, and map it to the "process
+	 * segment" that we've defined, 0x20000000.
+	 */
+	phys = alloc_pages(phys_allocator, size, 0);
+	mark_alloc(kern_virt_allocator, 0x20000000, size);
+	map_pages(first_level_table, 0x20000000, phys, size, PRW_URW);
+
+	/*
+	 * Copy the "process image" over.
+	 */
+	dst = (uint32_t*) 0x20000000;
+	src = (uint32_t*) binaries[binary].start;
+	for (i = 0; i < size>>2; i++)
+		dst[i] = src[i];
+
+	/*
+	 * Set up some process variables
+	 */
+	p->context[PROC_CTX_SPSR] = 0x10;      /* enter user mode */
+	p->context[PROC_CTX_RET] = 0x20000000; /* jump to process img */
 	p->id = pid++;
+	p->size = size;
+	p->phys = phys;
 	list_insert(&process_list, &p->list);
+
 	return p;
 }
 
@@ -36,7 +77,7 @@ void destroy_process(struct process *proc)
 {
 	printf("[kernel]\t\tdestroy process %u (p=0x%x)\n", proc->id, proc);
 	list_remove(&proc->list);
-	free_mapped_pages(proc, stack_size);
+	free_mapped_pages((void*)0x20000000, proc->size);
 }
 
 void start_process(struct process *p)
@@ -44,8 +85,7 @@ void start_process(struct process *p)
 	current = p;
 	printf("[kernel]\t\tstart process %u\n", p->id);
 	start_process_asm(
-		(process_start_t)p->context[PROC_CTX_RET],
-		(void*)p->context[PROC_CTX_SP]
+		(void*)p->context[PROC_CTX_RET]
 	);
 }
 

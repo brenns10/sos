@@ -43,3 +43,8 @@ uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align);
  * count: number of bytes to free
  */
 bool free_pages(void *allocator, uint32_t addr, uint32_t count);
+
+/**
+ * Mark a memory region as allocated.
+ */
+bool mark_alloc(void *allocator, uint32_t start, uint32_t count);
