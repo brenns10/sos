@@ -54,4 +54,29 @@ Critically, it leaves the following up to C code:
 C Initialization
 ----------------
 
-TBD
+In C we have the following components that help manage memory:
+
+* `lib/alloc.c` implements a general page allocator, which can be used to manage
+  memory spaces. We use a virtual and physical allocator to manage both memory
+  spaces.
+* `mem_init()` implements the final adjustments made to the page tables after
+  initialization. It allocates stacks for other processor modes, removes the old
+  identity mappings, sets permissions on memory, and more.
+* `kernel/mem.c` contains a whole host of management functions, in particular a
+  helper function `map_pages()` for creating page table mappings
+
+Ideal World
+-----------
+
+In an ideal world, the memory setup would look like this:
+
+1. `startup.s` creates an identity mapping using section descriptors rather than
+   small page descriptors, and then maps the code to its final destination in
+   that mapping. This is not only much simpler to implement, but it takes less
+   memory.
+2. `mem_init()` creates an entirely new translation table which is valid for
+   only the kernel space. This will have second-level descriptors and use small
+   pages. However, it will not populate all of the small pages. Instead, we'll
+   create a shadow page table which contains the virtual addresses of every
+   second-level table, and we'll only create second level tables as we need
+   them.
