@@ -8,7 +8,7 @@ SECTIONS {
 	.entry . : {
 		kernel/entry.o(*)
 	}
-	ASSERT(. < 0x40011000, "more than one page of memory for startup + ISR")
+	ASSERT(. < code_start + 0x1000, "more than one page of memory for startup + ISR")
 	.text . : {
 		*(.text)
 	}
