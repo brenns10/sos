@@ -57,7 +57,7 @@ void sys_relinquish(void)
 
 void sys_display(char *buffer)
 {
-	puts(buffer);
+	printf("[pid=%u]\t\t\t%s", current->id, buffer);
 }
 
 void sys_exit(uint32_t code)
