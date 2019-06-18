@@ -69,20 +69,20 @@ lib/%.to: lib/%.c
 tests/%.to: tests/%.c
 	gcc $(TEST_CFLAGS) -g -c $< -o $@ -Ilib/
 
-tests/test_list: tests/test_list.to lib/list.to lib/unittest.to
+tests/list.test: tests/test_list.to lib/list.to lib/unittest.to
 	gcc $(TEST_CFLAGS) -o $@ $^
-tests/test_alloc: tests/test_alloc.to lib/alloc.to lib/unittest.to
+tests/alloc.test: tests/test_alloc.to lib/alloc.to lib/unittest.to
 	gcc $(TEST_CFLAGS) -o $@ $^
 
-test: tests/test_list tests/test_alloc
+test: tests/list.test tests/alloc.test
 	rm -f cov*.html *.gcda lib/*.gcda tests/*.gcda
-	@tests/test_list
-	@tests/test_alloc
+	@tests/list.test
+	@tests/alloc.test
 	gcovr -r . --html --html-details -o cov.html lib/ tests/
-
 
 clean:
 	rm -f *.elf *.bin
 	rm -f kernel/*.o
 	rm -f lib/*.o test/*.to lib/*.to
 	rm -f user/*.o user/*.elf user/*.bin
+	rm -f tests/*.gcda tests/*.gcno tests/*.to tests/*.test
