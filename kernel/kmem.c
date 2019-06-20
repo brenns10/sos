@@ -34,7 +34,7 @@ void *kern_virt_allocator;
 /**
  * Initialize second level page descriptor table to an entirely empty mapping.
  */
-void init_second_level(uint32_t *second)
+static void init_second_level(uint32_t *second)
 {
 	uint32_t i;
 	for (i = 0; i < 256; i++)
@@ -43,13 +43,13 @@ void init_second_level(uint32_t *second)
 
 /**
  * Insert a mapping from a virtual to a physical page.
- * base: page descriptor table base
  * virt: physical virtual address (should be page aligned)
  * phys: physical virtual address (should be page aligned)
  * attrs: access control attributes
  */
-void map_page(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t attrs)
+void kmem_map_page(uint32_t virt, uint32_t phys, uint32_t attrs)
 {
+	uint32_t *base = first_level_table;
 	uint32_t first_idx = virt >> 20;
 	uint32_t second_idx = (virt >> 12) & 0xFF;
 	/*
@@ -73,9 +73,9 @@ void map_page(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t attrs)
  * Lookup virtual address of virt in page table. Only supports the mechanism we
  * use to setup the MMU.
  */
-uint32_t lookup_phys(void *virt_ptr)
+uint32_t kmem_lookup_phys(void *virt_ptr)
 {
-	uint32_t *base = (uint32_t*)&unused_start;
+	uint32_t *base = first_level_table;
 	uint32_t virt = (uint32_t) virt_ptr;
 	uint32_t first_idx = virt >> 20;
 	/*
@@ -92,11 +92,12 @@ uint32_t lookup_phys(void *virt_ptr)
 	);
 }
 
-void map_pages(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs)
+void kmem_map_pages(uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs)
 {
+	uint32_t *base = first_level_table;
 	uint32_t i;
 	for (i = 0; i < len; i += 4096)
-		map_page(base, virt + i, phys + i, attrs);
+		kmem_map_page(virt + i, phys + i, attrs);
 }
 
 bool unmap_second(uint32_t *second, uint32_t start, uint32_t len)
@@ -121,8 +122,9 @@ bool unmap_second(uint32_t *second, uint32_t start, uint32_t len)
 /**
  * Unmap pages beginning at start, for a total length of len.
  */
-void unmap_pages(uint32_t *base, uint32_t start, uint32_t len)
+void kmem_unmap_pages(uint32_t start, uint32_t len)
 {
+	uint32_t *base = first_level_table;
 	/*
 	 * First, unmap any second level descriptors before the first 1MB
 	 * boundary, if there are any.
@@ -147,7 +149,7 @@ void unmap_pages(uint32_t *base, uint32_t start, uint32_t len)
 	/*
 	 * Next, unmap all 1MB regions, if there are any. We erase their
 	 * second-level tables too, for safety, but it's not really necessary,
-	 * because map_pages() will erase them when in re-maps a 1MB block.
+	 * because kmem_map_pages() will erase them when in re-maps a 1MB block.
 	 */
 	while (len > 0x00100000) {
 		uint32_t idx = start >> 20;
@@ -184,7 +186,7 @@ void unmap_pages(uint32_t *base, uint32_t start, uint32_t len)
  * For start and end, we really only care about the middle bits that determine
  * which second level descriptor to use.
  */
-void print_second_level(uint32_t *second, uint32_t start, uint32_t end)
+static void print_second_level(uint32_t *second, uint32_t start, uint32_t end)
 {
 	uint32_t virt_base = start & top_n_bits(12);
 	uint32_t i = (start >> 12) & 0xFF;
@@ -216,7 +218,7 @@ void print_second_level(uint32_t *second, uint32_t start, uint32_t end)
 	}
 }
 
-void print_first_level(uint32_t start, uint32_t stop)
+static void print_first_level(uint32_t start, uint32_t stop)
 {
 	uint32_t *base = first_level_table;
 	uint32_t i = start >> 20;
@@ -256,16 +258,16 @@ void print_first_level(uint32_t start, uint32_t stop)
  * bytes: count of bytes to allocate (increments of 4096 bytes)
  * align: alignment (only applied to the virtual address allocation)
  */
-void *get_mapped_pages(uint32_t bytes, uint32_t align)
+void *kmem_get_pages(uint32_t bytes, uint32_t align)
 {
 	void *virt = (void*)alloc_pages(kern_virt_allocator, bytes, align);
 	uint32_t phys = alloc_pages(phys_allocator, bytes, 0);
-	map_pages(first_level_table, (uint32_t) virt, phys, bytes, PRW_URW | EXECUTE_NEVER);
+	kmem_map_pages((uint32_t) virt, phys, bytes, PRW_URW | EXECUTE_NEVER);
 	return virt;
 }
 
 /**
- * Free memory which was allocated via get_mapped_pages. This involves:
+ * Free memory which was allocated via kmem_get_pages(). This involves:
  * 1. Determine the physical address, we can do this via a software page table
  *    walk.
  * 2. Free the memory segments from the physical and virtual allocators.
@@ -274,18 +276,18 @@ void *get_mapped_pages(uint32_t bytes, uint32_t align)
  * virt_ptr: virtual address pointer (must be page aligned)
  * len: length (must be page aligned)
  */
-void free_mapped_pages(void *virt_ptr, uint32_t len)
+void kmem_free_pages(void *virt_ptr, uint32_t len)
 {
-	uint32_t phys = lookup_phys(virt_ptr);
+	uint32_t phys = kmem_lookup_phys(virt_ptr);
 	uint32_t virt = (uint32_t) virt_ptr;
 
 	free_pages(phys_allocator, phys, len);
 	free_pages(kern_virt_allocator, virt, len);
 
-	unmap_pages(first_level_table, virt, len);
+	kmem_unmap_pages(virt, len);
 }
 
-void mem_init(uint32_t phys, bool verbose)
+void kmem_init(uint32_t phys, bool verbose)
 {
 	uint32_t new_uart, old_uart, alloc_so_far, cpreg;
 	void *stack;
@@ -325,7 +327,7 @@ void mem_init(uint32_t phys, bool verbose)
 	 */
 	phys_allocator = dynamic;
 	kern_virt_allocator = dynamic + 0x1000;
-	map_pages(first_level_table, (uint32_t) dynamic, phys_dynamic, 0x2000, PRW_URW | EXECUTE_NEVER);
+	kmem_map_pages((uint32_t) dynamic, phys_dynamic, 0x2000, PRW_URW | EXECUTE_NEVER);
 
 	alloc_so_far = phys_dynamic - phys_code_start + 0x2000;
 	init_page_allocator(phys_allocator, phys_code_start, 0xFFFFFFFF);
@@ -347,7 +349,7 @@ void mem_init(uint32_t phys, bool verbose)
 	old_uart = uart_base;
 	if (verbose)
 		printf("Old UART was 0x%x, new will be 0x%x\n", old_uart, new_uart);
-	map_page(first_level_table, new_uart, uart_base, PRW_URW | EXECUTE_NEVER);
+	kmem_map_page(new_uart, uart_base, PRW_URW | EXECUTE_NEVER);
 	uart_base = new_uart;
 
 	if (verbose) {
@@ -359,17 +361,17 @@ void mem_init(uint32_t phys, bool verbose)
 	 * Here we unmap the old physical code locations, and the old UART
 	 * location.
 	 */
-	unmap_pages(first_level_table, phys_code_start, phys_dynamic - phys_code_start);
-	unmap_pages(first_level_table, old_uart, 0x1000);
+	kmem_unmap_pages(phys_code_start, phys_dynamic - phys_code_start);
+	kmem_unmap_pages(old_uart, 0x1000);
 
 	/*
 	 * At this point, we can adjust the flags on the code to be read-only,
 	 * and the flags on the data to be execute never. This is safer and
 	 * generally a bit more secure.
 	 */
-	map_pages(first_level_table, (uint32_t) code_start, phys_code_start,
+	kmem_map_pages((uint32_t) code_start, phys_code_start,
 			(uint32_t)(code_end - code_start), PRO_URO);
-	map_pages(first_level_table, (uint32_t) data_start, phys_data_start,
+	kmem_map_pages((uint32_t) data_start, phys_data_start,
 			((uint32_t)first_level_table + 0x00404000 - (uint32_t)data_start),
 			PRW_URW | EXECUTE_NEVER);
 
@@ -380,11 +382,11 @@ void mem_init(uint32_t phys, bool verbose)
 	 * Setup stacks for other modes, and map the first code page at 0x00 so
 	 * we can handle exceptions.
 	 */
-	stack = get_mapped_pages(4096, 0);
+	stack = kmem_get_pages(4096, 0);
 	setup_stacks(stack);
 
 	/* This may be a no-op, but let's map the interrupt vector at 0x0 */
-	map_page(first_level_table, 0x00, phys_code_start, PRO_URO);
+	kmem_map_page(0x00, phys_code_start, PRO_URO);
 
 	if (verbose) {
 		printf("We have setup interrupt mode stacks!\n");

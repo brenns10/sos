@@ -33,24 +33,9 @@ extern uint32_t first_level_table[];
 extern uint32_t uart_base;
 
 /*
- * Physical addresses worth remembering. Only valid once mem_init() is done.
- */
-extern uint32_t phys_code_start;
-extern uint32_t phys_code_end;
-extern uint32_t phys_data_start;
-extern uint32_t phys_data_end;
-extern uint32_t phys_stack_start;
-extern uint32_t phys_stack_end;
-extern uint32_t phys_first_level_table;
-extern uint32_t phys_second_level_table;
-extern uint32_t phys_dynamic;
-
-/*
  * Some well-known addresses which we determine at runtime.
  */
 extern void *second_level_table;
-extern void *phys_allocator;
-extern void *kern_virt_allocator;
 
 /*
  * Basic I/O (see uart.s and format.c for details)
@@ -60,24 +45,34 @@ uint32_t snprintf(char *buf, uint32_t size, const char *format, ...);
 uint32_t printf(const char *format, ...);
 
 /*
- * Initialize memory system (see mem.c for details)
+ * Initialize kernel memory system (see mem.c for details)
  */
-void mem_init(uint32_t phys, bool verbose);
+void kmem_init(uint32_t phys, bool verbose);
 
 /*
- * Look up the physical address corresponding to a virtual address
+ * Look up the physical address corresponding to a kernel virtual address
  */
-uint32_t lookup_phys(void *virt_ptr);
+uint32_t kmem_lookup_phys(void *virt_ptr);
 
 /*
- * Wraps the virtual and physical allocators
+ * Return pages of kernel memory, already mapped and everything!
  */
-void *get_mapped_pages(uint32_t bytes, uint32_t align);
+void *kmem_get_pages(uint32_t bytes, uint32_t align);
 
 /*
- * Free what was returned by get_mapped_pages()
+ * Free that memory.
  */
-void free_mapped_pages(void *virt_ptr, uint32_t len);
+void kmem_free_pages(void *virt_ptr, uint32_t len);
+
+/*
+ * Map physical memory into the kernel memory space.
+ */
+void kmem_map_pages(uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs);
+
+void kmem_unmap_pages(uint32_t virt, uint32_t len);
+
+extern void *phys_allocator;
+extern void *kern_virt_allocator;
 
 /*
  * MMU Constants
@@ -108,7 +103,6 @@ void free_mapped_pages(void *virt_ptr, uint32_t len);
 #define PRO_UNA      (SLD__AP2 | SLD__AP0) /* AP=0b101 */
 #define PRO_URO      (SLD__AP2 | SLD__AP1) /* AP=0b110 */
 #define EXECUTE_NEVER 0x01
-void map_pages(uint32_t *base, uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs);
 
 /*
  * System info debugging command (see sysinfo.c for details)

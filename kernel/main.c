@@ -3,7 +3,7 @@
  */
 #include "kernel.h"
 
-#define VERBOSE false
+#define VERBOSE true
 
 #define proc_print(msg) do {\
 	pid = current->id; \
@@ -27,7 +27,7 @@ void main(uint32_t phys)
 	}
 
 	printf("Initializing memory...\n");
-	mem_init(phys, VERBOSE);
+	kmem_init(phys, VERBOSE);
 	printf("Done!\n");
 
 	create_process(&myproc, BIN_SALUTATIONS);

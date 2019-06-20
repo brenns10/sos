@@ -50,7 +50,7 @@ struct process *create_process(struct process *p, uint32_t binary)
 	 */
 	phys = alloc_pages(phys_allocator, size, 0);
 	mark_alloc(kern_virt_allocator, 0x20000000, size);
-	map_pages(first_level_table, 0x20000000, phys, size, PRW_URW);
+	kmem_map_pages(0x20000000, phys, size, PRW_URW);
 
 	/*
 	 * Copy the "process image" over.
@@ -77,7 +77,7 @@ void destroy_process(struct process *proc)
 {
 	printf("[kernel]\t\tdestroy process %u (p=0x%x)\n", proc->id, proc);
 	list_remove(&proc->list);
-	free_mapped_pages((void*)0x20000000, proc->size);
+	kmem_free_pages((void*)0x20000000, proc->size);
 }
 
 void start_process(struct process *p)
