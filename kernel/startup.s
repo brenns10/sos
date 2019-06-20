@@ -111,7 +111,7 @@ start_impl:
 	/*
 	 * Step 4: Enable the MMU!
 	 */
-	mcr p15, 0, a1, c2, c0, 0  /* Set TTRB0 to our base */
+	mcr p15, 0, a1, c2, c0, 0  /* Set TTBR0 to our base */
 
 	mov a1, #0x1
 	mcr p15, 0, a1, c3, c0, 0 /* access control for domain 0 */
