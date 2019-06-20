@@ -287,7 +287,7 @@ void free_mapped_pages(void *virt_ptr, uint32_t len)
 
 void mem_init(uint32_t phys, bool verbose)
 {
-	uint32_t new_uart, old_uart;
+	uint32_t new_uart, old_uart, alloc_so_far, cpreg;
 	void *stack;
 	/*
 	 * First, setup some global well-known variables to help ourselves out.
@@ -326,11 +326,18 @@ void mem_init(uint32_t phys, bool verbose)
 	phys_allocator = dynamic;
 	kern_virt_allocator = dynamic + 0x1000;
 	map_pages(first_level_table, (uint32_t) dynamic, phys_dynamic, 0x2000, PRW_URW | EXECUTE_NEVER);
-	init_page_allocator(phys_allocator, phys_dynamic + 0x2000, 0xFFFFFFFF);
-	init_page_allocator(kern_virt_allocator, (uint32_t) dynamic + 0x2000, 0xFFFFFFFF);
 
-	if (verbose)
+	alloc_so_far = phys_dynamic - phys_code_start + 0x2000;
+	init_page_allocator(phys_allocator, phys_code_start, 0xFFFFFFFF);
+	mark_alloc(phys_allocator, phys_code_start, alloc_so_far);
+	init_page_allocator(kern_virt_allocator, (uint32_t) code_start, 0x3FFFFFFF);
+	mark_alloc(kern_virt_allocator, (uint32_t) code_start, alloc_so_far);
+
+	if (verbose) {
 		printf("We have allocators now!\n");
+		/*show_pages(phys_allocator);
+		show_pages(kern_virt_allocator);*/
+	}
 
 	/*
 	 * Now that we have our allocators, let's allocate some virtual memory
@@ -345,7 +352,7 @@ void mem_init(uint32_t phys, bool verbose)
 
 	if (verbose) {
 		printf("We have made the swap\n");
-		show_pages(kern_virt_allocator);
+		/*show_pages(kern_virt_allocator);*/
 	}
 
 	/*
@@ -382,5 +389,36 @@ void mem_init(uint32_t phys, bool verbose)
 	if (verbose) {
 		printf("We have setup interrupt mode stacks!\n");
 		/*print_first_level(0, 0xFFFFFFFF);*/
+	}
+
+	/* At this point, we have configured the first and second level tables
+	 * as if they were managing the whole memory space. However, we have now
+	 * successfully moved all virtual memory mappings to the beginning of
+	 * the address space, and so we can use TTBR0 for kernel mappings up to
+	 * 0x3FFFFFFF, and let 0x40000000+ be managed by TTBR1 for process
+	 * mappings.
+	 *
+	 * This means two things:
+	 * (a) the top 3/4 of the second level tables are wasted
+	 * (b) the top 3/4 of the first level table is wasted
+	 * (c) we need to set TTBR0 and TTBCR accordingly
+	 *
+	 * (a) and (b) are addressed by marking the respective regions now as
+	 * free on our allocators. We do (c) after that.
+	 */
+	free_pages(phys_allocator, phys_first_level_table + 0x1000, 0x3000);
+	free_pages(phys_allocator, phys_second_level_table + 0x00100000, 0x00300000);
+	free_pages(kern_virt_allocator, (uint32_t)first_level_table + 0x1000, 0x3000);
+	free_pages(kern_virt_allocator, (uint32_t)second_level_table + 0x00100000, 0x00300000);
+
+	cpreg = 2;
+	set_cpreg(cpreg, c2, 0, c0, 2);
+
+	if (verbose) {
+		printf("We set TTBCR and now we're fully in kernel space!\n");
+		printf("Here's the physical memory:\n");
+		show_pages(phys_allocator);
+		printf("Here's the kernel virtual memory:\n");
+		show_pages(kern_virt_allocator);
 	}
 }
