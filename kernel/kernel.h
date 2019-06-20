@@ -12,6 +12,7 @@
 #include "alloc.h"
 
 #define nelem(x) (sizeof(x) / sizeof(x[0]))
+struct process;
 
 /*
  * Linker symbols for virtual memory addresses.
@@ -50,11 +51,6 @@ uint32_t printf(const char *format, ...);
 void kmem_init(uint32_t phys, bool verbose);
 
 /*
- * Look up the physical address corresponding to a kernel virtual address
- */
-uint32_t kmem_lookup_phys(void *virt_ptr);
-
-/*
  * Return pages of kernel memory, already mapped and everything!
  */
 void *kmem_get_pages(uint32_t bytes, uint32_t align);
@@ -65,11 +61,28 @@ void *kmem_get_pages(uint32_t bytes, uint32_t align);
 void kmem_free_pages(void *virt_ptr, uint32_t len);
 
 /*
- * Map physical memory into the kernel memory space.
+ * Look up the physical address corresponding to a virtual address
+ */
+uint32_t kmem_lookup_phys(void *virt_ptr);
+uint32_t umem_lookup_phys(struct process *p, void *virt_ptr);
+
+/*
+ * Map physical memory into the virtual memory space.
  */
 void kmem_map_pages(uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs);
+void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs);
 
+/*
+ * Unmap memory
+ */
 void kmem_unmap_pages(uint32_t virt, uint32_t len);
+void umem_unmap_pages(struct process *p, uint32_t virt, uint32_t len);
+
+/*
+ * Print it!
+ */
+void kmem_print(uint32_t start, uint32_t stop);
+void umem_print(struct process *p, uint32_t start, uint32_t stop);
 
 extern void *phys_allocator;
 extern void *kern_virt_allocator;
@@ -94,6 +107,8 @@ extern void *kern_virt_allocator;
 #define SLD_SMALL    0x02
 
 #define SLD_MASK     0x03
+
+#define SLD_NG (1 << 11)
 
 /* access control for second level */
 #define NOT_GLOBAL   (0x1 << 11)
@@ -177,10 +192,22 @@ struct process {
 	/** Global process list entry. */
 	struct list_head list;
 
+	/** Basically a pid */
 	uint32_t id;
 
+	/** Size of the process image file. */
 	uint32_t size;
+
+	/** Physical address of process image. */
 	uint32_t phys;
+
+	/** Allocator for the process address space. */
+	void *vmem_allocator;
+
+	/** First-level page table and shadow page table. */
+	uint32_t ttbr1;
+	uint32_t *first;
+	uint32_t **shadow;
 };
 
 /**
@@ -222,3 +249,14 @@ extern uint32_t process_salutations_start[];
 extern uint32_t process_salutations_end[];
 extern uint32_t process_hello_start[];
 extern uint32_t process_hello_end[];
+
+/* "uncomment" this if you want to debug page allocations */
+#ifdef DEBUG_PAGE_ALLOCATOR_CALLS
+#define alloc_pages(allocator, bytes, align) \
+	({ \
+		uint32_t rv = alloc_pages(allocator, bytes, align); \
+		printf("%s:%u: (in %s) alloc_pages(%s, 0x%x, %u) = 0x%x\n", \
+				__FILE__, __LINE__, __func__, #allocator, bytes, align, rv); \
+		rv; \
+	})
+#endif

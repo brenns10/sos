@@ -14,7 +14,7 @@
 /*
  * NOT declared on the stack because that gets clobbered once we start a process
  */
-struct process myproc;
+struct process p1, p2;
 
 void main(uint32_t phys)
 {
@@ -30,6 +30,8 @@ void main(uint32_t phys)
 	kmem_init(phys, VERBOSE);
 	printf("Done!\n");
 
-	create_process(&myproc, BIN_SALUTATIONS);
-	start_process(&myproc);
+	create_process(&p1, BIN_SALUTATIONS);
+	create_process(&p2, BIN_HELLO);
+
+	start_process(&p1);
 }
