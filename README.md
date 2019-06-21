@@ -1,32 +1,26 @@
-arm
-===
+SOS (Stephen's OS)
+==================
 
-Currently toying with writing code to run on a "bare metal" ARM processor.
-Hoping to work up to a small operating system. Things that work now:
+This is a toy operating system for ARM processors. It doesn't have many
+features, and the code is pretty bad. It has never actually run on a real
+processor (just a virtual machine). The list of limitations is too long to write
+here. But it's all homemade, and so I love it.
 
-* Using the UART to print to the console
-* Basic string formatting to the UART
-* MMU enabled in assembly, and can be re-configured in C (both mapping and
-  unmapping memory)
-* Memory allocators for physical and virtual address spaces, which are able to
-  allocate AND free memory (sounds stupid to mention that but freeing memory is
-  actually very hard).
-* Interrupt handling (simply reporting faults to UART, etc)
-* "Processes" with:
-  - separate stacks
-  - shared address space
+Here are some of the things it does:
+
+* Kernel may use the UART to print messages to the console
+* Basic printf support for writing to the console
+* MMU is fully configured and managed
+* Memory allocation code (which also allows you to free addresses, usually
+  that's at least half the battle)
+* Interrupt handling (reporting faults, handling syscalls)
+* Context switching!
+* Processes support
+  - separate address spaces
   - user mode
-* Context switching between processes, and scheduling using a very basic round
-  robin scheduler
-* System calls:
-  - relinquish() for cooperative multi-tasking
-  - display() for printing to the UART
-
-Next steps:
-
-* Compile processes as separate binary files built-in to the kernel image, and
-  load them into a "user address space" (while still sharing address space)
-* Separate address spaces per-process - this will be very involved
+  - system calls
+  - cooperative multiprocessing
+* Scheduling using a round-robin scheduler
 
 If you want to work with the code, you can install qemu, the arm eabi toolchain,
 and then use the commands below:
@@ -47,6 +41,10 @@ following: (no need for qemu or special toolchains)
 
 Resources
 ---------
+
+These are a bunch of things I've looked at while making this, but it's not
+exhaustive. The primary resource, of course, is the ARMv7-A architecture
+reference manual.
 
 The following links do similar things, but with different machines (i.e. not the
 "virt" board from qemu), which means different memory layouts, etc:
