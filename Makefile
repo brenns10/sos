@@ -35,10 +35,13 @@ kernel.elf: kernel/entry.o
 kernel.elf: kernel/c_entry.o
 kernel.elf: kernel/process.o
 kernel.elf: kernel/rawdata.o
+kernel.elf: kernel/dtb.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o
 kernel.elf: lib/alloc.o
+kernel.elf: lib/string.o
+kernel.elf: lib/util.o
 
 # Object files going into each userspace program:
 USER_BASIC = user/syscall.o user/startup.o

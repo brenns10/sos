@@ -260,3 +260,5 @@ extern uint32_t process_hello_end[];
 		rv; \
 	})
 #endif
+
+void dtb_parse(uint32_t phys);

@@ -30,6 +30,8 @@ void main(uint32_t phys)
 	kmem_init(phys, VERBOSE);
 	printf("Done!\n");
 
+	dtb_parse(0x44000000);
+
 	create_process(&p1, BIN_SALUTATIONS);
 	create_process(&p2, BIN_HELLO);
 
