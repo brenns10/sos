@@ -11,12 +11,12 @@ struct process *current = NULL;
 struct static_binary {
 	void *start;
 	void *end;
+	char *name;
 };
 
 struct static_binary binaries[] = {
-	{.start=process_salutations_start, .end=process_salutations_end},
-	{.start=process_hello_start, .end=process_hello_end},
-	{}
+	{.start=process_salutations_start, .end=process_salutations_end, .name="salutations"},
+	{.start=process_hello_start, .end=process_hello_end, .name="hello"},
 };
 
 /**
@@ -237,4 +237,12 @@ void schedule(void)
 		show_pages(kern_virt_allocator);
 		while (1){};
 	}
+}
+
+/*
+ * Initialization for processes.
+ */
+void process_init(void)
+{
+	INIT_LIST_HEAD(process_list);
 }

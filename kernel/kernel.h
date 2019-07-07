@@ -246,6 +246,9 @@ void relinquish(void);
 extern struct process *current;
 extern struct list_head process_list;
 
+/* Initialize process subsystem */
+void process_init(void);
+
 /*
  * Pre-built binary processes
  */
