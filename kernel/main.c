@@ -3,7 +3,7 @@
  */
 #include "kernel.h"
 
-#define VERBOSE true
+#define VERBOSE false
 
 #define proc_print(msg) do {\
 	pid = current->id; \
@@ -18,22 +18,7 @@ struct process p1, p2;
 
 void main(uint32_t phys)
 {
-	puts("Hello world!\n");
 	INIT_LIST_HEAD(process_list);
-
-	if (VERBOSE) {
-		printf("The physical location of the code was originally 0x%x\n", phys);
-		printf("It is now 0x%x\n", &code_start);
-	}
-
-	printf("Initializing memory...\n");
 	kmem_init(phys, VERBOSE);
-	printf("Done!\n");
-
-	dtb_parse(0x44000000);
-
-	create_process(&p1, BIN_SALUTATIONS);
-	create_process(&p2, BIN_HELLO);
-
-	start_process(&p1);
+	ksh();
 }

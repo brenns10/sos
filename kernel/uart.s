@@ -1,5 +1,5 @@
 /*
- * Print to serial on PL011 UART.
+ * Print to and read from serial on PL011 UART.
  */
 .text
 
@@ -31,6 +31,19 @@ _print_wait:
 	tst r3, r1         /* wait until TX FIFO is not full */
 	bne _print_wait
 	str r0, [r2]       /* DR has offset 0 */
+	mov pc, lr
+
+/* Spin until RX FIFO is not empty, then read data register. */
+.global getc
+getc:
+	mov r1, #0x010     /* bit 4 of flag register = RX FIFO Empty */
+	ldr r2, =uart_base
+	ldr r2, [r2]
+_getc_wait:
+	ldr r3, [r2, #FR]
+	tst r3, r1         /* wait until RX FIFO is not empty */
+	bne _getc_wait
+	ldr r0, [r2]
 	mov pc, lr
 
 .data

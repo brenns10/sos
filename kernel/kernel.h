@@ -14,6 +14,8 @@
 #define nelem(x) (sizeof(x) / sizeof(x[0]))
 struct process;
 
+#define SOS_VERSION "0.1"
+
 /*
  * Linker symbols for virtual memory addresses.
  */
@@ -42,6 +44,8 @@ extern void *second_level_table;
  * Basic I/O (see uart.s and format.c for details)
  */
 void puts(char *string);
+void putc(char c);
+char getc(void);
 uint32_t snprintf(char *buf, uint32_t size, const char *format, ...);
 uint32_t printf(const char *format, ...);
 
@@ -262,3 +266,5 @@ extern uint32_t process_hello_end[];
 #endif
 
 void dtb_parse(uint32_t phys);
+
+void ksh(void);
