@@ -8,6 +8,7 @@
  * anyway.
  */
 #pragma once
+#include <stddef.h>
 
 /**
  * struct list_head: Embed this into your structs which will be part of a list
@@ -62,7 +63,7 @@ void list_remove(struct list_head *item);
  * head: name of the list header
  */
 #define list_for_each(variable, head)  \
-	for (variable = head->next; variable != head; variable = variable->next)
+	for (variable = (head)->next; variable != (head); variable = variable->next)
 
 /**
  * Offset, in bytes, of a field named `member` within type `type`.

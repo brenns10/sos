@@ -15,7 +15,7 @@ static unsigned int unittest_run_case(struct unittest *test, struct unittest_cas
 {
 	unsigned int i = 0;
 	test->failure_count = 0;
-	test->module->printf("%s: ", kase.name);
+	test->module->printf("\t%s: ", kase.name);
 	kase.function(test);
 
 	if (test->failure_count) {
@@ -37,7 +37,7 @@ static unsigned int unittest_run_case(struct unittest *test, struct unittest_cas
 unsigned int unittest_run_module(struct unittest_module *module)
 {
 	struct unittest test;
-	unsigned int i, failures;
+	unsigned int i, failures = 0;
 	test.module = module;
 
 	module->printf("test module: %s\n", module->name);

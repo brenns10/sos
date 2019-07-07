@@ -77,11 +77,14 @@ tests/list.test: tests/test_list.to lib/list.to lib/unittest.to
 	gcc $(TEST_CFLAGS) -o $@ $^
 tests/alloc.test: tests/test_alloc.to lib/alloc.to lib/unittest.to
 	gcc $(TEST_CFLAGS) -o $@ $^
+tests/slab.test: tests/test_slab.to lib/slab.to lib/unittest.to lib/list.to
+	gcc $(TEST_CFLAGS) -o $@ $^
 
-test: tests/list.test tests/alloc.test
+test: tests/list.test tests/alloc.test tests/slab.test
 	rm -f cov*.html *.gcda lib/*.gcda tests/*.gcda
 	@tests/list.test
 	@tests/alloc.test
+	@tests/slab.test
 	gcovr -r . --html --html-details -o cov.html lib/ tests/
 
 clean:
