@@ -58,11 +58,13 @@ void kmem_init(uint32_t phys, bool verbose);
  * Return pages of kernel memory, already mapped and everything!
  */
 void *kmem_get_pages(uint32_t bytes, uint32_t align);
+void *kmem_get_page(void);
 
 /*
  * Free that memory.
  */
 void kmem_free_pages(void *virt_ptr, uint32_t len);
+void kmem_free_page(void *ptr);
 
 /*
  * Look up the physical address corresponding to a virtual address
@@ -225,7 +227,7 @@ struct process {
 #define PROC_CTX_SP    0
 
 /* Create a process */
-struct process *create_process(struct process *p, uint32_t binary);
+struct process *create_process(uint32_t binary);
 #define BIN_SALUTATIONS 0
 #define BIN_HELLO       1
 
@@ -271,3 +273,8 @@ extern uint32_t process_hello_end[];
 void dtb_parse(uint32_t phys);
 
 void ksh(void);
+
+/* ksh commands */
+int cmd_mkproc(int argc, char **argv);
+int cmd_lsproc(int argc, char **argv);
+int cmd_execproc(int argc, char **argv);

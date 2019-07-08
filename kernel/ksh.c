@@ -6,6 +6,7 @@
 
 static char input[256];
 static char *tokens[16];
+static int argc;
 
 /*
  * Shell commands section. Each command is represented by a struct cmd, and
@@ -14,26 +15,29 @@ static char *tokens[16];
 struct cmd {
 	char *name;
 	char *help;
-	int (*func)(char **args);
+	int (*func)(int argc, char **argv);
 };
 
-static int echo(char **args)
+static int echo(int argc, char **argv)
 {
-	for (unsigned int i = 0; args[i]; i++)
-		printf("Arg[%u]: \"%s\"\n", i, args[i]);
+	for (unsigned int i = 0; argv[i]; i++)
+		printf("Arg[%u]: \"%s\"\n", i, argv[i]);
 	return 0;
 }
 
-static int help(char **args);
+static int help(int argc, char **argv);
 struct cmd cmds[] = {
 	{.name="echo", .func=echo, .help="print each arg, useful for debugging"},
+	{.name="mkproc", .func=cmd_mkproc, .help="create a new process with binary image IMG"},
+	{.name="lsproc", .func=cmd_lsproc, .help="list process IDs"},
+	{.name="execproc", .func=cmd_execproc, .help="run process PID"},
 	{.name="help", .func=help, .help="show this help message"},
 };
 
 /*
  * help() goes after the cmds array so it can print out a listing
  */
-static int help(char **args)
+static int help(int argc, char **argv)
 {
 	for (unsigned int i = 0; i < nelem(cmds); i++)
 		printf("%s:\t%s\n", cmds[i].name, cmds[i].help);
@@ -75,13 +79,14 @@ static void tokenize(void)
 		tokens[tok++] = &input[start];
 	}
 	tokens[tok] = NULL;
+	argc = tok;
 }
 
 static void execute(void)
 {
 	for (unsigned int i = 0; i < nelem(cmds); i++) {
 		if (strcmp(tokens[0], cmds[i].name) == 0) {
-			cmds[i].func(tokens);
+			cmds[i].func(argc, tokens);
 			return;
 		}
 	}

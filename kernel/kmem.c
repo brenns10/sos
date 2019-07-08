@@ -409,6 +409,14 @@ void *kmem_get_pages(uint32_t bytes, uint32_t align)
 }
 
 /**
+ * Simpler method for use with slab
+ */
+void *kmem_get_page(void)
+{
+	return kmem_get_pages(4096, 0);
+}
+
+/**
  * Free memory which was allocated via kmem_get_pages(). This involves:
  * 1. Determine the physical address, we can do this via a software page table
  *    walk.
@@ -427,6 +435,11 @@ void kmem_free_pages(void *virt_ptr, uint32_t len)
 	free_pages(kern_virt_allocator, virt, len);
 
 	kmem_unmap_pages(virt, len);
+}
+
+void kmem_free_page(void *ptr)
+{
+	kmem_free_pages(ptr, 4096);
 }
 
 void kmem_init(uint32_t phys, bool verbose)

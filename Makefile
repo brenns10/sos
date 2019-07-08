@@ -43,6 +43,8 @@ kernel.elf: lib/format.o
 kernel.elf: lib/alloc.o
 kernel.elf: lib/string.o
 kernel.elf: lib/util.o
+kernel.elf: lib/slab.o
+kernel.elf: lib/math.o
 
 # Object files going into each userspace program:
 USER_BASIC = user/syscall.o user/startup.o

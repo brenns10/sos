@@ -195,3 +195,11 @@ uint32_t printf(const char *format, ...)
 	puts(buf);
 	return res;
 }
+
+int atoi(const char *str)
+{
+	int i, val = 0;
+	for (i = 0; str[i]; i++)
+		val = val * 10 + (str[i] - '0');
+	return val;
+}

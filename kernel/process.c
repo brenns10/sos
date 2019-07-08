@@ -2,9 +2,12 @@
  * Routines for dealing with processes.
  */
 #include "kernel.h"
+#include "slab.h"
+#include "string.h"
 
 struct list_head process_list;
 struct process *current = NULL;
+struct slab *proc_slab;
 
 #define stack_size 4096
 
@@ -27,10 +30,11 @@ struct static_binary binaries[] = {
  * take this process and either start it using start_process(), or context
  * switch it in later.
  */
-struct process *create_process(struct process *p, uint32_t binary)
+struct process *create_process(uint32_t binary)
 {
 	static uint32_t pid = 1;
 	uint32_t size, phys, i, *dst, *src, virt;
+	struct process *p = slab_alloc(proc_slab);
 	/*
 	 * Determine the size of the "process image" rounded to a whole page
 	 */
@@ -231,12 +235,66 @@ void schedule(void)
 		 * No remaining processes, do an infinite loop.
 		 */
 		printf("[kernel]\t\tNo processes remain.\n");
-		printf("Here is the physical address space:\n");
-		show_pages(phys_allocator);
-		printf("Here is the kernel virtual address space:\n");
-		show_pages(kern_virt_allocator);
-		while (1){};
+		ksh();
 	}
+}
+
+int cmd_mkproc(int argc, char **argv)
+{
+	unsigned int i;
+	struct process *newproc;
+	if (argc != 2) {
+		puts("usage: mkproc BINNAME");
+		return 1;
+	}
+
+	for (i = 0; i < nelem(binaries); i++)
+		if (strcmp(binaries[i].name, argv[1]) == 0)
+			break;
+
+	if (i == nelem(binaries)) {
+		printf("unknown binary \"%s\"\n", argv[1]);
+		return 2;
+	}
+	newproc = create_process(i);
+	printf("created process with pid=%u\n", newproc->id);
+	return 0;
+}
+
+int cmd_lsproc(int argc, char **argv)
+{
+	struct process *p;
+	list_for_each_entry(p, &process_list, list, struct process) {
+		printf("%u\n", p->id);
+	}
+	return 0;
+}
+
+int cmd_execproc(int argc, char **argv)
+{
+	unsigned int pid;
+	struct process *p;
+	if (argc != 2) {
+		puts("usage: execproc PID\n");
+		return 1;
+	}
+
+	pid = atoi(argv[1]);
+
+	printf("starting process execution with pid=%u\n", pid);
+	list_for_each_entry(p, &process_list, list, struct process) {
+		if (p->id == pid) {
+			break;
+		}
+	}
+
+	if (p->id != pid) {
+		printf("pid %u not found\n", pid);
+		return 2;
+	}
+
+	start_process(p);
+	return 0; /* never happens :O */
 }
 
 /*
@@ -245,4 +303,5 @@ void schedule(void)
 void process_init(void)
 {
 	INIT_LIST_HEAD(process_list);
+	proc_slab = slab_new(sizeof(struct process), kmem_get_page, kmem_free_page);
 }
