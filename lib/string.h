@@ -5,9 +5,36 @@
 #define SOS_STRING_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
-uint32_t strlen(char *string);
+uint32_t strlen(const char *string);
 
-int strcmp(char *lhs, char *rhs);
+bool strprefix(const char *haystack, const char *prefix);
+
+int strcmp(const char *lhs, const char *rhs);
+
+struct buffer {
+	unsigned int cap;
+	unsigned int len;
+	char buf[0];
+};
+
+unsigned int strlcpy(char *dst, const char *src, unsigned int size);
+unsigned int strlcat(char *dst, const char *src, unsigned int size);
+
+/*
+ * Append a string onto a buffer.
+ * Return: 0 on success, non-zero on error
+ * RV 1: not enough capacity
+ */
+int buf_append(struct buffer *buf, const char *str);
+
+/*
+ * Trim a buffer to a specific length. This simply updates len, and
+ * null-terminates if necessary.
+ * Return: 0 on success, non-zero on error
+ * RV 1: out of bounds
+ */
+int buf_trim(struct buffer *buf, unsigned int newlen);
 
 #endif
