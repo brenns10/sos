@@ -15,7 +15,6 @@
 struct process;
 
 #define SOS_VERSION "0.1"
-#define PAGE_SIZE 0x1000
 
 /*
  * Linker symbols for virtual memory addresses.
@@ -271,7 +270,7 @@ extern uint32_t process_hello_end[];
 	})
 #endif
 
-void dtb_parse(uint32_t phys);
+void dtb_init(uint32_t phys);
 
 void ksh(void);
 
@@ -279,3 +278,6 @@ void ksh(void);
 int cmd_mkproc(int argc, char **argv);
 int cmd_lsproc(int argc, char **argv);
 int cmd_execproc(int argc, char **argv);
+int cmd_dtb_ls(int argc, char **argv);
+int cmd_dtb_prop(int argc, char **argv);
+int cmd_dtb_dump(int argc, char **argv);

@@ -31,6 +31,9 @@ struct cmd cmds[] = {
 	{.name="mkproc", .func=cmd_mkproc, .help="create a new process with binary image IMG"},
 	{.name="lsproc", .func=cmd_lsproc, .help="list process IDs"},
 	{.name="execproc", .func=cmd_execproc, .help="run process PID"},
+	{.name="dtb-ls", .func=cmd_dtb_ls, .help="list device tree nodes"},
+	{.name="dtb-prop", .func=cmd_dtb_prop, .help="show properties for a node"},
+	{.name="dtb-dump", .func=cmd_dtb_dump, .help="dump the whole damn dtb"},
 	{.name="help", .func=help, .help="show this help message"},
 };
 

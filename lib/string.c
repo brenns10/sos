@@ -49,6 +49,20 @@ unsigned int strlcpy(char *dst, const char *src, unsigned int size)
 	return i;
 }
 
+/* wow this is bad */
+void *memcpy(void *dest, void *src, size_t n)
+{
+	size_t i;
+	char *destc, *srcc;
+	destc = dest;
+	srcc = src;
+
+	for (i = 0; i < n; i++)
+		destc[i] = srcc[i];
+
+	return dest;
+}
+
 unsigned int strlcat(char *dst, const char *src, unsigned int size)
 {
 	unsigned int len = strlen(dst);

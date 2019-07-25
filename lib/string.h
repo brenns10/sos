@@ -5,6 +5,7 @@
 #define SOS_STRING_H
 
 #include <stdint.h>
+#include <stddef.h>
 #include <stdbool.h>
 
 uint32_t strlen(const char *string);
@@ -12,6 +13,8 @@ uint32_t strlen(const char *string);
 bool strprefix(const char *haystack, const char *prefix);
 
 int strcmp(const char *lhs, const char *rhs);
+
+void *memcpy(void *dest, void *src, size_t n);
 
 struct buffer {
 	unsigned int cap;
