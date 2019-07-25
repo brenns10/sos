@@ -535,9 +535,10 @@ int cmd_dtb_prop(int argc, char **argv)
 	return 0;
 }
 
-static char *spaces(uint32_t n)
+static char *indent(uint32_t n)
 {
-	static char sp[] = "                ";
+	static char sp[] = "                                               ";
+	n *= 4;
 	if (n > sizeof(sp) - 1)
 		n = sizeof(sp) - 1;
 	return sp + (sizeof(sp) - n - 1);
@@ -546,17 +547,18 @@ static char *spaces(uint32_t n)
 static bool dtb_dump_cb(const struct dtb_iter *iter, void *data)
 {
 	enum dt_fmt fmt;
+	int nodeidx = iter->path.len - 1;
 	switch (iter->typ) {
 	case FDT_BEGIN_NODE:
-		printf("%s%s {\n", spaces(iter->path.len-1),
-			iter->path.path[iter->path.len-1]);
+		printf("%s%s {\n", indent(nodeidx),
+			iter->path.path[nodeidx]);
 		break;
 	case FDT_END_NODE:
-		printf("%s}\n", spaces(iter->path.len - 1));
+		printf("%s}\n", indent(nodeidx));
 		break;
 	case FDT_PROP:
 		fmt = dt_lookup_fmt(iter->prop);
-		puts(spaces(iter->path.len));
+		puts(indent(nodeidx + 1));
 		PRINTERS[fmt](iter, data);
 	}
 	return false;
