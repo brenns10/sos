@@ -15,6 +15,7 @@
 struct process;
 
 #define SOS_VERSION "0.1"
+#define PAGE_SIZE 0x1000
 
 /*
  * Linker symbols for virtual memory addresses.
