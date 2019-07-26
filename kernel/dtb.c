@@ -5,6 +5,10 @@
 #include "string.h"
 #include "util.h"
 
+/*********************
+ * Flattened Device Tree Declarations
+ */
+
 /*
  * Token types.
  */
@@ -40,8 +44,16 @@ struct fdt_reserve_entry {
 	uint32_t size_le;
 };
 
+/*********************
+ * Internal Bookkeeping Declarations
+ */
+
+#define MAX_DEPTH 16
+#define MAX_NODES 128
+
 /*
- * Track the location of device tree sections in memory
+ * A single global tracking the locations of all the device tree sections in
+ * memory.
  */
 struct fdt_info {
 	struct fdt_header *hdr; /* decoded */
@@ -50,11 +62,51 @@ struct fdt_info {
 	void *str;
 } info;
 
+/*
+ * An array of per-node data that gets filled out on initialization.
+ */
+struct dt_node {
+	char *name;
+	uint32_t *tok;
+	struct dt_node *parent;
+	struct dt_node *interrupt_parent;
+	uint32_t address_cells;
+	uint32_t size_cells;
+	uint32_t interrupt_cells;
+	uint32_t phandle;
+	unsigned short depth;
+} nodes[MAX_NODES];
+
+/*
+ * Global describing how many nodes there are total.
+ */
+unsigned int nodecount = 0;
+
+/*
+ * Mapping phandles to nodes
+ */
+struct {
+	uint32_t phandle;
+	struct dt_node *node;
+} phandle_map[MAX_NODES];
+
+/*
+ * How many phandles mapped?
+ */
+unsigned int phandlecount = 0;
+
+/*
+ * Data structure encoding a "path" for a device tree node. Useful for
+ * describing nodes and shell operations.
+ */
 struct dt_path {
-	char *path[16];
+	char *path[MAX_DEPTH];
 	unsigned int len;
 };
 
+/*
+ * "Formats" which an attribute may be in.
+ */
 enum dt_fmt {
 	FMT_UNKNOWN = 0, /* prop-encoded-array is included here */
 	/* these are described in the spec as types */
@@ -70,16 +122,6 @@ enum dt_fmt {
 };
 
 /*
- * Information about address cells and size cells, which must be kept as
- * bookkeeping.
- */
-struct dt_reg_info {
-	uint32_t address_cells;
-	uint32_t size_cells;
-	uint32_t interrupt_cells;
-};
-
-/*
  * Info about the current iteration over the device tree
  */
 struct dtb_iter {
@@ -88,10 +130,6 @@ struct dtb_iter {
 	 * attribute applies.
 	 */
 	struct dt_path path;
-	/*
-	 * All address-cells / size-cells along the path
-	 */
-	struct dt_reg_info reginfo[16];
 	/*
 	 * A pointer to the current token in the tree.
 	 */
@@ -116,6 +154,10 @@ struct dtb_iter {
 	 * things)
 	 */
 	void *propaddr;
+	/*
+	 * Index into nodes array
+	 */
+	unsigned short nodeidx;
 };
 
 
@@ -124,10 +166,14 @@ static void print_attr_empty(const struct dtb_iter *, void *);
 static void print_attr_u32(const struct dtb_iter *, void *);
 static void print_attr_u64(const struct dtb_iter *, void *);
 static void print_attr_string(const struct dtb_iter *, void *);
+static void print_attr_phandle(const struct dtb_iter *, void *);
 static void print_attr_stringlist(const struct dtb_iter *, void *);
 static void print_attr_reg(const struct dtb_iter *, void *);
 static void print_attr_ranges(const struct dtb_iter *, void *);
 
+/*
+ * Indexed by enum dt_fmt
+ */
 typedef void (*dt_prop_printer)(const struct dtb_iter*, void*);
 dt_prop_printer PRINTERS[] = {
 	print_attr_unknown,
@@ -135,7 +181,7 @@ dt_prop_printer PRINTERS[] = {
 	print_attr_u32,
 	print_attr_u64,
 	print_attr_string,
-	print_attr_u32,
+	print_attr_phandle,
 	print_attr_stringlist,
 	print_attr_reg,
 	print_attr_ranges,
@@ -167,6 +213,10 @@ struct dt_prop_fmt STD_PROPS[] = {
 #define DT_ITER_BEGIN_NODE 0x01
 #define DT_ITER_END_NODE   0x02
 #define DT_ITER_PROP       0x04
+
+/******************************
+ * Path related functions!
+ */
 
 /**
  * Parse a device tree node path. Return 0 on success, non-0 on failure;
@@ -239,6 +289,25 @@ static void dt_path_print(const struct dt_path *path)
 	}
 }
 
+/************************
+ * Phandle lookup
+ */
+static struct dt_node *lookup_phandle(uint32_t phandle)
+{
+	uint32_t i;
+	for (i = 0; i < phandlecount; i++)
+		if (phandle_map[i].phandle == phandle)
+			return phandle_map[i].node;
+	return NULL;
+}
+
+/************************
+ * Functions related to attribute formats!
+ */
+
+/*
+ * Return the format we have mapped a particular propname to.
+ */
 static enum dt_fmt dt_lookup_fmt(const char *propname)
 {
 	unsigned int i;
@@ -287,6 +356,17 @@ static void print_attr_string(const struct dtb_iter *iter, void *data)
 	printf("%s: \"%s\"\n", iter->prop, (char*)iter->propaddr);
 }
 
+static void print_attr_phandle(const struct dtb_iter *iter, void *data)
+{
+	uint32_t phandle = be2host(iter->tok[3]);
+	struct dt_node *ref = lookup_phandle(phandle);
+	if (ref) {
+		printf("%s: <phandle &%s>\n", iter->prop, ref->name);
+	} else {
+		printf("%s: <phandle 0x%x>\n", iter->prop, phandle);
+	}
+}
+
 static void print_attr_stringlist(const struct dtb_iter *iter, void *data)
 {
 	unsigned int len = 0;
@@ -302,10 +382,11 @@ static void print_attr_stringlist(const struct dtb_iter *iter, void *data)
 
 static void print_attr_reg(const struct dtb_iter *iter, void *data)
 {
+	unsigned short nodeidx = iter->nodeidx;
 	uint32_t *reg = iter->propaddr;
 	int remain = (int)iter->proplen;
-	uint32_t address_cells = iter->reginfo[iter->path.len-2].address_cells;
-	uint32_t size_cells = iter->reginfo[iter->path.len-2].size_cells;
+	uint32_t address_cells = nodes[nodeidx].parent->address_cells;
+	uint32_t size_cells = nodes[nodeidx].parent->size_cells;
 	uint32_t i;
 	/*
 	 * Reg is arbitrarily long list of 2-tuples containing (address, size)
@@ -317,12 +398,12 @@ static void print_attr_reg(const struct dtb_iter *iter, void *data)
 	while (remain > 0) {
 		puts("<0x");
 		for (i = 0; i < address_cells; i++)
-			printf("%x ", reg[i]);
+			printf("%x ", be2host(reg[i]));
 		reg += address_cells;
 		remain -= address_cells * 4;
 		puts(", 0x");
 		for (i = 0; i < size_cells; i++)
-			printf("%x ", reg[i]);
+			printf("%x ", be2host(reg[i]));
 		puts("> ");
 		reg += size_cells;
 		remain -= size_cells * 4;
@@ -332,10 +413,11 @@ static void print_attr_reg(const struct dtb_iter *iter, void *data)
 
 static void print_attr_ranges(const struct dtb_iter *iter, void *data)
 {
+	unsigned short nodeidx = iter->nodeidx;
 	uint32_t *reg = iter->propaddr;
 	int remain = (int)iter->proplen;
-	uint32_t address_cells = iter->reginfo[iter->path.len-1].address_cells;
-	uint32_t size_cells = iter->reginfo[iter->path.len-1].size_cells;
+	uint32_t address_cells = nodes[nodeidx].address_cells;
+	uint32_t size_cells = nodes[nodeidx].size_cells;
 	uint32_t i;
 	/*
 	 * Ranges is arbitrarily long list of 3-tuples containing
@@ -349,19 +431,19 @@ static void print_attr_ranges(const struct dtb_iter *iter, void *data)
 	while (remain > 0) {
 		puts("<0x");
 		for (i = 0; i < address_cells; i++)
-			printf("%x ", reg[i]);
+			printf("%x ", be2host(reg[i]));
 		reg += address_cells;
 		remain -= address_cells * 4;
 
 		puts(", 0x");
 		for (i = 0; i < address_cells; i++)
-			printf("%x ", reg[i]);
+			printf("%x ", be2host(reg[i]));
 		reg += address_cells;
 		remain -= address_cells * 4;
 
 		puts(", 0x");
 		for (i = 0; i < size_cells; i++)
-			printf("%x ", reg[i]);
+			printf("%x ", be2host(reg[i]));
 		puts("> ");
 		reg += size_cells;
 		remain -= size_cells * 4;
@@ -369,6 +451,13 @@ static void print_attr_ranges(const struct dtb_iter *iter, void *data)
 	puts("\n");
 }
 
+/****************************
+ * DTB Parsing!
+ */
+
+/*
+ * Read the mem_reserved section and print info out
+ */
 void dtb_mem_reserved(void)
 {
 	struct fdt_reserve_entry *entry;
@@ -404,73 +493,57 @@ void dtb_iter(unsigned int cb_flags, bool (*cb)(const struct dtb_iter *, void *)
 	struct dtb_iter iter;
 	iter.path.len = 0;
 	iter.tok = info.tok;
+	iter.nodeidx = 0;
+	bool begin = true;
 
 	while (1) {
 		iter.typ = be2host(*iter.tok);
 		switch (iter.typ) {
-			case FDT_NOP:
-				iter.tok++;
-				break;
-			case FDT_BEGIN_NODE:
-				str = (char *)iter.tok + 4;
-				iter.path.path[iter.path.len] = str;
-				/* defaults from section 2.3.5 of DTS */
-				iter.reginfo[iter.path.len].address_cells = 2;
-				iter.reginfo[iter.path.len].size_cells = 1;
-				/* no idea what the default is, 2 is frequently
-				 * used in the DTS */
-				iter.reginfo[iter.path.len].interrupt_cells = 2;
-				iter.path.len++;
-				if (cb_flags & DT_ITER_BEGIN_NODE)
-					if (cb(&iter, data))
-						return;
-				iter.tok = (uint32_t*)align((uint32_t)str + strlen(str) + 1, 2);
-				break;
-			case FDT_END_NODE:
-				if (cb_flags & DT_ITER_END_NODE)
-					if (cb(&iter, data))
-						return;
-				iter.path.len--;
-				iter.tok++;
-				break;
-			case FDT_PROP:
-				iter.prop = info.str + be2host(iter.tok[2]);
-				iter.proplen = be2host(iter.tok[1]);
-				iter.propaddr = (void*)iter.tok + 12;
-
-				/* regardless of callbacks, we must track the
-				 * #address-cells and #size-cells attributes as
-				 * we parse, in order to be able to make sense
-				 * of child attributes like regs
-				 */
-				if (strcmp(iter.prop, "#address-cells") == 0) {
-					iter.reginfo[iter.path.len-1].address_cells = (
-						be2host(iter.tok[3]));
-				} else if (strcmp(iter.prop, "#size-cells") == 0) {
-					iter.reginfo[iter.path.len-1].size_cells = (
-						be2host(iter.tok[3]));
-				} else if (strcmp(iter.prop, "#interrupt-cells") == 0) {
-					iter.reginfo[iter.path.len-1].interrupt_cells = (
-						be2host(iter.tok[3]));
-				}
-
-
-				if (cb_flags & DT_ITER_PROP)
-					if (cb(&iter, data))
-						return;
-				iter.prop = NULL;
-				iter.propaddr = NULL;
-				iter.tok = (uint32_t*)align((uint32_t)iter.tok + 12 + iter.proplen, 2);
-				iter.proplen = 0;
-				break;
-			case FDT_END:
-				return;
-			default:
-				printf("unrecognized token 0x%x\n", iter.typ);
-				return;
+		case FDT_NOP:
+			iter.tok++;
+			break;
+		case FDT_BEGIN_NODE:
+			str = (char *)iter.tok + 4;
+			iter.path.path[iter.path.len] = str;
+			iter.path.len++;
+			iter.nodeidx = begin ? 0 : (iter.nodeidx+1);
+			begin = false;
+			if (cb_flags & DT_ITER_BEGIN_NODE)
+				if (cb(&iter, data))
+					return;
+			iter.tok = (uint32_t*)align((uint32_t)str + strlen(str) + 1, 2);
+			break;
+		case FDT_END_NODE:
+			if (cb_flags & DT_ITER_END_NODE)
+				if (cb(&iter, data))
+					return;
+			iter.path.len--;
+			iter.tok++;
+			break;
+		case FDT_PROP:
+			iter.prop = info.str + be2host(iter.tok[2]);
+			iter.proplen = be2host(iter.tok[1]);
+			iter.propaddr = (void*)iter.tok + 12;
+			if (cb_flags & DT_ITER_PROP)
+				if (cb(&iter, data))
+					return;
+			iter.prop = NULL;
+			iter.propaddr = NULL;
+			iter.tok = (uint32_t*)align((uint32_t)iter.tok + 12 + iter.proplen, 2);
+			iter.proplen = 0;
+			break;
+		case FDT_END:
+			return;
+		default:
+			printf("unrecognized token 0x%x\n", iter.typ);
+			return;
 		}
 	}
 }
+
+/***************************
+ * Device tree "commands" for the shell
+ */
 
 static bool dtb_ls_cb(const struct dtb_iter *iter, void *data)
 {
@@ -575,6 +648,79 @@ int cmd_dtb_dump(int argc, char **argv)
 	return 0;
 }
 
+/*****************************
+ * Initializations for the device tree "module"
+ */
+
+/*
+ * This callback constructs tracking information about each node.
+ */
+static bool dtb_init_cb(const struct dtb_iter *iter, void *data)
+{
+	int i;
+	unsigned short nodeidx = iter->nodeidx;
+	switch (iter->typ) {
+	case FDT_BEGIN_NODE:
+		nodes[nodeidx].name = iter->path.path[iter->path.len-1];
+		nodes[nodeidx].tok = iter->tok;
+		nodes[nodeidx].depth = iter->path.len;
+		nodes[nodeidx].address_cells = 2;
+		nodes[nodeidx].size_cells = 1;
+		nodes[nodeidx].interrupt_cells = 0;
+		nodes[nodeidx].phandle = 0;
+		if (nodeidx != 0) {
+			i = nodeidx - 1;
+			while (i >= 0 && nodes[i].depth == nodes[nodeidx].depth)
+				i--;
+			nodes[nodeidx].parent = &nodes[i];
+		} else {
+			nodes[nodeidx].parent = &nodes[nodeidx];
+		}
+		nodes[nodeidx].interrupt_parent = nodes[nodeidx].parent;
+		break;
+	case FDT_PROP:
+		if (strcmp(iter->prop, "#address-cells") == 0) {
+			nodes[nodeidx].address_cells = be2host(iter->tok[3]);
+		} else if (strcmp(iter->prop, "#size-cells") == 0) {
+			nodes[nodeidx].size_cells = be2host(iter->tok[3]);
+		} else if (strcmp(iter->prop, "#interrupt-cells") == 0) {
+			nodes[nodeidx].interrupt_cells = be2host(iter->tok[3]);
+		} else if (strcmp(iter->prop, "phandle") == 0) {
+			nodes[nodeidx].phandle = be2host(iter->tok[3]);
+			phandle_map[phandlecount].phandle = nodes[nodeidx].phandle;
+			phandle_map[phandlecount].node = &nodes[nodeidx];
+			phandlecount++;
+		}
+		break;
+	case FDT_END_NODE:
+		nodecount = nodeidx + 1;
+		break;
+	}
+	return false;
+}
+
+/*
+ * Initialize "interrupt_parent" fields given our newly built phandle mapping.
+ */
+bool dtb_init_interrupt_cb(const struct dtb_iter *iter, void *data)
+{
+	unsigned short nodeidx = iter->nodeidx;
+	uint32_t phandle;
+	struct dt_node *parent;
+	if (strcmp(iter->prop, "interrupt-parent") == 0) {
+		phandle = be2host(iter->tok[3]);
+		parent = lookup_phandle(phandle);
+		if (parent) {
+			nodes[nodeidx].interrupt_parent = parent;
+		} else {
+			puts("dtb: error: for node ");
+			dt_path_print(&iter->path);
+			printf(", interrupt-parent specifies unknown phandle 0x%x\n", phandle);
+		}
+	}
+	return false;
+}
+
 /*
  * Initialize "dtb" module, given the location of the flattened device tree in
  * memory (physical address). This must be called only once, and it must be
@@ -582,6 +728,7 @@ int cmd_dtb_dump(int argc, char **argv)
  */
 void dtb_init(uint32_t phys)
 {
+	uint32_t i;
 	uint32_t virt = alloc_pages(kern_virt_allocator, 0x4000, 0);
 	kmem_map_pages((uint32_t)virt, phys, 0x4000, PRW_UNA);
 
@@ -589,4 +736,7 @@ void dtb_init(uint32_t phys)
 	info.rsv = (void*) (virt + be2host(info.hdr->off_mem_rsvmap));
 	info.tok = (void*) (virt + be2host(info.hdr->off_dt_struct));
 	info.str = (void*) (virt + be2host(info.hdr->off_dt_strings));
+
+	dtb_iter(DT_ITER_BEGIN_NODE|DT_ITER_END_NODE|DT_ITER_PROP, dtb_init_cb, NULL);
+	dtb_iter(DT_ITER_PROP, dtb_init_interrupt_cb, NULL);
 }
