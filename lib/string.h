@@ -11,6 +11,7 @@
 uint32_t strlen(const char *string);
 
 bool strprefix(const char *haystack, const char *prefix);
+bool strsuffix(const char *haystack, const char *suffix);
 
 int strcmp(const char *lhs, const char *rhs);
 

@@ -207,6 +207,7 @@ struct dt_prop_fmt STD_PROPS[] = {
 	{.prop="name", .fmt=FMT_STRING},
 	{.prop="device_type", .fmt=FMT_STRING},
 	{.prop="interrupt-parent", .fmt=FMT_PHANDLE},
+	{.prop="interrupt-controller", .fmt=FMT_EMPTY},
 };
 
 /* Bits determining when a callback for device tree iteration is executed */
@@ -308,13 +309,17 @@ static struct dt_node *lookup_phandle(uint32_t phandle)
 /*
  * Return the format we have mapped a particular propname to.
  */
-static enum dt_fmt dt_lookup_fmt(const char *propname)
+static enum dt_fmt dt_lookup_fmt(const char *propname, uint32_t proplen)
 {
 	unsigned int i;
 	for (i = 0; i < nelem(STD_PROPS); i++) {
 		if (strcmp(propname, STD_PROPS[i].prop) == 0)
 			return STD_PROPS[i].fmt;
 	}
+	if (propname[0] == '#' && strsuffix(propname, "-cells"))
+		return FMT_U32;
+	if (proplen == 0)
+		return FMT_EMPTY;
 	return FMT_UNKNOWN;
 }
 
@@ -331,7 +336,7 @@ uint32_t be2host(uint32_t orig)
 
 static void print_attr_unknown(const struct dtb_iter *iter, void *data)
 {
-	printf("%s: (data in unknown format)\n", iter->prop);
+	printf("%s: (data in unknown format, len=%u)\n", iter->prop, iter->proplen);
 }
 
 static void print_attr_empty(const struct dtb_iter *iter, void *data)
@@ -427,7 +432,7 @@ static void print_attr_ranges(const struct dtb_iter *iter, void *data)
 	 * current node, both in terms of u32s.
 	 */
 
-	printf("%s: ", iter->prop);
+	printf("%s: (len=%u) ", iter->prop, iter->proplen);
 	while (remain > 0) {
 		puts("<0x");
 		for (i = 0; i < address_cells; i++)
@@ -586,7 +591,7 @@ static bool dtb_prop_cb(const struct dtb_iter *iter, void *data)
 		return false;
 	}
 
-	fmt = dt_lookup_fmt(iter->prop);
+	fmt = dt_lookup_fmt(iter->prop, iter->proplen);
 	PRINTERS[fmt](iter, data);
 	return false;
 }
@@ -630,7 +635,7 @@ static bool dtb_dump_cb(const struct dtb_iter *iter, void *data)
 		printf("%s}\n", indent(nodeidx));
 		break;
 	case FDT_PROP:
-		fmt = dt_lookup_fmt(iter->prop);
+		fmt = dt_lookup_fmt(iter->prop, iter->proplen);
 		puts(indent(nodeidx + 1));
 		PRINTERS[fmt](iter, data);
 	}

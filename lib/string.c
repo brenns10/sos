@@ -34,6 +34,15 @@ bool strprefix(const char *haystack, const char *prefix)
 	return 1;
 }
 
+bool strsuffix(const char *haystack, const char *suffix)
+{
+	uint32_t haylen = strlen(haystack);
+	uint32_t suflen = strlen(suffix);
+	if (haylen < suflen)
+		return false;
+	return strcmp(haystack + (haylen - suflen), suffix) == 0;
+}
+
 unsigned int strlcpy(char *dst, const char *src, unsigned int size)
 {
 	unsigned int i;
