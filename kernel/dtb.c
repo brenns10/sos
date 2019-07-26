@@ -119,6 +119,7 @@ enum dt_fmt {
 	/* these are described in the spec, but for particular props */
 	FMT_REG,
 	FMT_RANGES,
+	FMT_INTERRUPTS,
 };
 
 /*
@@ -170,6 +171,7 @@ static void print_attr_phandle(const struct dtb_iter *, void *);
 static void print_attr_stringlist(const struct dtb_iter *, void *);
 static void print_attr_reg(const struct dtb_iter *, void *);
 static void print_attr_ranges(const struct dtb_iter *, void *);
+static void print_attr_interrupts(const struct dtb_iter *, void *);
 
 /*
  * Indexed by enum dt_fmt
@@ -185,11 +187,17 @@ dt_prop_printer PRINTERS[] = {
 	print_attr_stringlist,
 	print_attr_reg,
 	print_attr_ranges,
+	print_attr_interrupts,
 };
 
 struct dt_prop_fmt {
 	char *prop;
 	enum dt_fmt fmt;
+};
+
+struct dt_propenc_field {
+	int cells;
+	bool phandle;
 };
 
 struct dt_prop_fmt STD_PROPS[] = {
@@ -208,6 +216,8 @@ struct dt_prop_fmt STD_PROPS[] = {
 	{.prop="device_type", .fmt=FMT_STRING},
 	{.prop="interrupt-parent", .fmt=FMT_PHANDLE},
 	{.prop="interrupt-controller", .fmt=FMT_EMPTY},
+	{.prop="interrupts", .fmt=FMT_INTERRUPTS},
+	{.prop="msi-parent", .fmt=FMT_PHANDLE},
 };
 
 /* Bits determining when a callback for device tree iteration is executed */
@@ -385,75 +395,92 @@ static void print_attr_stringlist(const struct dtb_iter *iter, void *data)
 	puts("]\n");
 }
 
+static void print_attr_propenc(const struct dtb_iter *iter, struct dt_propenc_field fields[], int fcnt)
+{
+	uint32_t entry_size = 0, i, j, phandle, remain = iter->proplen;
+	uint32_t *reg = iter->propaddr;
+	struct dt_node *ref;
+
+	printf("%s: ", iter->prop);
+
+	for (i = 0; i < fcnt; i++) {
+		entry_size += 4 * fields[i].cells;
+		if (fields[i].phandle & fields[i].cells != 1)
+			puts("malformed prop-encoded array, has phandle with len != 1\n");
+	}
+
+	printf("(len=%u/%u) ", iter->proplen, entry_size);
+
+	if (iter->proplen % entry_size != 0) {
+		printf("malformed prop-encoded array, len=%u, entry len=%u\n",
+			iter->proplen, entry_size);
+		return;
+	}
+
+	while (remain > 0) {
+		puts("<");
+		for (i = 0; i < fcnt; i++) {
+			if (fields[i].phandle) {
+				phandle = be2host(*reg);
+				ref = lookup_phandle(phandle);
+				if (ref) {
+					printf("<phandle &%s>", ref->name);
+				} else {
+					printf("<phandle 0x%x>", phandle);
+				}
+				reg++;
+				remain -= 4;
+			} else {
+				puts("0x");
+				for (j = 0; j < fields[i].cells; j++) {
+					printf("%x ", be2host(*reg));
+					reg++;
+					remain -= 4;
+				}
+			}
+			puts("| ");
+		}
+		puts("> ");
+	}
+	puts("\n");
+}
+
 static void print_attr_reg(const struct dtb_iter *iter, void *data)
 {
 	unsigned short nodeidx = iter->nodeidx;
-	uint32_t *reg = iter->propaddr;
-	int remain = (int)iter->proplen;
-	uint32_t address_cells = nodes[nodeidx].parent->address_cells;
-	uint32_t size_cells = nodes[nodeidx].parent->size_cells;
-	uint32_t i;
-	/*
-	 * Reg is arbitrarily long list of 2-tuples containing (address, size)
-	 * of the memory mapped region assigned. "address" has size
-	 * #address-cells from parent node, and "size" has size #size-cells from
-	 * parent node, both in terms of u32s.
-	 */
-	printf("%s: ", iter->prop);
-	while (remain > 0) {
-		puts("<0x");
-		for (i = 0; i < address_cells; i++)
-			printf("%x ", be2host(reg[i]));
-		reg += address_cells;
-		remain -= address_cells * 4;
-		puts(", 0x");
-		for (i = 0; i < size_cells; i++)
-			printf("%x ", be2host(reg[i]));
-		puts("> ");
-		reg += size_cells;
-		remain -= size_cells * 4;
-	}
-	puts("\n");
+	struct dt_propenc_field fields[] = {
+		{.cells=nodes[nodeidx].parent->address_cells, .phandle=false},
+		{.cells=nodes[nodeidx].parent->size_cells, .phandle=false},
+	};
+	print_attr_propenc(iter, fields, nelem(fields));
 }
 
 static void print_attr_ranges(const struct dtb_iter *iter, void *data)
 {
 	unsigned short nodeidx = iter->nodeidx;
-	uint32_t *reg = iter->propaddr;
-	int remain = (int)iter->proplen;
-	uint32_t address_cells = nodes[nodeidx].address_cells;
-	uint32_t size_cells = nodes[nodeidx].size_cells;
-	uint32_t i;
-	/*
-	 * Ranges is arbitrarily long list of 3-tuples containing
-	 * (child address, parent address, size)
-	 * of the memory mapped region assigned. "address" has size
-	 * #address-cells from current node, and "size" has size #size-cells from
-	 * current node, both in terms of u32s.
-	 */
+	struct dt_propenc_field fields[] = {
+		{.cells=nodes[nodeidx].address_cells, .phandle=false},
+		{.cells=nodes[nodeidx].parent->address_cells, .phandle=false},
+		{.cells=nodes[nodeidx].size_cells, .phandle=false},
+	};
+	print_attr_propenc(iter, fields, nelem(fields));
+}
 
-	printf("%s: (len=%u) ", iter->prop, iter->proplen);
-	while (remain > 0) {
-		puts("<0x");
-		for (i = 0; i < address_cells; i++)
-			printf("%x ", be2host(reg[i]));
-		reg += address_cells;
-		remain -= address_cells * 4;
+static void print_attr_interrupts(const struct dtb_iter *iter, void *data)
+{
+	unsigned short nodeidx = iter->nodeidx;
+	struct dt_node *node = nodes[nodeidx].parent;
+	uint32_t interrupt_cells = 0;
 
-		puts(", 0x");
-		for (i = 0; i < address_cells; i++)
-			printf("%x ", be2host(reg[i]));
-		reg += address_cells;
-		remain -= address_cells * 4;
+	while (node && node->interrupt_cells == 0)
+		node = node->interrupt_parent;
+	if (node)
+		interrupt_cells = node->interrupt_cells;
 
-		puts(", 0x");
-		for (i = 0; i < size_cells; i++)
-			printf("%x ", be2host(reg[i]));
-		puts("> ");
-		reg += size_cells;
-		remain -= size_cells * 4;
-	}
-	puts("\n");
+	struct dt_propenc_field fields[] = {
+		{.cells=interrupt_cells, .phandle=false},
+	};
+	print_attr_propenc(iter, fields, nelem(fields));
 }
 
 /****************************
@@ -675,7 +702,7 @@ static bool dtb_init_cb(const struct dtb_iter *iter, void *data)
 		nodes[nodeidx].phandle = 0;
 		if (nodeidx != 0) {
 			i = nodeidx - 1;
-			while (i >= 0 && nodes[i].depth == nodes[nodeidx].depth)
+			while (i >= 0 && nodes[i].depth != nodes[nodeidx].depth-1)
 				i--;
 			nodes[nodeidx].parent = &nodes[i];
 		} else {
