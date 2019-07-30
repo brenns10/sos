@@ -10,20 +10,20 @@ void print_fault(uint32_t fsr, uint32_t far)
 		printf("Translation fault (page): 0x%x\n", far);
 		break;
 	case 0x9:
-		printf("Domain fault (section): 0x%x, domain=%u\n",
-				far, (fsr >> 4) & 0xF);
+		printf("Domain fault (section): 0x%x, domain=%u\n", far,
+		       (fsr >> 4) & 0xF);
 		break;
 	case 0xB:
-		printf("Domain fault (page): 0x%x, domain=%u\n",
-				far, (fsr >> 4) & 0xF);
+		printf("Domain fault (page): 0x%x, domain=%u\n", far,
+		       (fsr >> 4) & 0xF);
 		break;
 	case 0xD:
-		printf("Permission fault (section): FAR=0x%x, FSR=0x%x\n",
-				far, fsr);
+		printf("Permission fault (section): FAR=0x%x, FSR=0x%x\n", far,
+		       fsr);
 		break;
 	case 0xF:
-		printf("Permission fault (page): FAR=0x%x, FSR=0x%x\n",
-				far, fsr);
+		printf("Permission fault (page): FAR=0x%x, FSR=0x%x\n", far,
+		       fsr);
 		break;
 	default:
 		printf("Some other fault\n");
@@ -62,7 +62,8 @@ void sys_display(char *buffer)
 
 void sys_exit(uint32_t code)
 {
-	printf("[kernel]\t\tProcess %u exited with code %u.\n", current->id, code);
+	printf("[kernel]\t\tProcess %u exited with code %u.\n", current->id,
+	       code);
 	destroy_process(current);
 	/*
 	 * Mark current AS null for schedule(), to inform it that we can't
@@ -72,17 +73,18 @@ void sys_exit(uint32_t code)
 	schedule();
 }
 
-void swi(uint32_t svc_num)
-{
-	printf("ERR: unknown syscall %u!\n", svc_num);
-}
+void swi(uint32_t svc_num) { printf("ERR: unknown syscall %u!\n", svc_num); }
 
 void irq(void)
 {
-	puts("IRQ!\n");
+	uint32_t intid = gic_interrupt_acknowledge();
+
+	if (intid == 30) {
+		timer_isr();
+		gic_end_interrupt(intid);
+	} else {
+		printf("Unhandled IRQ: ID=%u, not ending\n", intid);
+	}
 }
 
-void fiq(void)
-{
-	puts("FIQ!\n");
-}
+void fiq(void) { puts("FIQ!\n"); }

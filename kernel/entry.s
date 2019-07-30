@@ -57,11 +57,36 @@ prefetch_abort_impl:
 
 .global irq_impl
 irq_impl:
+        /* Dump LR and SPSR to IRQ-mode stack. */
 	srsfd sp!, #0x12 /* irq */
+
+	/* Save ALL registers (including scratch ones) since whatever got
+	 * interrupted did not ask for it, and does not expect its scratch
+	 * registers to get clobbered. */
 	push {r0-r12}
+
+	/* Save SP_usr and LR_usr */
+	cps #0x1F  /* system */
+	mov v1, sp
+	mov v2, lr
+	cps #0x12  /* irq */
+	push {v1, v2}
+
+	/* Branch into the C IRQ handler. */
 	bl irq
-	nop  /* infinite loop since irq disabled */
-	sub pc, pc, #8
+
+	/* Restore SP_usr and LR_usr */
+	pop {v1, v2}
+	cps #0x1F  /* system */
+	mov sp, v1
+	mov lr, v2
+	cps #0x12  /* irq */
+
+	/* Get back all the user registers. */
+	pop {r0-r12}
+
+	/* Return from exception. */
+	rfefd sp!
 
 .global fiq_impl
 fiq_impl:

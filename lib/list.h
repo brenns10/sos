@@ -3,7 +3,7 @@
  *
  * No credit taken here: this is essentially the Linux kernel's linked list
  * library. Some differences here are that we do not depend on the nonstandard
- * GNU `typeof()` keyword. We do use inline functions, since these are C89
+ * GNU `typeof()` keyword. We do not use inline functions, since these are C89
  * incompatible. However, the compiler is generally smart enough to inline them
  * anyway.
  */

@@ -27,14 +27,33 @@ static int echo(int argc, char **argv)
 
 static int help(int argc, char **argv);
 struct cmd cmds[] = {
-	{.name="echo", .func=echo, .help="print each arg, useful for debugging"},
-	{.name="mkproc", .func=cmd_mkproc, .help="create a new process with binary image IMG"},
-	{.name="lsproc", .func=cmd_lsproc, .help="list process IDs"},
-	{.name="execproc", .func=cmd_execproc, .help="run process PID"},
-	{.name="dtb-ls", .func=cmd_dtb_ls, .help="list device tree nodes"},
-	{.name="dtb-prop", .func=cmd_dtb_prop, .help="show properties for a node"},
-	{.name="dtb-dump", .func=cmd_dtb_dump, .help="dump the whole damn dtb"},
-	{.name="help", .func=help, .help="show this help message"},
+	{ .name = "echo",
+	  .func = echo,
+	  .help = "print each arg, useful for debugging" },
+	{ .name = "mkproc",
+	  .func = cmd_mkproc,
+	  .help = "create a new process with binary image IMG" },
+	{ .name = "lsproc", .func = cmd_lsproc, .help = "list process IDs" },
+	{ .name = "execproc", .func = cmd_execproc, .help = "run process PID" },
+	{ .name = "dtb-ls",
+	  .func = cmd_dtb_ls,
+	  .help = "list device tree nodes" },
+	{ .name = "dtb-prop",
+	  .func = cmd_dtb_prop,
+	  .help = "show properties for a node" },
+	{ .name = "dtb-dump",
+	  .func = cmd_dtb_dump,
+	  .help = "dump the whole damn dtb" },
+	{ .name = "timer-get-freq",
+	  .func = cmd_timer_get_freq,
+	  .help = "get timer frequency" },
+	{ .name = "timer-get-count",
+	  .func = cmd_timer_get_count,
+	  .help = "get current timer value" },
+	{ .name = "timer-get-ctl",
+	  .func = cmd_timer_get_ctl,
+	  .help = "get current timer ctl register" },
+	{ .name = "help", .func = help, .help = "show this help message" },
 };
 
 /*
@@ -58,24 +77,24 @@ static void getline(void)
 
 	do {
 		input[i++] = getc();
-		putc(input[i-1]);
-	} while (input[i-1] != '\r' && i < sizeof(input));
+		putc(input[i - 1]);
+	} while (input[i - 1] != '\r' && i < sizeof(input));
 	putc('\n');
-	input[i-1] = '\0';
+	input[i - 1] = '\0';
 }
 
 static void tokenize(void)
 {
-	unsigned int start = 0, tok=0, i;
+	unsigned int start = 0, tok = 0, i;
 	for (i = 0; input[i]; i++) {
 		if (input[i] == ' ' || input[i] == '\t' || input[i] == '\r' ||
-				input[i] == '\n') {
+		    input[i] == '\n') {
 			if (i != start) {
 				/* only complete a token if non-empty */
 				tokens[tok++] = &input[start];
 				input[i] = '\0';
 			}
-			start = i+1;
+			start = i + 1;
 		}
 	}
 	if (i != start) {

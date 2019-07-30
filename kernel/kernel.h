@@ -3,13 +3,13 @@
  */
 #pragma once
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
-#include "list.h"
-#include "format.h"
 #include "alloc.h"
+#include "format.h"
+#include "list.h"
 
 #define nelem(x) (sizeof(x) / sizeof(x[0]))
 struct process;
@@ -27,7 +27,8 @@ extern uint8_t stack_start[];
 extern uint8_t stack_end[];
 extern uint8_t unused_start[];
 extern uint8_t dynamic_start[];
-/* NB: this is actually a uint32_t array because it points to a table of words */
+/* NB: this is actually a uint32_t array because it points to a table of words
+ */
 extern uint32_t first_level_table[];
 
 /*
@@ -76,7 +77,8 @@ uint32_t umem_lookup_phys(struct process *p, void *virt_ptr);
  * Map physical memory into the virtual memory space.
  */
 void kmem_map_pages(uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs);
-void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs);
+void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys,
+                    uint32_t len, uint32_t attrs);
 
 /*
  * Unmap memory
@@ -102,27 +104,27 @@ extern void *kern_virt_allocator;
 
 /* first level descriptor types */
 #define FLD_UNMAPPED 0x00
-#define FLD_COARSE   0x01
-#define FLD_SECTION  0x02
+#define FLD_COARSE 0x01
+#define FLD_SECTION 0x02
 
-#define FLD_MASK     0x03
+#define FLD_MASK 0x03
 
 /* second level descriptor types */
 #define SLD_UNMAPPED 0x00
-#define SLD_LARGE    0x01
-#define SLD_SMALL    0x02
+#define SLD_LARGE 0x01
+#define SLD_SMALL 0x02
 
-#define SLD_MASK     0x03
+#define SLD_MASK 0x03
 
 #define SLD_NG (1 << 11)
 
 /* access control for second level */
-#define NOT_GLOBAL   (0x1 << 11)
-#define PRW_UNA      (SLD__AP0)            /* AP=0b001 */
-#define PRW_URO      (SLD__AP1)            /* AP=0b010 */
-#define PRW_URW      (SLD__AP1 | SLD__AP0) /* AP=0b011 */
-#define PRO_UNA      (SLD__AP2 | SLD__AP0) /* AP=0b101 */
-#define PRO_URO      (SLD__AP2 | SLD__AP1) /* AP=0b110 */
+#define NOT_GLOBAL (0x1 << 11)
+#define PRW_UNA (SLD__AP0)            /* AP=0b001 */
+#define PRW_URO (SLD__AP1)            /* AP=0b010 */
+#define PRW_URW (SLD__AP1 | SLD__AP0) /* AP=0b011 */
+#define PRO_UNA (SLD__AP2 | SLD__AP0) /* AP=0b101 */
+#define PRO_URO (SLD__AP2 | SLD__AP1) /* AP=0b110 */
 #define EXECUTE_NEVER 0x01
 
 /*
@@ -143,35 +145,42 @@ void data_abort(void);
 /**
  * Load coprocessor register into dst.
  */
-#define get_cpreg(dst, CRn, op1, CRm, op2) \
- __asm__ __volatile__ ( \
-  "mrc p15, " #op1 ", %[rd], " #CRn ", " #CRm ", " #op2 \
-  : [rd] "=r" (dst) \
-  : \
-  : \
-  )
+#define get_cpreg(dst, CRn, op1, CRm, op2)                                     \
+	__asm__ __volatile__("mrc p15, " #op1 ", %[rd], " #CRn ", " #CRm       \
+	                     ", " #op2                                         \
+	                     : [rd] "=r"(dst)                                  \
+	                     :                                                 \
+	                     :)
 
 /**
  * Set coprocessor register from src.
  */
-#define set_cpreg(src, CRn, op1, CRm, op2) \
- __asm__ __volatile__ ( \
-  "mcr p15, " #op1 ", %[rs], " #CRn ", " #CRm ", " #op2 \
-  : [rs] "+r" (src) \
-  : \
-  : \
-  )
+#define set_cpreg(src, CRn, op1, CRm, op2)                                     \
+	__asm__ __volatile__("mcr p15, " #op1 ", %[rs], " #CRn ", " #CRm       \
+	                     ", " #op2                                         \
+	                     : [rs] "+r"(src)                                  \
+	                     :                                                 \
+	                     :)
+
+/**
+ * Get 64-bit cpreg
+ */
+#define get_cpreg64(dstlo, dsthi, CRm, op3)                                    \
+	__asm__ __volatile__("mrrc p15, " #op3 ", %[Rt], %[Rt2], " #CRm        \
+	                     : [Rt] "=r"(dstlo), [Rt2] "=r"(dsthi)             \
+	                     :                                                 \
+	                     :)
+
+#define set_cpreg64(srclo, srchi, CRm, op3)                                    \
+	__asm__ __volatile__("mcrr p15, " #op3 ", %[Rt], %[Rt2], " #CRm        \
+	                     : [Rt] "+r"(srclo), [Rt2] "+r"(srchi)             \
+	                     :                                                 \
+	                     :)
 
 /**
  * Load stack pointer
  */
-#define get_sp(dst) \
- __asm__ __volatile__ ( \
-  "mov %[rd], sp" \
-  : [rd] "=r" (dst) \
-  : \
-  : \
-  )
+#define get_sp(dst) __asm__ __volatile__("mov %[rd], sp" : [rd] "=r"(dst) : :)
 
 /*
  * Processes!
@@ -222,14 +231,14 @@ struct process {
  * - SPSR: saved program status register, returned to CPSR on return
  * - SP: process stack pointer
  */
-#define PROC_CTX_RET  10
+#define PROC_CTX_RET 10
 #define PROC_CTX_SPSR 11
-#define PROC_CTX_SP    0
+#define PROC_CTX_SP 0
 
 /* Create a process */
 struct process *create_process(uint32_t binary);
 #define BIN_SALUTATIONS 0
-#define BIN_HELLO       1
+#define BIN_HELLO 1
 
 /* Start a process running, never return. */
 void start_process(struct process *p);
@@ -261,12 +270,13 @@ extern uint32_t process_hello_end[];
 
 /* "uncomment" this if you want to debug page allocations */
 #ifdef DEBUG_PAGE_ALLOCATOR_CALLS
-#define alloc_pages(allocator, bytes, align) \
-	({ \
-		uint32_t rv = alloc_pages(allocator, bytes, align); \
-		printf("%s:%u: (in %s) alloc_pages(%s, 0x%x, %u) = 0x%x\n", \
-				__FILE__, __LINE__, __func__, #allocator, bytes, align, rv); \
-		rv; \
+#define alloc_pages(allocator, bytes, align)                                   \
+	({                                                                     \
+		uint32_t rv = alloc_pages(allocator, bytes, align);            \
+		printf("%s:%u: (in %s) alloc_pages(%s, 0x%x, %u) = 0x%x\n",    \
+		       __FILE__, __LINE__, __func__, #allocator, bytes, align, \
+		       rv);                                                    \
+		rv;                                                            \
 	})
 #endif
 
@@ -281,3 +291,17 @@ int cmd_execproc(int argc, char **argv);
 int cmd_dtb_ls(int argc, char **argv);
 int cmd_dtb_prop(int argc, char **argv);
 int cmd_dtb_dump(int argc, char **argv);
+int cmd_timer_get_freq(int argc, char **argv);
+int cmd_timer_get_count(int argc, char **argv);
+int cmd_timer_get_ctl(int argc, char **argv);
+int cmd_timer_set_tval(int argc, char **argv);
+
+/* GIC Driver */
+void gic_init(void);
+void gic_enable_interrupt(uint8_t int_id);
+uint32_t gic_interrupt_acknowledge(void);
+void gic_end_interrupt(uint8_t int_id);
+
+/* timer */
+void timer_init(void);
+void timer_isr(void);

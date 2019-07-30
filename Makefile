@@ -37,6 +37,8 @@ kernel.elf: kernel/process.o
 kernel.elf: kernel/rawdata.o
 kernel.elf: kernel/dtb.o
 kernel.elf: kernel/ksh.o
+kernel.elf: kernel/timer.o
+kernel.elf: kernel/gic.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o
