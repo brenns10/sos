@@ -23,3 +23,15 @@ process_hello_start:
 	.align 4
 process_hello_end:
 	nop
+
+.global process_ush_start
+.type process_ush_start,object
+.global process_ush_end
+.type process_ush_end,object
+
+	.align 4
+process_ush_start:
+	.incbin "user/ush.bin"
+	.align 4
+process_ush_end:
+	nop

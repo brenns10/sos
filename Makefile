@@ -52,9 +52,10 @@ kernel.elf: lib/math.o
 USER_BASIC = user/syscall.o user/startup.o
 user/salutations.elf: user/salutations.o lib/format.o $(USER_BASIC)
 user/hello.elf: user/hello.o lib/format.o $(USER_BASIC)
+user/ush.elf: user/ush.o lib/format.o lib/string.o $(USER_BASIC)
 
 # Userspace bins going into the kernel:
-kernel/rawdata.o: user/salutations.bin user/hello.bin
+kernel/rawdata.o: user/salutations.bin user/hello.bin user/ush.bin
 
 # To build a userspace program:
 user/%.elf:

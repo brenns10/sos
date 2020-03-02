@@ -7,3 +7,25 @@ void puts(char *string)
 {
 	display(string);
 }
+
+void putc(char val)
+{
+	char str[2];
+	str[0] = val;
+	str[1] = '\0';
+	display(str);
+}
+
+int getchar(void)
+{
+	int retval;
+	__asm__ __volatile__ (
+		"svc #3\n"
+		"nop\n"
+		"mov %[rv], a1"
+		: /* output operands */ [rv] "=r" (retval)
+		: /* input operands */
+		: /* clobbers */ "a1", "a2", "a3", "a4"
+	);
+	return retval;
+}

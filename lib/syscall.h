@@ -36,7 +36,8 @@
 #define SYS_RELINQUISH 0
 #define SYS_DISPLAY    1
 #define SYS_EXIT       2
-#define MAX_SYS 2
+#define SYS_GETCHAR    3
+#define MAX_SYS 3
 
 /*
  * System call syntax sugars
@@ -45,8 +46,13 @@
 #define relinquish() sys0(SYS_RELINQUISH)
 #define exit(code) sys1(SYS_EXIT, code)
 
+int getchar(void);
+
 /*
  * Declare a puts() which wraps the display() system call, necessary for printf
  * to link to something
  */
 void puts(char *string);
+void putc(char val);
+
+#define nelem(x) (sizeof(x) / sizeof(x[0]))

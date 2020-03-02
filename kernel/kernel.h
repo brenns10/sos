@@ -267,6 +267,8 @@ extern uint32_t process_salutations_start[];
 extern uint32_t process_salutations_end[];
 extern uint32_t process_hello_start[];
 extern uint32_t process_hello_end[];
+extern uint32_t process_ush_start[];
+extern uint32_t process_ush_end[];
 
 /* "uncomment" this if you want to debug page allocations */
 #ifdef DEBUG_PAGE_ALLOCATOR_CALLS

@@ -20,6 +20,7 @@ struct static_binary {
 struct static_binary binaries[] = {
 	{.start=process_salutations_start, .end=process_salutations_end, .name="salutations"},
 	{.start=process_hello_start, .end=process_hello_end, .name="hello"},
+	{.start=process_ush_start, .end=process_ush_end, .name="ush"},
 };
 
 /**
@@ -109,7 +110,7 @@ struct process *create_process(uint32_t binary)
 	list_insert(&process_list, &p->list);
 
 
-	umem_print(p, 0x40000000, 0xFFFFFFFF);
+	/*umem_print(p, 0x40000000, 0xFFFFFFFF);*/
 
 	return p;
 }
@@ -158,7 +159,7 @@ void start_process(struct process *p)
 	set_cpreg(p->ttbr1, c2, 0, c0, 1);
 
 	current = p;
-	printf("[kernel]\t\tstart process %u (ttbr1=0x%x)\n", p->id, p->ttbr1);
+	//printf("[kernel]\t\tstart process %u (ttbr1=0x%x)\n", p->id, p->ttbr1);
 	start_process_asm(
 		(void*)p->context[PROC_CTX_RET]
 	);

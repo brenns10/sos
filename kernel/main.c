@@ -5,6 +5,14 @@
 
 #define VERBOSE false
 
+void start_ush(void)
+{
+	struct process *proc;
+	proc = create_process(2);
+	start_process(proc);
+}
+
+
 void main(uint32_t phys)
 {
 	kmem_init(phys, VERBOSE);
@@ -13,5 +21,5 @@ void main(uint32_t phys)
 	gic_init();
 	timer_init();
 
-	ksh();
+	start_ush();
 }
