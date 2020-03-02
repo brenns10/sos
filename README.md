@@ -13,7 +13,7 @@ Here are some of the things it does:
 * MMU is fully configured and managed
 * Memory allocation code (which also allows you to free addresses, usually
   that's at least half the battle)
-* Interrupt handling (reporting faults, handling syscalls)
+* System call handling, basic exception reporting
 * Context switching!
 * Processes support
   - separate address spaces
@@ -21,6 +21,7 @@ Here are some of the things it does:
   - system calls
   - cooperative multiprocessing
 * Scheduling using a round-robin scheduler
+* Configures a regular timer interrupt and handles it
 
 If you want to work with the code, you can install qemu, the arm eabi toolchain,
 and then use the commands below:

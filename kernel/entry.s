@@ -3,11 +3,23 @@
 .global undefined_impl
 undefined_impl: sub pc, pc, #8
 
+/*
+ * Handle SWI. To do this we must store the process context and then dispatch
+ * the correct function based on the system call number.
+ *
+ * When a process makes a system call, they expect that their temporary
+ * registers may be clobbered. As a result, registers a1-a4 and r12 are not
+ * stored or restored in the SWI handler. This way, the return value from a
+ * system call C function (generally stored in a1) is preserved.
+ *
+ * Unfortunately, this means that this process context is different from the one
+ * produced by the IRQ handler, and so we can't context switch directly between
+ * IRQ and SWI handlers.
+ */
 .global swi_impl
 swi_impl:
 	/*
 	 * Dump LR and SPSR to the kernel-mode stack.
-	 * TODO: we could even dump this directly into current_process->context
 	 */
 	srsfd sp!, #0x13
 	push {v1-v8}
@@ -55,6 +67,14 @@ prefetch_abort_impl:
 	nop  /* infinite loop since it broke */
 	sub pc, pc, #8
 
+/**
+ * Handle IRQ.
+ *
+ * An IRQ may occur while in any processor mode -- user or kernel. The
+ * assumption here (which is incorrect, to be sure), is that an IRQ will be
+ * handled briefly, and then the original execution will return, with no
+ * possibility of the process being context switched out.
+ */
 .global irq_impl
 irq_impl:
         /* Dump LR and SPSR to IRQ-mode stack. */
@@ -65,24 +85,10 @@ irq_impl:
 	 * registers to get clobbered. */
 	push {r0-r12}
 
-	/* Save SP_usr and LR_usr */
-	cps #0x1F  /* system */
-	mov v1, sp
-	mov v2, lr
-	cps #0x12  /* irq */
-	push {v1, v2}
-
 	/* Branch into the C IRQ handler. */
 	bl irq
 
-	/* Restore SP_usr and LR_usr */
-	pop {v1, v2}
-	cps #0x1F  /* system */
-	mov sp, v1
-	mov lr, v2
-	cps #0x12  /* irq */
-
-	/* Get back all the user registers. */
+	/* Get back all the original registers. */
 	pop {r0-r12}
 
 	/* Return from exception. */
