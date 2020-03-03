@@ -8,6 +8,8 @@
 struct list_head process_list;
 struct process *current = NULL;
 struct slab *proc_slab;
+static uint32_t pid = 1;
+struct process *idle_process = NULL;
 
 #define stack_size 4096
 
@@ -33,7 +35,6 @@ struct static_binary binaries[] = {
  */
 struct process *create_process(uint32_t binary)
 {
-	static uint32_t pid = 1;
 	uint32_t size, phys, i, *dst, *src, virt;
 	struct process *p = slab_alloc(proc_slab);
 	/*
@@ -102,16 +103,45 @@ struct process *create_process(uint32_t binary)
 	/*
 	 * Set up some process variables
 	 */
-	p->context[PROC_CTX_SPSR] = 0x10;      /* enter user mode */
+	p->context[PROC_CTX_SPSR] = ARM_MODE_USER;
 	p->context[PROC_CTX_RET] = 0x40000000; /* jump to process img */
 	p->id = pid++;
 	p->size = size;
 	p->phys = phys;
 	list_insert(&process_list, &p->list);
+	p->flags.pr_ready = 1;
+	p->flags.pr_kernel = 0;
 
 
 	/*umem_print(p, 0x40000000, 0xFFFFFFFF);*/
 
+	return p;
+}
+
+/**
+ * Create a kernel thread! This thread cannot be started with start_process(),
+ * but may be context-switched in.
+ */
+struct process *create_kthread(void (*func)(void*), void *arg)
+{
+	struct process *p = slab_alloc(proc_slab);
+	p->id = pid++;
+	p->size = 0;
+	p->phys = 0;
+	p->flags.pr_ready = 1;
+	p->flags.pr_kernel = 1;
+	p->kstack = kmem_get_pages(4096, 0);
+
+	/* kthread is in kernel memory space, no user memory region */
+	p->vmem_allocator = NULL;
+	p->ttbr1 = 0;
+	p->first = NULL;
+	p->shadow = NULL;
+
+	p->context[PROC_CTX_SPSR] = (uint32_t)ARM_MODE_SYS;
+	p->context[PROC_CTX_A1] = (uint32_t)arg;
+	p->context[PROC_CTX_RET] = (uint32_t)func;
+	p->context[PROC_CTX_SP] = (uint32_t)(p->kstack + 4096);
 	return p;
 }
 
@@ -125,28 +155,32 @@ void destroy_process(struct process *proc)
 	 */
 	list_remove(&proc->list);
 
-	/*
-	 * Free the process image's physical memory (it's not mapped anywhere
-	 * except for the process's virtual address space)
-	 */
-	free_pages(phys_allocator, proc->phys, proc->size);
+	if (!proc->flags.pr_kernel) {
+		/*
+		 * Free the process image's physical memory (it's not mapped
+		 * anywhere except for the process's virtual address space)
+		 */
+		free_pages(phys_allocator, proc->phys, proc->size);
 
-	/*
-	 * Free the process's virtual memory allocator.
-	 */
-	kmem_free_pages(proc->vmem_allocator, 0x1000);
+		/*
+		 * Free the process's virtual memory allocator.
+		 */
+		kmem_free_pages(proc->vmem_allocator, 0x1000);
 
-	/*
-	 * Find any second-level page tables, and free them too!
-	 */
-	for (i = 0; i < 0x1000; i++)
-		if (proc->shadow[i])
-			kmem_free_pages(proc->shadow[i], 0x1000);
+		/*
+		 * Find any second-level page tables, and free them too!
+		 */
+		for (i = 0; i < 0x1000; i++)
+			if (proc->shadow[i])
+				kmem_free_pages(proc->shadow[i], 0x1000);
 
-	/*
-	 * Free the first-level table + shadow table
-	 */
-	kmem_free_pages(proc->first, 0x8000);
+		/*
+		 * Free the first-level table + shadow table
+		 */
+		kmem_free_pages(proc->first, 0x8000);
+	} else {
+		kmem_free_pages(proc->kstack, 4096);
+	}
 }
 
 /* should be called only once */
@@ -165,9 +199,26 @@ void start_process(struct process *p)
 	);
 }
 
+static uint32_t *stack_top_for_current_mode(void)
+{
+	uint32_t mode;
+	get_cpsr(mode);
+	mode = mode & ARM_MODE_MASK;
+	switch (mode) {
+	case ARM_MODE_IRQ:
+		return (uint32_t*) irq_stack;
+	case ARM_MODE_SVC:
+		return (uint32_t*) &stack_end;
+	default:
+		printf("PANIC! Attempted to get stack top for mode 0x%x\n", mode);
+		break;
+	}
+	return NULL;
+}
+
 void context_switch(struct process *new_process)
 {
-	uint32_t *context = (uint32_t *)&stack_end - nelem(current->context);
+	uint32_t *context = stack_top_for_current_mode() - nelem(current->context);
 	uint32_t i;
 
 	printf("[kernel]\t\tswap current process %u for new process %u\n",
@@ -235,8 +286,9 @@ void schedule(void)
 		/*
 		 * No remaining processes, do an infinite loop.
 		 */
-		printf("[kernel]\t\tNo processes remain.\n");
-		ksh();
+		puts("Panic!?! There are no processes to schedule.\n");
+		puts("But we shall not panic, we'll simply wait.\n");
+		context_switch(idle_process);
 	}
 }
 
@@ -298,6 +350,22 @@ int cmd_execproc(int argc, char **argv)
 	return 0; /* never happens :O */
 }
 
+static void idle(void *arg)
+{
+	int i = 0;
+	int reg = 0;
+
+	puts("Idle process begins\n");
+	while (1) {
+		i++;
+		if (i >= 100) {
+			puts("Idling...\n");
+			i = 0;
+		}
+		asm("wfi");
+	}
+}
+
 /*
  * Initialization for processes.
  */
@@ -305,4 +373,6 @@ void process_init(void)
 {
 	INIT_LIST_HEAD(process_list);
 	proc_slab = slab_new(sizeof(struct process), kmem_get_page, kmem_free_page);
+	idle_process = create_kthread(idle, NULL);
+	idle_process->flags.pr_ready = 0; /* idle process is never ready */
 }

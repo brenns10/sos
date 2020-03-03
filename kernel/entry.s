@@ -42,6 +42,11 @@ swi_impl:
 	 * reschedule. This means that a process spending a lot of time asking
 	 * the kernel to run code on its behalf, could eat up more than its fair
 	 * share of CPU time.
+	 *
+	 * To ensure that we don't reschedule, we must ensure interrupts are
+	 * re-enabled AFTER we pop into SYS mode to grab the SP and LR -- this
+	 * mode is reserved for kthreads, and if the IRQ handler sees this, it
+	 * could try to reschedule us.
 	 */
 	cpsie i
 
@@ -86,6 +91,13 @@ prefetch_abort_impl:
  */
 .global irq_impl
 irq_impl:
+	/*
+	 * The lr points at the interrupted instruction. To resume, reset it
+	 * back by one instruction.
+	 * NOTE: assumes that we don't have Thumb instructions
+	 */
+	add lr, lr, #-4
+
         /* Dump LR and SPSR to IRQ-mode stack. */
 	srsfd sp!, #0x12 /* irq */
 
@@ -202,6 +214,16 @@ return_from_exception:
 	and a3, a3, #0x1F
 	mov a4, #0x13
 	pop {v1, v2}
+
+	/*
+	 * We must disable interrupts here because "system mode" is reserved for
+	 * kernel threads. If we are interrupted while in system mode, the IRQ
+	 * handler might assume we're in kthread process context, and decide
+	 * that it's safe to attempt to context switch us out - which is not a
+	 * good idea!
+	 */
+	cpsid i
+
 	cps #0x1F  /* system */
 	mov sp, v1
 	mov lr, v2

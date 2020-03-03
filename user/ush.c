@@ -26,36 +26,18 @@ static int echo(int argc, char **argv)
 	return 0;
 }
 
+static int cmd_exit(int argc, char **argv)
+{
+	exit(0);
+}
+
 static int help(int argc, char **argv);
 struct cmd cmds[] = {
 	{ .name = "echo",
 	  .func = echo,
 	  .help = "print each arg, useful for debugging" },
-/*	{ .name = "mkproc",
-	  .func = cmd_mkproc,
-	  .help = "create a new process with binary image IMG" },
-	{ .name = "lsproc", .func = cmd_lsproc, .help = "list process IDs" },
-	{ .name = "execproc", .func = cmd_execproc, .help = "run process PID" },
-	{ .name = "dtb-ls",
-	  .func = cmd_dtb_ls,
-	  .help = "list device tree nodes" },
-	{ .name = "dtb-prop",
-	  .func = cmd_dtb_prop,
-	  .help = "show properties for a node" },
-	{ .name = "dtb-dump",
-	  .func = cmd_dtb_dump,
-	  .help = "dump the whole damn dtb" },
-	{ .name = "timer-get-freq",
-	  .func = cmd_timer_get_freq,
-	  .help = "get timer frequency" },
-	{ .name = "timer-get-count",
-	  .func = cmd_timer_get_count,
-	  .help = "get current timer value" },
-	{ .name = "timer-get-ctl",
-	  .func = cmd_timer_get_ctl,
-	  .help = "get current timer ctl register" },
-*/
 	{ .name = "help", .func = help, .help = "show this help message" },
+	{ .name = "exit", .func = cmd_exit, .help = "exit this process" },
 };
 
 /*

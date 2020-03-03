@@ -15,6 +15,7 @@ void start_ush(void)
 
 void main(uint32_t phys)
 {
+	puts("SOS: Startup\n");
 	kmem_init(phys, VERBOSE);
 	process_init();
 	dtb_init(0x44000000); /* TODO: pass this addr from startup.s */

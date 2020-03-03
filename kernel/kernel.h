@@ -213,10 +213,6 @@ void data_abort(uint32_t lr);
  */
 #define get_sp(dst) __asm__ __volatile__("mov %[rd], sp" : [rd] "=r"(dst) : :)
 
-/*
- * Processes!
- */
-
 /**
  * This "process" is hardly a process. It runs in user mode, but shares its
  * memory space with the kernel. It has a separate stack and separate registers,
@@ -237,6 +233,11 @@ struct process {
 	 */
 	uint32_t context[17];
 
+	struct {
+		int pr_ready : 1;  /* ready to be scheduled? */
+		int pr_kernel : 1; /* is a kernel thread? */
+	} flags;
+
 	/** Global process list entry. */
 	struct list_head list;
 
@@ -256,6 +257,9 @@ struct process {
 	uint32_t ttbr1;
 	uint32_t *first;
 	uint32_t **shadow;
+
+	/* For kernel thread, the stack */
+	void *kstack;
 };
 
 /**
@@ -267,6 +271,7 @@ struct process {
 #define PROC_CTX_RET 15
 #define PROC_CTX_SPSR 16
 #define PROC_CTX_SP 0
+#define PROC_CTX_A1 2
 
 /* Create a process */
 struct process *create_process(uint32_t binary);
