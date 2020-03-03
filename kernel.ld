@@ -37,7 +37,7 @@ SECTIONS {
 	data_end = .;
 
 	/* Kernel mode stack */
-	. = ALIGN(8);
+	. = ALIGN(0x1000);
 	stack_start = .;
 	. = . + 0x1000; /* 4kB stack memory */
 	stack_end = .;

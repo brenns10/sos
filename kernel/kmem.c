@@ -58,6 +58,15 @@ void *dynamic;
 void *phys_allocator;
 void *kern_virt_allocator;
 
+/*
+ * Top-of-stack pointers, initialized by kmem_init()
+ */
+void *fiq_stack;
+void *irq_stack;
+void *abrt_stack;
+void *undf_stack;
+void *svc_stack;
+
 /**
  * Initialize second level page descriptor table to an entirely empty mapping.
  */
@@ -538,7 +547,12 @@ void kmem_init(uint32_t phys, bool verbose)
 	 * we can handle exceptions.
 	 */
 	stack = kmem_get_pages(4096, 0);
-	setup_stacks(stack);
+	setup_stacks(stack); /* asm; sets the stacks in each mode */
+	fiq_stack = stack + 1 * 1024;
+	irq_stack = stack + 2 * 1024;
+	abrt_stack = stack + 3 * 1024;
+	undf_stack = stack + 4 * 1024;
+	svc_stack = &stack_end;
 
 	/* This may be a no-op, but let's map the interrupt vector at 0x0 */
 	kmem_map_page(0x00, phys_code_start, PRO_URO);

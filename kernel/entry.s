@@ -23,6 +23,8 @@ swi_impl:
 	 */
 	srsfd sp!, #0x13
 	push {v1-v8}
+	push {a2-a4,r12} /* not guaranteed to be saved but we do */
+	push {a1} /* will be clobbered by retval but stored anyway */
 
 	/* Save SP_usr and LR_usr */
 	cps #0x1F  /* system */
@@ -30,6 +32,18 @@ swi_impl:
 	mov v2, lr
 	cps #0x13  /* svc */
 	push {v1, v2}
+
+	/*
+	 * Re-enable interrupts. When a system call is triggered, interrupts
+	 * are disabled. However, our interrupt handler can safely interrupt
+	 * the kernel and return, so we have no reason to leave them disabled.
+	 *
+	 * However, when we interrupt the kernel, under no circumstances will we
+	 * reschedule. This means that a process spending a lot of time asking
+	 * the kernel to run code on its behalf, could eat up more than its fair
+	 * share of CPU time.
+	 */
+	cpsie i
 
 	/* Look at the SWI instruction and get the interrupt number. */
 	ldr v1, [lr, #-4]
@@ -50,15 +64,8 @@ swi_impl:
 	/* END. Please update max syscall number above. */
 
 _swi_ret:
-	/* Restore SP_usr and LR_usr */
-	pop {v1, v2}
-	cps #0x1F  /* system */
-	mov sp, v1
-	mov lr, v2
-	cps #0x13  /* svc */
-
-	pop {v1-v8}
-	rfefd sp!
+	mov a2, #1 /* please use return value */
+	b return_from_exception
 
 .global prefetch_abort_impl
 prefetch_abort_impl:
@@ -81,19 +88,26 @@ irq_impl:
         /* Dump LR and SPSR to IRQ-mode stack. */
 	srsfd sp!, #0x12 /* irq */
 
-	/* Save ALL registers (including scratch ones) since whatever got
-	 * interrupted did not ask for it, and does not expect its scratch
-	 * registers to get clobbered. */
-	push {r0-r12}
+	/* Save registers in standard order */
+	push {v1-v8}
+	push {a2-a4,r12}
+	push {a1}
+
+	/*
+	 * Save SP_usr and LR_usr. If we're interrupting the kernel (e.g.  a
+	 * syscall) then this probably won't be used. But if we're interrupting
+	 * a user process, we may context switch it out.
+	 */
+	cps #0x1F  /* system */
+	mov v1, sp
+	mov v2, lr
+	cps #0x12  /* irq */
+	push {v1, v2}
 
 	/* Branch into the C IRQ handler. */
 	bl irq
-
-	/* Get back all the original registers. */
-	pop {r0-r12}
-
-	/* Return from exception. */
-	rfefd sp!
+	mov a2, #0  /* please don't use return value */
+	b return_from_exception
 
 .global fiq_impl
 fiq_impl:
@@ -117,19 +131,19 @@ data_abort_impl:
  */
 .global setup_stacks
 setup_stacks:
-	cps #0x11
+	cps #0x11  /* MODE_FIQ */
 	add a1, a1, #1024
 	mov sp, a1
-	cps #0x12
+	cps #0x12  /* MODE_IRQ */
 	add a1, a1, #1024
 	mov sp, a1
-	cps #0x17
+	cps #0x17  /* MODE_ABRT */
 	add a1, a1, #1024
 	mov sp, a1
-	cps #0x1B
+	cps #0x1B  /* MODE_UNDF */
 	add a1, a1, #1024
 	mov sp, a1
-	cps #0x13
+	cps #0x13  /* MODE_SVC */
 	mov pc, lr
 
 /*
@@ -151,3 +165,52 @@ start_process_asm:
 	ldr sp, =stack_end
 	cps #0x10
 	mov pc, a1
+
+/*
+ * Return from syscall or IRQ.
+ *
+ * This routine lets us return the value of a1 (depending on the value of a2) to
+ * the previously running code, or preserve the stored value of a1. Which is
+ * chosen depends on the value of a2. If we're returning from an interrupt, in
+ * most cases we will use the stored value. However, it is feasible that during
+ * an interrupt we could context switch a process which will return from a
+ * syscall, in which case we would use the returned value. For returning from
+ * SWI, we will always use the returned value.
+ *
+ * This may be called as a function by C code to return early from an exception,
+ * but in both SWI and IRQ, it will naturally be executed in the return path.
+ *
+ * a1: Return value placed in register a1 on return, whenever a2 is truthy
+ * a2: Do we use the return value? If not, we replace the context value of a1
+ */
+.global return_from_exception
+return_from_exception:
+	/* Reset sp back to the top of stack. */
+	ldr a3, =0xFFFFFC00
+	and sp, sp, a3
+	add sp, sp, #0x400
+	/* And move it back 68 bytes, the context size */
+	add sp, sp, #-68  /* context size: 17 words = 68 bytes */
+
+	/* Restore SP_usr and LR_usr */
+	mrs a3, cpsr
+	and a3, a3, #0x1F
+	mov a4, #0x13
+	pop {v1, v2}
+	cps #0x1F  /* system */
+	mov sp, v1
+	mov lr, v2
+	cmp a3, a4
+	bne _back_to_irq
+	cps #0x13  /* svc */
+	b _back
+_back_to_irq:
+	cps #0x12  /* irq */
+_back:
+	mov a3, #0
+	cmp a2, a3
+	popeq {a1}  /* when a2==0, restore the stored value of a1 */
+	popne {a3}  /* when a2!=0, use current value of a1 */
+	pop {a2-a4,r12}
+	pop {v1-v8}
+	rfefd sp!

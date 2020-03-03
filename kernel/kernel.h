@@ -41,6 +41,12 @@ extern uint32_t uart_base;
  */
 extern void *second_level_table;
 
+extern void *fiq_stack;
+extern void *irq_stack;
+extern void *abrt_stack;
+extern void *undf_stack;
+extern void *svc_stack;
+
 /*
  * Basic I/O (see uart.s and format.c for details)
  */
@@ -178,6 +184,31 @@ void data_abort(void);
 	                     :)
 
 /**
+ * Load SPSR
+ */
+#define get_spsr(dst)                                                          \
+	__asm__ __volatile__("mrs %[rd], spsr"                                 \
+	                     : [rd] "=r" (dst)                                 \
+	                     : : )
+
+/**
+ * Load CPSR
+ */
+#define get_cpsr(dst)                                                          \
+	__asm__ __volatile__("mrs %[rd], cpsr"                                 \
+	                     : [rd] "=r" (dst)                                 \
+	                     : : )
+
+#define ARM_MODE_USER 0x10U
+#define ARM_MODE_FIQ  0x11U
+#define ARM_MODE_IRQ  0x12U
+#define ARM_MODE_SVC  0x13U
+#define ARM_MODE_ABRT 0x17U
+#define ARM_MODE_UNDF 0x1BU
+#define ARM_MODE_SYS  0x1FU
+#define ARM_MODE_MASK 0x1FU
+
+/**
  * Load stack pointer
  */
 #define get_sp(dst) __asm__ __volatile__("mov %[rd], sp" : [rd] "=r"(dst) : :)
@@ -197,12 +228,14 @@ struct process {
 	 * Context kept for context switching:
 	 *
 	 * - Preferred return address, Saved program status register
-	 * - SP_usr, LR_usr
 	 * - v1-v8
+	 * - a2-a4,r12
+	 * - a1
+	 * - SP_usr, LR_usr
 	 *
-	 * A total of 12 words.
+	 * A total of 17 words.
 	 */
-	uint32_t context[12];
+	uint32_t context[17];
 
 	/** Global process list entry. */
 	struct list_head list;
@@ -231,8 +264,8 @@ struct process {
  * - SPSR: saved program status register, returned to CPSR on return
  * - SP: process stack pointer
  */
-#define PROC_CTX_RET 10
-#define PROC_CTX_SPSR 11
+#define PROC_CTX_RET 15
+#define PROC_CTX_SPSR 16
 #define PROC_CTX_SP 0
 
 /* Create a process */

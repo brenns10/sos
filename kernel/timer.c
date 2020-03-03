@@ -72,6 +72,12 @@ void timer_isr(void)
 	reg /= HZ;
 	SET_CNTP_TVAL(reg);
 
+	get_spsr(reg);
+	if ((reg & ARM_MODE_MASK) == ARM_MODE_USER) {
+		/* We interrupted a user process. This means we can go ahead and
+		 * reschedule safely. TODO do this. */
+	}
+
 	reg = 1;
 	SET_CNTP_CTL(reg);
 }
