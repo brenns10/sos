@@ -5,8 +5,9 @@ TOOLCHAIN = arm-none-eabi-
 AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc
 
-ASFLAGS = -g -march=armv6
-CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=armv6 -Ilib
+ARCH=armv7-a
+ASFLAGS = -g -march=$(ARCH)
+CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=$(ARCH) -Ilib -marm
 LDFLAGS = -nostdlib
 
 TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g
