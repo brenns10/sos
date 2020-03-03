@@ -71,6 +71,7 @@ _swi_ret:
 prefetch_abort_impl:
 	srsfd sp!, #0x17 /* abort */
 	push {r0-r12}
+	mov a1, lr
 	bl prefetch_abort
 	nop  /* infinite loop since it broke */
 	sub pc, pc, #8
@@ -121,6 +122,7 @@ fiq_impl:
 data_abort_impl:
 	srsfd sp!, #0x17 /* abort */
 	push {r0-r12}
+	mov a1, lr
 	bl data_abort
 	nop  /* infinite loop since it broke */
 	sub pc, pc, #8

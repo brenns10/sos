@@ -146,7 +146,7 @@ void setup_stacks(void *location);
 /*
  * C Entry Points
  */
-void data_abort(void);
+void data_abort(uint32_t lr);
 
 /**
  * Load coprocessor register into dst.

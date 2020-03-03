@@ -31,21 +31,21 @@ void print_fault(uint32_t fsr, uint32_t far)
 	}
 }
 
-void data_abort(void)
+void data_abort(uint32_t lr)
 {
 	uint32_t dfsr, dfar;
 	get_cpreg(dfsr, c5, 0, c0, 0);
 	get_cpreg(dfar, c6, 0, c0, 0);
-	printf("Uh-oh... data abort! DFSR=%x DFAR=%x\n", dfsr, dfar);
+	printf("Uh-oh... data abort! DFSR=%x DFAR=%x LR=%x\n", dfsr, dfar, lr);
 	print_fault(dfsr, dfar);
 }
 
-void prefetch_abort(void)
+void prefetch_abort(uint32_t lr)
 {
 	uint32_t fsr, far;
 	get_cpreg(fsr, c5, 0, c0, 1);
 	get_cpreg(far, c6, 0, c0, 2);
-	printf("Uh-oh... prefetch abort! FSR=%x IFAR=%x\n", fsr, far);
+	printf("Uh-oh... prefetch abort! FSR=%x IFAR=%x LR=%x\n", fsr, far, lr);
 	print_fault(fsr, far);
 }
 
