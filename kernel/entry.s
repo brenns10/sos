@@ -185,7 +185,10 @@ start_process_asm:
  */
 .global return_from_exception
 return_from_exception:
-	/* Reset sp back to the top of stack. */
+	/*
+	 * Reset sp back to the top of stack.
+	 * NOTE: assumes stack is 1K in size, and 1K aligned
+	 */
 	ldr a3, =0xFFFFFC00
 	and sp, sp, a3
 	add sp, sp, #0x400
