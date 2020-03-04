@@ -21,6 +21,7 @@ void main(uint32_t phys)
 	dtb_init(0x44000000); /* TODO: pass this addr from startup.s */
 	gic_init();
 	timer_init();
+	uart_init();
 
 	start_ush();
 }

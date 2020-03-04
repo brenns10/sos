@@ -22,9 +22,15 @@ typedef volatile struct __attribute__((packed)) {
 	uint32_t UARTIBRD;
 	uint32_t UARTFBRD;
 	uint32_t UARTLCR_H;
+#define UARTLCR_FEN (1<<4)
+#define UARTLCR_8BIT (3<<5)
 	uint32_t UARTCR;
+#define UARTCR_UARTEN (1<<0)
+#define UARTCR_TXE    (1<<8)
+#define UARTCR_RXE    (1<<9)
 	uint32_t UARTIFLS;
 	uint32_t UARTIMSC;
+#define UARTIMSC_UART_RXIM (1<<4)
 	uint32_t UARTRIS;
 	uint32_t UARTMIS;
 	uint32_t UARTICR;
@@ -32,6 +38,7 @@ typedef volatile struct __attribute__((packed)) {
 } pl011_registers;
 
 uint32_t uart_base = 0x09000000;
+struct process *waiting = NULL;
 #define base ((pl011_registers*) uart_base)
 #define WRITE32(_reg, _val) (*(volatile uint32_t *)&_reg = _val)
 
@@ -51,4 +58,76 @@ char getc(void)
 {
 	while (base->UARTFR & UARTFR_RXFE) {}
 	return (char) base->UARTDR;
+}
+
+int try_getc(void)
+{
+	if (base->UARTFR & UARTFR_RXFE)
+		return -1;
+	else
+		return (char) (base->UARTDR & 0xFF);
+}
+
+void uart_isr(uint32_t intid)
+{
+	uint32_t reg;
+	int result;
+
+	reg = base->UARTMIS;
+	if (reg != UARTIMSC_UART_RXIM) {
+		puts("BAD UART INTERRUPT\n");
+	} else if (waiting) {
+		result = try_getc();
+		if (result < 0)
+			puts("UART RX INTERRUPT LIED\n");
+		/* get the getc return value and mark process for return */
+		waiting->sysret = (uint32_t) result;
+		waiting->flags.pr_ready = 1;
+	}
+
+	/* clear the interrupt */
+	reg = UARTIMSC_UART_RXIM;
+	WRITE32(base->UARTICR, reg);
+	gic_end_interrupt(intid);
+}
+
+void uart_wait(struct process *p)
+{
+	p->flags.pr_ready = 0;
+	p->flags.pr_syscall = 1;
+	waiting = p;
+}
+
+/**
+ * Initialize the UART.
+ *
+ * The UART starts up pretty well initialized -- the getc(), putc(), and puts()
+ * functions work more or less without any initialization in qemu. However, this
+ * initialization is necessary for enabling interrupts from the UART, so we
+ * aren't constantly busy-waiting.
+ */
+void uart_init(void)
+{
+	uint32_t reg;
+
+	/* Half full TX/RX interrupt */
+	reg = 0x12;
+	WRITE32(base->UARTIFLS, reg);
+	/* Set 8 bit words, and enable FIFO */
+	reg = UARTLCR_FEN | UARTLCR_8BIT;
+	WRITE32(base->UARTLCR_H, reg);
+	/* Enable UART, Tx, Rx */
+	reg = base->UARTCR;
+	reg |= (UARTCR_UARTEN | UARTCR_TXE | UARTCR_RXE);
+	WRITE32(base->UARTCR, reg);
+	/* Only interrupt for RX */
+	reg = UARTIMSC_UART_RXIM;
+	WRITE32(base->UARTIMSC, reg);
+
+	gic_enable_interrupt(33);
+
+	printf("UARTCR: 0x%x\n", base->UARTCR);
+	printf("UARTLCR_H: 0x%x\n", base->UARTLCR_H);
+	printf("UARTIFLS: 0x%x\n", base->UARTIFLS);
+	printf("UARTIMSC: 0x%x\n", base->UARTIMSC);
 }

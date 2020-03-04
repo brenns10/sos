@@ -63,7 +63,7 @@ void timer_init(void)
 	gic_enable_interrupt(30u);
 }
 
-void timer_isr(void)
+void timer_isr(uint32_t intid)
 {
 	uint32_t reg;
 
@@ -72,12 +72,19 @@ void timer_isr(void)
 	reg /= HZ;
 	SET_CNTP_TVAL(reg);
 
-	get_spsr(reg);
-	if ((reg & ARM_MODE_MASK) == ARM_MODE_USER) {
-		/* We interrupted a user process. This means we can go ahead and
-		 * reschedule safely. TODO do this. */
-	}
-
+	/* Ensure the timer is still on */
 	reg = 1;
 	SET_CNTP_CTL(reg);
+
+	/* Interrupt should now be safe to clear */
+	gic_end_interrupt(intid);
+
+	get_spsr(reg);
+	reg = reg & ARM_MODE_MASK;
+	if (reg == ARM_MODE_USER || reg == ARM_MODE_SYS) {
+		/* We interrupted sys/user mode. This means we can go ahead and
+		 * reschedule safely. */
+		schedule();
+	}
+
 }

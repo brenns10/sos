@@ -53,6 +53,10 @@ extern void *svc_stack;
 void puts(char *string);
 void putc(char c);
 char getc(void);
+int try_getc(void);
+void uart_init(void);
+void uart_wait(struct process *p);
+void uart_isr(uint32_t intid);
 uint32_t snprintf(char *buf, uint32_t size, const char *format, ...);
 uint32_t printf(const char *format, ...);
 
@@ -235,6 +239,7 @@ struct process {
 
 	struct {
 		int pr_ready : 1;  /* ready to be scheduled? */
+		int pr_syscall : 1; /* is the process suspended by syscall? */
 		int pr_kernel : 1; /* is a kernel thread? */
 	} flags;
 
@@ -260,6 +265,9 @@ struct process {
 
 	/* For kernel thread, the stack */
 	void *kstack;
+
+	/* Return value of pending syscall */
+	uint32_t sysret;
 };
 
 /**
@@ -344,4 +352,7 @@ void gic_end_interrupt(uint8_t int_id);
 
 /* timer */
 void timer_init(void);
-void timer_isr(void);
+void timer_isr(uint32_t intid);
+
+/* return from exception, see entry.s */
+void return_from_exception(uint32_t retval, uint32_t use_ret);

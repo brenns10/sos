@@ -111,7 +111,7 @@ struct process *create_process(uint32_t binary)
 	list_insert(&process_list, &p->list);
 	p->flags.pr_ready = 1;
 	p->flags.pr_kernel = 0;
-
+	p->flags.pr_syscall = 0;
 
 	/*umem_print(p, 0x40000000, 0xFFFFFFFF);*/
 
@@ -130,6 +130,7 @@ struct process *create_kthread(void (*func)(void*), void *arg)
 	p->phys = 0;
 	p->flags.pr_ready = 1;
 	p->flags.pr_kernel = 1;
+	p->flags.pr_syscall = 0;
 	p->kstack = kmem_get_pages(4096, 0);
 
 	/* kthread is in kernel memory space, no user memory region */
@@ -219,12 +220,12 @@ static uint32_t *stack_top_for_current_mode(void)
 void context_switch(struct process *new_process)
 {
 	uint32_t *context = stack_top_for_current_mode() - nelem(current->context);
-	uint32_t i;
+	uint32_t i, use_retval;
 
-	printf("[kernel]\t\tswap current process %u for new process %u\n",
-			current ? current->id : 0, new_process->id);
+	/*printf("[kernel]\t\tswap current process %u for new process %u\n",
+			current ? current->id : 0, new_process->id);*/
 	if (new_process == current)
-		return;
+		goto out;
 
 	/* save current context if the process is alive */
 	if (current)
@@ -251,20 +252,36 @@ void context_switch(struct process *new_process)
 	 * changed and TTBR is changed (non-atomically). See B3.10.4 in ARMv7a
 	 * reference for solution. */
 
+	/*
+	 * In case that a process had been waiting for a system call and now can
+	 * return, we can pretend to return from a syscall. Just be sure to mark
+	 * that the process is no longer waiting for a syscall.
+	 */
+out:
+	use_retval = 0;
+	if (current->flags.pr_syscall) {
+		use_retval = 1;
+		current->flags.pr_syscall = 0;
+	}
+	return_from_exception(current->sysret, use_retval);
 }
 
 /**
- * Choose and context switch into a different active process. Can't handle 0
- * processes.
+ * Choose and context switch into a different active process. Does not return.
  */
 void schedule(void)
 {
 	struct process *iter, *chosen=NULL;
+	int count_seen = 0, count_ready = 0;
 
 	list_for_each_entry(iter, &process_list, list, struct process) {
-		if (iter != current) {
-			chosen = iter;
-			break;
+		count_seen++;
+		if (iter->flags.pr_ready) {
+			count_ready++;
+			if (iter != current) {
+				chosen = iter;
+				break;
+			}
 		}
 	}
 
@@ -277,17 +294,19 @@ void schedule(void)
 		list_insert_end(&process_list, &chosen->list);
 
 		context_switch(chosen);
-	} else if (current) {
+	} else if (current && current->flags.pr_ready) {
 		/*
-		 * There are no other options, continue executing this.
+		 * There are no other options, but the current process still
+		 * exists and is still runnable. Just keep running it.
 		 */
-		return;
+		context_switch(current);
 	} else {
 		/*
-		 * No remaining processes, do an infinite loop.
+		 * At this point, either there is no process available at all,
+		 * or no process is ready. We'll use the IDLE process, which is
+		 * always marked as not ready, but in reality we can always
+		 * idle a bit.
 		 */
-		puts("Panic!?! There are no processes to schedule.\n");
-		puts("But we shall not panic, we'll simply wait.\n");
 		context_switch(idle_process);
 	}
 }
@@ -352,16 +371,7 @@ int cmd_execproc(int argc, char **argv)
 
 static void idle(void *arg)
 {
-	int i = 0;
-	int reg = 0;
-
-	puts("Idle process begins\n");
 	while (1) {
-		i++;
-		if (i >= 100) {
-			puts("Idling...\n");
-			i = 0;
-		}
 		asm("wfi");
 	}
 }
