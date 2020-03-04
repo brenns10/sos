@@ -6,7 +6,7 @@
 typedef volatile struct __attribute__((packed)) {
 	uint32_t UARTDR;
 	uint32_t UARTRSR;
-	uint32_t _reserved0[3];
+	uint32_t _reserved0[4];
 	const uint32_t UARTFR;
 #define UARTFR_RI   (1<<8)
 #define UARTFR_TXFE (1<<7)
