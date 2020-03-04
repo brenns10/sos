@@ -53,6 +53,9 @@ extern void *svc_stack;
 void puts(char *string);
 void putc(char c);
 char getc(void);
+void new_puts(char *string);
+void new_putc(char c);
+char new_getc(void);
 uint32_t snprintf(char *buf, uint32_t size, const char *format, ...);
 uint32_t printf(const char *format, ...);
 

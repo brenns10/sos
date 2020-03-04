@@ -22,5 +22,9 @@ void main(uint32_t phys)
 	gic_init();
 	timer_init();
 
+	puts("Old UART driver\n");
+	new_puts("New UART driver\n");
+	puts("Old UART driver again\n");
+
 	start_ush();
 }
