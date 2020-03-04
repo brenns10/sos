@@ -22,9 +22,16 @@ void main(uint32_t phys)
 	gic_init();
 	timer_init();
 
-	puts("Old UART driver\n");
-	new_puts("New UART driver\n");
-	puts("Old UART driver again\n");
+	puts("New UART driver\n");
+	old_puts("Old UART driver\n");
+	puts("New UART driver again\n");
+	printf("UART at 0x%x\n", uart_base);
+	puts("Hit a char:\n");
+	int c = getc();
+	printf("You hit char # %u\n", c);
+	puts("Again:\n");
+	c = old_getc();
+	printf("You hit char # %u\n", c);
 
 	start_ush();
 }

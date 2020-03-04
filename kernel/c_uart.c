@@ -31,22 +31,23 @@ typedef volatile struct __attribute__((packed)) {
 	uint32_t UARTDMACR;
 } pl011_registers;
 
+uint32_t uart_base = 0x09000000;
 #define base ((pl011_registers*) uart_base)
 #define WRITE32(_reg, _val) (*(volatile uint32_t *)&_reg = _val)
 
-void new_putc(char c)
+void putc(char c)
 {
 	while (base->UARTFR & UARTFR_TXFF) {}
 	WRITE32(base->UARTDR, c);
 }
 
-void new_puts(char *string)
+void puts(char *string)
 {
 	while (*string)
-		new_putc(*(string++));
+		putc(*(string++));
 }
 
-char new_getc(void)
+char getc(void)
 {
 	while (base->UARTFR & UARTFR_RXFE) {}
 	return (char) base->UARTDR;
