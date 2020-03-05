@@ -125,9 +125,4 @@ void uart_init(void)
 	WRITE32(base->UARTIMSC, reg);
 
 	gic_enable_interrupt(33);
-
-	printf("UARTCR: 0x%x\n", base->UARTCR);
-	printf("UARTLCR_H: 0x%x\n", base->UARTLCR_H);
-	printf("UARTIFLS: 0x%x\n", base->UARTIFLS);
-	printf("UARTIMSC: 0x%x\n", base->UARTIMSC);
 }
