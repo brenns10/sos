@@ -8,7 +8,7 @@
 
 void sys_relinquish(void)
 {
-	puts("[kernel]\t\tRelinquish()\n");
+	puts("[kernel] tRelinquish()\n");
 	schedule();
 }
 
@@ -19,7 +19,7 @@ void sys_display(char *buffer)
 
 void sys_exit(uint32_t code)
 {
-	printf("[kernel]\t\tProcess %u exited with code %u.\n", current->id,
+	printf("[kernel] Process %u exited with code %u.\n", current->id,
 	       code);
 	destroy_process(current);
 	/*
