@@ -57,7 +57,7 @@ swi_impl:
 	adr lr, _swi_ret           /* set our return address */
 	cmp v1, #3                 /* compare to max syscall number */
 	movhi a1, v1               /* if higher, go to generic swi() with */
-	bhi swi                    /* syscall number as arg */
+	bhi sys_unknown            /* syscall number as arg */
 	add pc, pc, v1, lsl #2     /* branch to pc + interrupt number * 4 */
 	nop
 
