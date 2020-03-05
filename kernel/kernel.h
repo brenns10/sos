@@ -285,6 +285,7 @@ struct process {
 struct process *create_process(uint32_t binary);
 #define BIN_SALUTATIONS 0
 #define BIN_HELLO 1
+#define BIN_USH 2
 
 /* Start a process running, never return. */
 void start_process(struct process *p);
