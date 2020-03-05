@@ -37,7 +37,9 @@
 #define SYS_DISPLAY    1
 #define SYS_EXIT       2
 #define SYS_GETCHAR    3
-#define MAX_SYS 3
+#define SYS_RUNPROC    4
+#define SYS_GETPID     5
+#define MAX_SYS 5
 
 /*
  * System call syntax sugars
@@ -47,6 +49,8 @@
 #define exit(code) sys1(SYS_EXIT, code)
 
 int getchar(void);
+int runproc(char *imagename);
+int getpid(void);
 
 /*
  * Declare a puts() which wraps the display() system call, necessary for printf

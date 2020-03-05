@@ -31,12 +31,36 @@ static int cmd_exit(int argc, char **argv)
 	exit(0);
 }
 
+static int cmd_run(int argc, char **argv)
+{
+	int rv;
+	if (argc != 2)
+		puts("usage: run PROCNAME\n");
+
+	if ((rv = runproc(argv[1])) != 0)
+		printf("failed: rv=0x%x\n", rv);
+}
+
+static int cmd_demo(int argc, char **argv)
+{
+	int i;
+	for (i = 0; i < 10; i++) {
+		if (i % 2 == 0)
+			runproc("salutations");
+		else
+			runproc("hello");
+	}
+	puts("Launched all processes!\n");
+}
+
 static int help(int argc, char **argv);
 struct cmd cmds[] = {
 	{ .name = "echo",
 	  .func = echo,
 	  .help = "print each arg, useful for debugging" },
 	{ .name = "help", .func = help, .help = "show this help message" },
+	{ .name = "run", .func = cmd_run, .help = "run a process" },
+	{ .name = "demo", .func = cmd_demo, .help = "run many processes" },
 	{ .name = "exit", .func = cmd_exit, .help = "exit this process" },
 };
 
@@ -101,7 +125,8 @@ static void execute(void)
 
 int main(void)
 {
-	puts("Stephen's OS (user shell)\n");
+	int pid = getpid();
+	printf("Stephen's OS (user shell, pid=%u)\n", pid);
 	while (true) {
 		getline();
 		tokenize();

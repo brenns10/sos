@@ -149,7 +149,7 @@ struct process *create_kthread(void (*func)(void*), void *arg)
 void destroy_process(struct process *proc)
 {
 	uint32_t i;
-	printf("[kernel]\t\tdestroy process %u (p=0x%x)\n", proc->id, proc);
+	//printf("[kernel]\t\tdestroy process %u (p=0x%x)\n", proc->id, proc);
 
 	/*
 	 * Remove from the global process list
@@ -311,24 +311,31 @@ void schedule(void)
 	}
 }
 
+int32_t process_image_lookup(char *name)
+{
+	int32_t i;
+	for (i = 0; i < nelem(binaries); i++)
+		if (strcmp(binaries[i].name, name) == 0)
+			return i;
+	return -1;
+}
+
 int cmd_mkproc(int argc, char **argv)
 {
-	unsigned int i;
 	struct process *newproc;
+	int img;
 	if (argc != 2) {
 		puts("usage: mkproc BINNAME");
 		return 1;
 	}
 
-	for (i = 0; i < nelem(binaries); i++)
-		if (strcmp(binaries[i].name, argv[1]) == 0)
-			break;
+	img = process_image_lookup(argv[1]);
 
-	if (i == nelem(binaries)) {
+	if (img == -1) {
 		printf("unknown binary \"%s\"\n", argv[1]);
 		return 2;
 	}
-	newproc = create_process(i);
+	newproc = create_process(img);
 	printf("created process with pid=%u\n", newproc->id);
 	return 0;
 }

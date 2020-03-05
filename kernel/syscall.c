@@ -51,6 +51,20 @@ int sys_getchar(void)
 	}
 }
 
+int sys_runproc(char *imagename)
+{
+	int32_t img = process_image_lookup(imagename);
+	if (img < 0)
+		return -1;
+	create_process(img);
+	return 0;
+}
+
+int sys_getpid(void)
+{
+	return current->id;
+}
+
 void sys_unknown(uint32_t svc_num)
 {
 	printf("ERROR: unknown syscall number %u!\n", svc_num);

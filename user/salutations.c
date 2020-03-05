@@ -6,13 +6,14 @@
 
 int main()
 {
-	display("Salutations world #1!\n");
+	int pid = getpid();
+	printf("[pid=%u] Salutations world #1!\n", pid);
 	relinquish();
 
-	display("Salutations world #2!\n");
+	printf("[pid=%u] Salutations world #2!\n", pid);
 	relinquish();
 
-	display("Salutations world #3!\n");
+	printf("[pid=%u] Salutations world #3!\n", pid);
 	relinquish();
 
 	return 0;
