@@ -307,6 +307,11 @@ void schedule(void)
 		 * always marked as not ready, but in reality we can always
 		 * idle a bit.
 		 */
+		static bool warned = false;
+		if (count_seen == 0 && !warned) {
+			puts("[kernel] WARNING: no more processes remain\n");
+			warned = true;
+		}
 		context_switch(idle_process);
 	}
 }
