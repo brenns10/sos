@@ -44,12 +44,8 @@ static int cmd_run(int argc, char **argv)
 static int cmd_demo(int argc, char **argv)
 {
 	int i;
-	for (i = 0; i < 10; i++) {
-		if (i % 2 == 0)
-			runproc("salutations");
-		else
-			runproc("hello");
-	}
+	for (i = 0; i < 10; i++)
+		runproc("hello");
 	puts("Launched all processes!\n");
 }
 

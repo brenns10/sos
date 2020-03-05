@@ -15,7 +15,7 @@ int main()
 		printf("[pid=%u] Hello world, via system call, #%u\n", pid, i);
 
 		/* do some busy waiting so we see more context switching */
-		for (j = 0; j < 10000; j++) {
+		for (j = 0; j < 100000; j++) {
 			asm("nop");
 		}
 	}
