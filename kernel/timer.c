@@ -43,7 +43,7 @@ int cmd_timer_get_ctl(int argc, char **argv)
 
 void timer_init(void)
 {
-	uint32_t dst, hi;
+	uint32_t dst;
 
 	/* get timer frequency */
 	GET_CNTFRQ(dst);
@@ -56,9 +56,6 @@ void timer_init(void)
 	/* Enable the timer */
 	dst = 1;
 	SET_CNTP_CTL(dst); /* enable timer */
-
-	/* cpu enable interrupts */
-	asm("msr CPSR, #0x13"); /* processor mode 0x13, plus 0x40 to mask fiq */
 
 	gic_enable_interrupt(30u);
 }
