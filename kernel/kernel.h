@@ -356,6 +356,8 @@ int cmd_timer_get_freq(int argc, char **argv);
 int cmd_timer_get_count(int argc, char **argv);
 int cmd_timer_get_ctl(int argc, char **argv);
 int cmd_timer_set_tval(int argc, char **argv);
+int virtio_blk_cmd_status(int argc, char **argv);
+int virtio_blk_cmd_read(int argc, char **argv);
 
 /* GIC Driver */
 void gic_init(void);
@@ -369,3 +371,8 @@ void timer_isr(uint32_t intid);
 
 /* return from exception, see entry.s */
 void return_from_exception(uint32_t retval, uint32_t use_ret);
+
+/* Virtio */
+void virtio_init(void);
+
+#define mb() asm("dsb")

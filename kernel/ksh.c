@@ -58,6 +58,12 @@ struct cmd cmds[] = {
 	{ .name = "timer-get-ctl",
 	  .func = cmd_timer_get_ctl,
 	  .help = "get current timer ctl register" },
+	{ .name = "blkread",
+	  .func = virtio_blk_cmd_read,
+	  .help="read block device sector"},
+	{ .name = "blkstatus",
+	  .func = virtio_blk_cmd_status,
+	  .help="read block device status"},
 	{ .name = "help", .func = help, .help = "show this help message" },
 };
 

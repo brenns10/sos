@@ -1,6 +1,7 @@
 .PHONY: clean debug run gdb test
 
-QEMU = qemu-system-arm -M virt
+QEMU = qemu-system-arm -M virt -global virtio-mmio.force-legacy=false \
+       -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd
 TOOLCHAIN = arm-none-eabi-
 AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc
@@ -12,12 +13,15 @@ LDFLAGS = -nostdlib
 
 TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g
 
-run: kernel.bin
+mydisk:
+	dd if=/dev/zero of=mydisk bs=1m count=1
+
+run: kernel.bin mydisk
 	@echo Running. Exit with Ctrl-A X
 	@echo
 	$(QEMU) -kernel kernel.bin -nographic
 
-debug: kernel.bin
+debug: kernel.bin mydisk
 	@echo Entering debug mode. Go run \"make gdb\" in another terminal.
 	@echo You can terminate the qemu process with Ctrl-A X
 	@echo
@@ -41,6 +45,7 @@ kernel.elf: kernel/ksh.o
 kernel.elf: kernel/timer.o
 kernel.elf: kernel/gic.o
 kernel.elf: kernel/syscall.o
+kernel.elf: kernel/virtio.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o
