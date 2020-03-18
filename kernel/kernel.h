@@ -332,7 +332,7 @@ extern uint32_t process_ush_end[];
 
 void dtb_init(uint32_t phys);
 
-void ksh(void);
+void ksh(void*);
 
 /* ksh commands */
 int cmd_mkproc(int argc, char **argv);

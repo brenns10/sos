@@ -311,6 +311,11 @@ void schedule(void)
 		if (count_seen == 0 && !warned) {
 			puts("[kernel] WARNING: no more processes remain\n");
 			warned = true;
+			/* Create a kthread to run ksh. Next time we schedule
+			 * (on the next timer tick), it should get chosen and
+			 * we'll have our backup. */
+			chosen = create_kthread(ksh, NULL);
+			list_insert(&process_list, &chosen->list);
 		}
 		context_switch(idle_process);
 	}

@@ -1,5 +1,10 @@
 /**
  * Kernel Shell
+ *
+ * This shell is implemented as a kernel thread. This allows the shell to make
+ * system calls, sleep as it waits for user input, etc. However, it may still
+ * access kernel memory space. This is  S C A R Y  everyone, but we'll get used
+ * to it.
  */
 #include "kernel.h"
 #include "string.h"
@@ -67,6 +72,22 @@ static int help(int argc, char **argv)
 }
 
 /*
+ * Make the getchar() system call. Copied in from userspace.
+ */
+static int getchar(void)
+{
+	int retval;
+	__asm__ __volatile__ (
+		"svc #3\n"
+		"mov %[rv], a1"
+		: /* output operands */ [rv] "=r" (retval)
+		: /* input operands */
+		: /* clobbers */ "a1", "a2", "a3", "a4"
+	);
+	return retval;
+}
+
+/*
  * Parsing logic
  */
 static void getline(void)
@@ -76,7 +97,7 @@ static void getline(void)
 	puts("ksh> ");
 
 	do {
-		input[i++] = getc();
+		input[i++] = getchar();
 		putc(input[i - 1]);
 	} while (input[i - 1] != '\r' && i < sizeof(input));
 	putc('\n');
@@ -115,8 +136,9 @@ static void execute(void)
 	printf("command not found: \"%s\"\n", tokens[0]);
 }
 
-void ksh(void)
+void ksh(void *arg)
 {
+	(void) arg; /* unused */
 	puts("Stephen's OS, v" SOS_VERSION "\n");
 	while (true) {
 		getline();
