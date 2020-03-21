@@ -3,6 +3,8 @@
  */
 #include "kernel.h"
 
+#define UART_INTID 33
+
 typedef volatile struct __attribute__((packed)) {
 	uint32_t UARTDR;
 	uint32_t UARTRSR;
@@ -123,5 +125,6 @@ void uart_init(void)
 	reg = UARTIMSC_UART_RXIM;
 	WRITE32(base->UARTIMSC, reg);
 
-	gic_enable_interrupt(33);
+	gic_register_isr(UART_INTID, 1, uart_isr);
+	gic_enable_interrupt(UART_INTID);
 }

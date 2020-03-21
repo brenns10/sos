@@ -51,15 +51,12 @@ void prefetch_abort(uint32_t lr)
 
 void irq(void)
 {
-	uint32_t intid = gic_interrupt_acknowledge();
-
-	if (intid == 30) {
-		timer_isr(intid);
-	} else if (intid == 33) {
-		uart_isr(intid);
-	} else {
+	uint8_t intid = (uint8_t)gic_interrupt_acknowledge();
+	isr_t isr = gic_get_isr(intid);
+	if (isr)
+		isr(intid);
+	else
 		printf("Unhandled IRQ: ID=%u, not ending\n", intid);
-	}
 }
 
 void fiq(void) { puts("FIQ!\n"); }

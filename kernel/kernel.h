@@ -360,10 +360,13 @@ int virtio_blk_cmd_status(int argc, char **argv);
 int virtio_blk_cmd_read(int argc, char **argv);
 
 /* GIC Driver */
+typedef void(*isr_t)(uint32_t);
 void gic_init(void);
 void gic_enable_interrupt(uint8_t int_id);
 uint32_t gic_interrupt_acknowledge(void);
-void gic_end_interrupt(uint8_t int_id);
+void gic_end_interrupt(uint32_t int_id);
+void gic_register_isr(uint32_t intid_start, uint32_t intid_count, isr_t isr);
+isr_t gic_get_isr(uint32_t intid);
 
 /* timer */
 void timer_init(void);

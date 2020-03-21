@@ -4,6 +4,8 @@
 #include "gic.h"
 #include "kernel.h"
 
+#define TIMER_INTID 30
+
 #define GET_CNTFRQ(dst) get_cpreg(dst, c14, 0, c0, 0)
 #define SET_CNTFRQ(dst) set_cpreg(dst, c14, 0, c0, 0)
 
@@ -57,7 +59,8 @@ void timer_init(void)
 	dst = 1;
 	SET_CNTP_CTL(dst); /* enable timer */
 
-	gic_enable_interrupt(30u);
+	gic_register_isr(TIMER_INTID, 1, timer_isr);
+	gic_enable_interrupt(TIMER_INTID);
 }
 
 void timer_isr(uint32_t intid)
