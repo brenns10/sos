@@ -103,11 +103,15 @@ struct virtqueue {
 	/* Physical base address of the full data structure. */
 	uint32_t phys;
 	uint32_t len;
+	uint32_t seen_used;
+	uint32_t free_desc;
+
 	volatile struct virtqueue_desc *desc;
 	volatile struct virtqueue_avail *avail;
 	volatile uint16_t *used_event;
 	volatile struct virtqueue_used *used;
 	volatile uint16_t *avail_event;
+	void **desc_virt;
 } __attribute__((packed));
 
 struct virtio_blk_config {

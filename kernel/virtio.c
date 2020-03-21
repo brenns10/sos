@@ -7,15 +7,16 @@
  */
 
 #include "kernel.h"
+#include "string.h"
 #include "slab.h"
 #include "virtio.h"
 
 #define VIRTIO_MAGIC 0x74726976
 #define VIRTIO_VERSION 0x2
 #define VIRTIO_DEV_BLK 0x2
+#define wrap(x, len) ((x) & ~(len))
 
 uint8_t buffer[512];
-
 
 struct virtio_cap indp_caps[] = {
 	{"VIRTIO_F_RING_INDIRECT_DESC", 1<<28, false,
@@ -66,6 +67,7 @@ static void maybe_init_blkreq_slab(void)
 
 struct virtqueue *virtq_create(uint32_t len)
 {
+	int i;
 	uint32_t page_phys;
 	uint32_t page_virt;
 	struct virtqueue *virtq;
@@ -80,9 +82,9 @@ struct virtqueue *virtq_create(uint32_t len)
 	uint32_t off_avail_event = (
 			off_used + sizeof(struct virtqueue_used)
 			+ len * sizeof(struct virtqueue_used_elem));
-	uint32_t memsize = off_avail_event + sizeof(uint16_t);
+	uint32_t off_desc_virt = ALIGN(off_avail_event + sizeof(uint16_t), sizeof(void*));
+	uint32_t memsize = off_desc_virt + len * sizeof(void*);
 
-	printf("virtq_create: len=%u memsize=0x%x\n", len, memsize);
 	if (memsize > PAGE_SIZE) {
 		printf("virtq_create: error, too big for a page\n");
 		return NULL;
@@ -100,11 +102,38 @@ struct virtqueue *virtq_create(uint32_t len)
 	virtq->used_event = (uint16_t *) (page_virt + off_used_event);
 	virtq->used = (struct virtqueue_used *) (page_virt + off_used);
 	virtq->avail_event = (uint16_t *) (page_virt + off_avail_event);
+	virtq->desc_virt = (void **) (page_virt + off_desc_virt);
 
 	virtq->avail->idx = 0;
 	virtq->used->idx = 0;
+	virtq->seen_used = virtq->used->idx;
+	virtq->free_desc = 0;
+
+	for (i = 0; i < len; i++) {
+		virtq->desc[i].next = i + 1;
+	}
 
 	return virtq;
+}
+
+uint32_t virtq_alloc_desc(struct virtqueue *virtq, void *addr)
+{
+	uint32_t desc = virtq->free_desc;
+	uint32_t next = virtq->desc[desc].next;
+	if (next == virtq->len)
+		puts("ERROR: ran out of virtqueue descriptors\n");
+	virtq->free_desc = next;
+
+	virtq->desc[desc].addr = kmem_lookup_phys(addr);
+	virtq->desc_virt[desc] = addr;
+	return desc;
+}
+
+void virtq_free_desc(struct virtqueue *virtq, uint32_t desc)
+{
+	virtq->desc[desc].next = virtq->free_desc;
+	virtq->free_desc = desc;
+	virtq->desc_virt[desc] = NULL;
 }
 
 void virtq_add_to_device(volatile virtio_regs *regs, struct virtqueue *virtq, uint32_t queue_sel)
@@ -140,6 +169,66 @@ static int virtio_check_capabilities(uint32_t *device, uint32_t *request, struct
 
 #define HI32(u64) ((uint32_t)((0xFFFFFFFF00000000ULL & (u64)) >> 32))
 #define LO32(u64) ((uint32_t)(0x00000000FFFFFFFFULL & (u64)))
+
+static void virtio_blk_handle_used(struct virtio_blk *dev, uint32_t usedidx)
+{
+	struct virtqueue *virtq = dev->virtq;
+	uint32_t desc1, desc2, desc3;
+	struct virtio_blk_req *req;
+	uint8_t *data;
+
+	desc1 = virtq->used->ring[usedidx].id;
+	if (!(virtq->desc[desc1].flags & VIRTQ_DESC_F_NEXT))
+		goto bad_desc;
+	desc2 = virtq->desc[desc1].next;
+	if (!(virtq->desc[desc2].flags & VIRTQ_DESC_F_NEXT))
+		goto bad_desc;
+	desc3 = virtq->desc[desc2].next;
+	if (virtq->desc[desc1].len != VIRTIO_BLK_REQ_HEADER_SIZE
+			|| virtq->desc[desc2].len != VIRTIO_BLK_SECTOR_SIZE
+			|| virtq->desc[desc3].len != VIRTIO_BLK_REQ_FOOTER_SIZE)
+		goto bad_desc;
+
+	req = virtq->desc_virt[desc1];
+	data = virtq->desc_virt[desc2];
+	if (req->status != VIRTIO_BLK_S_OK)
+		goto bad_status;
+
+	if (req->type == VIRTIO_BLK_T_IN) {
+		printf("virtio-blk: result: \"%s\"\n", data);
+	}
+
+	virtq_free_desc(virtq, desc1);
+	virtq_free_desc(virtq, desc2);
+	virtq_free_desc(virtq, desc3);
+	slab_free(req);
+
+	return;
+bad_desc:
+	puts("virtio-blk received malformed descriptors\n");
+	return;
+
+bad_status:
+	puts("virtio-blk: error in command response\n");
+	return;
+}
+
+static void virtio_blk_isr(uint32_t intid)
+{
+	/* lol theres only one block device right? */
+	struct virtio_blk *dev = &blkdev;
+	int i;
+	int len = dev->virtq->len;
+
+	WRITE32(dev->regs->InterruptACK, READ32(dev->regs->InterruptStatus));
+
+	for (i = dev->virtq->seen_used; i != dev->virtq->used->idx; i = wrap(i + 1, len)) {
+		virtio_blk_handle_used(dev, i);
+	}
+	dev->virtq->seen_used = dev->virtq->used->idx;
+
+	gic_end_interrupt(intid);
+}
 
 static int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 {
@@ -180,10 +269,11 @@ static int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	printf("    avail.idx = %u\n", virtq->avail->idx);
 	printf("    used.idx = %u\n", virtq->used->idx);
 
-	gic_enable_interrupt(intid);
 	blkdev.regs = regs;
 	blkdev.virtq = virtq;
 	blkdev.intid = intid;
+	gic_register_isr(intid, 1, virtio_blk_isr);
+	gic_enable_interrupt(intid);
 
 	WRITE32(regs->Status, READ32(regs->Status) | VIRTIO_STATUS_DRIVER_OK);
 	mb();
@@ -194,35 +284,47 @@ static int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	printf("virtio-blk 0x%x (intid %u): ready!\n", kmem_lookup_phys((void*)regs), intid);
 }
 
-static int virtio_blk_read(struct virtio_blk *blk, uint32_t sector, uint8_t *data)
+static int virtio_blk_cmd(struct virtio_blk *blk, uint32_t type, uint32_t sector, uint8_t *data)
 {
-	volatile struct virtio_blk_req *hdr = slab_alloc(blkreq_slab);
-	uint32_t hdr_phys = kmem_lookup_phys((void*)hdr);
-	uint32_t data_phys = kmem_lookup_phys((void*)data);
+	struct virtio_blk_req *hdr = slab_alloc(blkreq_slab);
+	uint32_t d1, d2, d3, datamode = 0;
 
-	hdr->type = VIRTIO_BLK_T_IN;
+	hdr->type = type;
 	hdr->sector = sector;
 
-	blk->virtq->desc[0].addr = hdr_phys;
-	blk->virtq->desc[0].len = VIRTIO_BLK_REQ_HEADER_SIZE;
-	blk->virtq->desc[0].flags = VIRTQ_DESC_F_NEXT;
-	blk->virtq->desc[0].next = 1;
+	d1 = virtq_alloc_desc(blk->virtq, hdr);
+	blk->virtq->desc[d1].len = VIRTIO_BLK_REQ_HEADER_SIZE;
+	blk->virtq->desc[d1].flags = VIRTQ_DESC_F_NEXT;
 
-	blk->virtq->desc[1].addr = data_phys + 16;
-	blk->virtq->desc[1].len = VIRTIO_BLK_SECTOR_SIZE;
-	blk->virtq->desc[1].flags = VIRTQ_DESC_F_WRITE | VIRTQ_DESC_F_NEXT;
-	blk->virtq->desc[1].next = 2;
+	if (type == VIRTIO_BLK_T_IN) /* if it's a read */
+		datamode = VIRTQ_DESC_F_WRITE; /* mark page writeable */
 
-	blk->virtq->desc[2].addr = hdr_phys + VIRTIO_BLK_REQ_HEADER_SIZE;
-	blk->virtq->desc[2].len = VIRTIO_BLK_REQ_FOOTER_SIZE;
-	blk->virtq->desc[2].flags = VIRTQ_DESC_F_WRITE;
-	blk->virtq->desc[2].next = 0;
+	d2 = virtq_alloc_desc(blk->virtq, data);
+	blk->virtq->desc[d2].len = VIRTIO_BLK_SECTOR_SIZE;
+	blk->virtq->desc[d2].flags = datamode | VIRTQ_DESC_F_NEXT;
 
-	blk->virtq->avail->ring[blk->virtq->avail->idx] = 0;
+	d3 = virtq_alloc_desc(blk->virtq, (void*)hdr + VIRTIO_BLK_REQ_HEADER_SIZE);
+	blk->virtq->desc[d3].len = VIRTIO_BLK_REQ_FOOTER_SIZE;
+	blk->virtq->desc[d3].flags = VIRTQ_DESC_F_WRITE;
+
+	blk->virtq->desc[d1].next = d2;
+	blk->virtq->desc[d2].next = d3;
+
+	blk->virtq->avail->ring[blk->virtq->avail->idx] = d1;
 	mb();
 	blk->virtq->avail->idx += 1;
 	mb();
 	WRITE32(blk->regs->QueueNotify, 0);
+}
+
+static int virtio_blk_read(struct virtio_blk *blk, uint32_t sector, uint8_t *data)
+{
+	return virtio_blk_cmd(blk, VIRTIO_BLK_T_IN, sector, data);
+}
+
+static int virtio_blk_write(struct virtio_blk *blk, uint32_t sector, uint8_t *data)
+{
+	return virtio_blk_cmd(blk, VIRTIO_BLK_T_OUT, sector, data);
 }
 
 static int virtio_dev_init(uint32_t virt, uint32_t intid)
@@ -290,7 +392,23 @@ int virtio_blk_cmd_read(int argc, char **argv)
 	}
 
 	sector = atoi(argv[1]);
-	virtio_blk_read(&blkdev, 0, buffer);
+	virtio_blk_read(&blkdev, sector, buffer);
+	return 0;
+}
+
+int virtio_blk_cmd_write(int argc, char **argv)
+{
+	uint32_t sector, len;
+
+	if (argc != 3) {
+		puts("usage: blkwrite SECTOR STRING\n");
+		return 1;
+	}
+
+	sector = atoi(argv[1]);
+	len = strlen(argv[2]);
+	memcpy(buffer, argv[2], len+1);
+	virtio_blk_write(&blkdev, sector, buffer);
 	return 0;
 }
 
@@ -303,6 +421,4 @@ void virtio_init(void)
 
 	for (int i = 0; i < 32; i++)
 		virtio_dev_init(page_virt + 0x200 * i, 32 + 0x10 + i);
-
-	virtio_blk_read(&blkdev, 0, buffer);
 }

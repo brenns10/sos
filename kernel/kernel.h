@@ -358,6 +358,7 @@ int cmd_timer_get_ctl(int argc, char **argv);
 int cmd_timer_set_tval(int argc, char **argv);
 int virtio_blk_cmd_status(int argc, char **argv);
 int virtio_blk_cmd_read(int argc, char **argv);
+int virtio_blk_cmd_write(int argc, char **argv);
 
 /* GIC Driver */
 typedef void(*isr_t)(uint32_t);
