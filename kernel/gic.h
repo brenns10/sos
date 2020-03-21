@@ -58,5 +58,3 @@ typedef volatile struct __attribute__((packed)) {
 	const uint32_t CAHPPIR; /* 0x28 Aliased highest prioritypending
 	                           interrupt register */
 } gic_cpu_interface_registers;
-
-#define WRITE32(_reg, _val) (*(volatile uint32_t *)&_reg = _val)

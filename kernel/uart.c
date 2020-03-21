@@ -40,7 +40,6 @@ typedef volatile struct __attribute__((packed)) {
 uint32_t uart_base = 0x09000000;
 struct process *waiting = NULL;
 #define base ((pl011_registers*) uart_base)
-#define WRITE32(_reg, _val) (*(volatile uint32_t *)&_reg = _val)
 
 void putc(char c)
 {

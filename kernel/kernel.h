@@ -11,7 +11,18 @@
 #include "format.h"
 #include "list.h"
 
+/* Useful macros for the kernel to use */
 #define nelem(x) (sizeof(x) / sizeof(x[0]))
+
+#define ALIGN(x,a)              __ALIGN_MASK(x,(typeof(x))(a)-1)
+#define __ALIGN_MASK(x,mask)    (((x)+(mask))&~(mask))
+
+#define WRITE32(_reg, _val) do { \
+		register uint32_t __myval__ = (_val); \
+		*(volatile uint32_t *)&(_reg) = __myval__; \
+	} while (0)
+#define READ32(_reg) (*(volatile uint32_t*)&(_reg))
+
 struct process;
 
 #define SOS_VERSION "0.1"
