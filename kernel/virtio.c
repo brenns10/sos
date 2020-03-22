@@ -215,7 +215,7 @@ bad_status:
 
 static void virtio_blk_isr(uint32_t intid)
 {
-	/* lol theres only one block device right? */
+	/* TODO: support multiple block devices by examining intid */
 	struct virtio_blk *dev = &blkdev;
 	int i;
 	int len = dev->virtq->len;
@@ -237,7 +237,6 @@ static int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	uint32_t request_features = 0;
 	uint32_t DeviceFeatures;
 	uint32_t i;
-
 
 	WRITE32(regs->DeviceFeaturesSel, 0);
 	WRITE32(regs->DriverFeaturesSel, 0);
@@ -266,19 +265,16 @@ static int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	virtq = virtq_create(128);
 	virtq_add_to_device(regs, virtq, 0);
 
-	printf("    avail.idx = %u\n", virtq->avail->idx);
-	printf("    used.idx = %u\n", virtq->used->idx);
-
 	blkdev.regs = regs;
 	blkdev.virtq = virtq;
 	blkdev.intid = intid;
+
 	gic_register_isr(intid, 1, virtio_blk_isr);
 	gic_enable_interrupt(intid);
 
 	WRITE32(regs->Status, READ32(regs->Status) | VIRTIO_STATUS_DRIVER_OK);
 	mb();
-	printf("virtio-blk Status %x\n", *(volatile uint32_t *)&regs->Status);
-
+	printf("virtio-blk Status %x\n", READ32(regs->Status));
 
 	maybe_init_blkreq_slab();
 	printf("virtio-blk 0x%x (intid %u): ready!\n", kmem_lookup_phys((void*)regs), intid);
