@@ -115,6 +115,7 @@ Here is a longer list of things my OS can do:
   - Interact with the world via system calls
   - Pre-emptive multi tasking (thanks to timer interrupt)
   - Scheduled via a round-robin scheduler
+* Driver for a virtio block device (see `kernel/virtio.c`)
 
 Some Limitations
 ----------------
