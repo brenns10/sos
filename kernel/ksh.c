@@ -8,10 +8,12 @@
  */
 #include "kernel.h"
 #include "string.h"
+#include "sync.h"
 
 static char input[256];
 static char *tokens[16];
 static int argc;
+DECLARE_SPINSEM(sem, 2);
 
 /*
  * Shell commands section. Each command is represented by a struct cmd, and
@@ -30,6 +32,16 @@ static int echo(int argc, char **argv)
 	return 0;
 }
 
+static int cmd_acquire(int argc, char **argv)
+{
+	spin_acquire(&sem);
+}
+
+static int cmd_release(int argc, char **argv)
+{
+	spin_release(&sem);
+}
+
 static int help(int argc, char **argv);
 struct cmd cmds[] = {
 	{ .name = "echo",
@@ -40,6 +52,8 @@ struct cmd cmds[] = {
 	  .help = "create a new process with binary image IMG" },
 	{ .name = "lsproc", .func = cmd_lsproc, .help = "list process IDs" },
 	{ .name = "execproc", .func = cmd_execproc, .help = "run process PID" },
+	{ .name = "acquire", .func = cmd_acquire, .help = "acquire sem" },
+	{ .name = "release", .func = cmd_release, .help = "release sem" },
 	{ .name = "dtb-ls",
 	  .func = cmd_dtb_ls,
 	  .help = "list device tree nodes" },
