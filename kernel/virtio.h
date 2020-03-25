@@ -6,6 +6,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define VIRTIO_MAGIC 0x74726976
+#define VIRTIO_VERSION 0x2
+#define VIRTIO_DEV_BLK 0x2
+#define wrap(x, len) ((x) & ~(len))
+
 /*
  * See Section 4.2.2 of VIRTIO 1.0 Spec:
  * http://docs.oasis-open.org/virtio/virtio/v1.0/cs04/virtio-v1.0-cs04.html
@@ -155,3 +160,21 @@ struct virtio_blk_req {
 #define VIRTIO_BLK_S_OK       0
 #define VIRTIO_BLK_S_IOERR    1
 #define VIRTIO_BLK_S_UNSUPP   2
+
+/*
+ * virtqueue routines
+ */
+struct virtqueue *virtq_create(uint32_t len);
+uint32_t virtq_alloc_desc(struct virtqueue *virtq, void *addr);
+void virtq_free_desc(struct virtqueue *virtq, uint32_t desc);
+void virtq_add_to_device(volatile virtio_regs *regs, struct virtqueue *virtq, uint32_t queue_sel);
+
+/*
+ * General purpose routines for virtio drivers
+ */
+int virtio_check_capabilities(uint32_t *device, uint32_t *request, struct virtio_cap *caps, uint32_t n);
+
+/*
+ * virtio-blk routines
+ */
+int virtio_blk_init(virtio_regs *regs, uint32_t intid);

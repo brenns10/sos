@@ -46,6 +46,7 @@ kernel.elf: kernel/timer.o
 kernel.elf: kernel/gic.o
 kernel.elf: kernel/syscall.o
 kernel.elf: kernel/virtio.o
+kernel.elf: kernel/virtio-blk.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o
