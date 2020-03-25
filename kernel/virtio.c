@@ -6,10 +6,10 @@
  * http://docs.oasis-open.org/virtio/virtio/v1.0/cs04/virtio-v1.0-cs04.html
  */
 
-#include "kernel.h"
-#include "string.h"
-#include "slab.h"
 #include "virtio.h"
+#include "kernel.h"
+#include "slab.h"
+#include "string.h"
 
 struct virtqueue *virtq_create(uint32_t len)
 {
@@ -20,16 +20,16 @@ struct virtqueue *virtq_create(uint32_t len)
 
 	/* compute offsets */
 	uint32_t off_desc = ALIGN(sizeof(struct virtqueue), 16);
-	uint32_t off_avail = ALIGN(off_desc + len * sizeof(struct virtqueue_desc), 2);
-	uint32_t off_used_event = (
-			off_avail + sizeof(struct virtqueue_avail)
-			+ len * sizeof(uint16_t));
+	uint32_t off_avail =
+	        ALIGN(off_desc + len * sizeof(struct virtqueue_desc), 2);
+	uint32_t off_used_event = (off_avail + sizeof(struct virtqueue_avail) +
+	                           len * sizeof(uint16_t));
 	uint32_t off_used = ALIGN(off_used_event + sizeof(uint16_t), 4);
-	uint32_t off_avail_event = (
-			off_used + sizeof(struct virtqueue_used)
-			+ len * sizeof(struct virtqueue_used_elem));
-	uint32_t off_desc_virt = ALIGN(off_avail_event + sizeof(uint16_t), sizeof(void*));
-	uint32_t memsize = off_desc_virt + len * sizeof(void*);
+	uint32_t off_avail_event = (off_used + sizeof(struct virtqueue_used) +
+	                            len * sizeof(struct virtqueue_used_elem));
+	uint32_t off_desc_virt =
+	        ALIGN(off_avail_event + sizeof(uint16_t), sizeof(void *));
+	uint32_t memsize = off_desc_virt + len * sizeof(void *);
 
 	if (memsize > PAGE_SIZE) {
 		printf("virtq_create: error, too big for a page\n");
@@ -37,18 +37,19 @@ struct virtqueue *virtq_create(uint32_t len)
 	}
 	page_phys = alloc_pages(phys_allocator, PAGE_SIZE, 0);
 	page_virt = alloc_pages(kern_virt_allocator, PAGE_SIZE, 0);
-	kmem_map_pages(page_virt, page_phys, PAGE_SIZE, PRW_UNA | EXECUTE_NEVER);
+	kmem_map_pages(page_virt, page_phys, PAGE_SIZE,
+	               PRW_UNA | EXECUTE_NEVER);
 
 	virtq = (struct virtqueue *)page_virt;
 	virtq->phys = page_phys;
 	virtq->len = len;
 
 	virtq->desc = (struct virtqueue_desc *)(page_virt + off_desc);
-	virtq->avail = (struct virtqueue_avail *) (page_virt + off_avail);
-	virtq->used_event = (uint16_t *) (page_virt + off_used_event);
-	virtq->used = (struct virtqueue_used *) (page_virt + off_used);
-	virtq->avail_event = (uint16_t *) (page_virt + off_avail_event);
-	virtq->desc_virt = (void **) (page_virt + off_desc_virt);
+	virtq->avail = (struct virtqueue_avail *)(page_virt + off_avail);
+	virtq->used_event = (uint16_t *)(page_virt + off_used_event);
+	virtq->used = (struct virtqueue_used *)(page_virt + off_used);
+	virtq->avail_event = (uint16_t *)(page_virt + off_avail_event);
+	virtq->desc_virt = (void **)(page_virt + off_desc_virt);
 
 	virtq->avail->idx = 0;
 	virtq->used->idx = 0;
@@ -82,22 +83,27 @@ void virtq_free_desc(struct virtqueue *virtq, uint32_t desc)
 	virtq->desc_virt[desc] = NULL;
 }
 
-void virtq_add_to_device(volatile virtio_regs *regs, struct virtqueue *virtq, uint32_t queue_sel)
+void virtq_add_to_device(volatile virtio_regs *regs, struct virtqueue *virtq,
+                         uint32_t queue_sel)
 {
 	WRITE32(regs->QueueSel, queue_sel);
 	mb();
 	WRITE32(regs->QueueNum, virtq->len);
-	WRITE32(regs->QueueDescLow, virtq->phys + ((void*)virtq->desc - (void*)virtq));
+	WRITE32(regs->QueueDescLow,
+	        virtq->phys + ((void *)virtq->desc - (void *)virtq));
 	WRITE32(regs->QueueDescHigh, 0);
-	WRITE32(regs->QueueAvailLow, virtq->phys + ((void*)virtq->avail - (void*)virtq));
+	WRITE32(regs->QueueAvailLow,
+	        virtq->phys + ((void *)virtq->avail - (void *)virtq));
 	WRITE32(regs->QueueAvailHigh, 0);
-	WRITE32(regs->QueueUsedLow, virtq->phys + ((void*)virtq->used - (void*)virtq));
+	WRITE32(regs->QueueUsedLow,
+	        virtq->phys + ((void *)virtq->used - (void *)virtq));
 	WRITE32(regs->QueueUsedHigh, 0);
 	mb();
 	WRITE32(regs->QueueReady, 1);
 }
 
-int virtio_check_capabilities(uint32_t *device, uint32_t *request, struct virtio_cap *caps, uint32_t n)
+int virtio_check_capabilities(uint32_t *device, uint32_t *request,
+                              struct virtio_cap *caps, uint32_t n)
 {
 	uint32_t i;
 	for (i = 0; i < n; i++) {
@@ -105,8 +111,9 @@ int virtio_check_capabilities(uint32_t *device, uint32_t *request, struct virtio
 			if (caps[i].support) {
 				*request |= caps[i].bit;
 			} else {
-				printf("virtio supports unsupported option %s (%s)\n",
-						caps[i].name, caps[i].help);
+				printf("virtio supports unsupported option %s "
+				       "(%s)\n",
+				       caps[i].name, caps[i].help);
 			}
 		}
 		*device &= ~caps[i].bit;
@@ -115,21 +122,24 @@ int virtio_check_capabilities(uint32_t *device, uint32_t *request, struct virtio
 
 static int virtio_dev_init(uint32_t virt, uint32_t intid)
 {
-	virtio_regs *regs = (virtio_regs *) virt;
+	virtio_regs *regs = (virtio_regs *)virt;
 
 	if (READ32(regs->MagicValue) != VIRTIO_MAGIC) {
-		printf("error: virtio at 0x%x had wrong magic value 0x%x, expected 0x%x\n",
-				virt, regs->MagicValue, VIRTIO_MAGIC);
+		printf("error: virtio at 0x%x had wrong magic value 0x%x, "
+		       "expected 0x%x\n",
+		       virt, regs->MagicValue, VIRTIO_MAGIC);
 		return -1;
 	}
 	if (READ32(regs->Version) != VIRTIO_VERSION) {
-		printf("error: virtio at 0x%x had wrong version 0x%x, expected 0x%x\n",
-				virt, regs->Version, VIRTIO_VERSION);
+		printf("error: virtio at 0x%x had wrong version 0x%x, expected "
+		       "0x%x\n",
+		       virt, regs->Version, VIRTIO_VERSION);
 		return -1;
 	}
 	if (READ32(regs->DeviceID) == 0) {
 		/*On QEMU, this is pretty common, don't print a message */
-		/*printf("warn: virtio at 0x%x has DeviceID=0, skipping\n", virt);*/
+		/*printf("warn: virtio at 0x%x has DeviceID=0, skipping\n",
+		 * virt);*/
 		return -1;
 	}
 
@@ -148,7 +158,8 @@ static int virtio_dev_init(uint32_t virt, uint32_t intid)
 	case VIRTIO_DEV_BLK:
 		return virtio_blk_init(regs, intid);
 	default:
-		printf("unsupported virtio device ID 0x%x\n", READ32(regs->DeviceID));
+		printf("unsupported virtio device ID 0x%x\n",
+		       READ32(regs->DeviceID));
 	}
 }
 

@@ -3,8 +3,8 @@
  */
 #include "kernel.h"
 #include "slab.h"
-#include "virtio.h"
 #include "string.h"
+#include "virtio.h"
 
 struct virtio_cap indp_caps[] = {
 	{ "VIRTIO_F_RING_INDIRECT_DESC", 1 << 28, false,
@@ -301,4 +301,3 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	printf("virtio-blk 0x%x (intid %u): ready!\n",
 	       kmem_lookup_phys((void *)regs), intid);
 }
-
