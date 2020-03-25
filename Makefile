@@ -1,7 +1,8 @@
 .PHONY: clean debug run gdb test
 
 QEMU = qemu-system-arm -M virt -global virtio-mmio.force-legacy=false \
-       -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd
+       -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd \
+       -net user -device virtio-net-device
 TOOLCHAIN = arm-none-eabi-
 AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc
@@ -47,6 +48,7 @@ kernel.elf: kernel/gic.o
 kernel.elf: kernel/syscall.o
 kernel.elf: kernel/virtio.o
 kernel.elf: kernel/virtio-blk.o
+kernel.elf: kernel/virtio-net.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o

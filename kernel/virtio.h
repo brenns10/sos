@@ -8,7 +8,7 @@
 
 #define VIRTIO_MAGIC 0x74726976
 #define VIRTIO_VERSION 0x2
-#define VIRTIO_DEV_NIC 0x1
+#define VIRTIO_DEV_NET 0x1
 #define VIRTIO_DEV_BLK 0x2
 #define wrap(x, len) ((x) & ~(len))
 
@@ -139,6 +139,14 @@ struct virtio_blk_config {
 	uint8_t writeback;
 } __attribute__((packed));
 
+struct virtio_net_config {
+	uint8_t mac[6];
+#define VIRTIO_NET_S_LINK_UP 1
+#define VIRTIO_NET_S_ANNOUNCE 2
+	uint16_t status;
+	uint16_t max_virtqueue_pairs;
+} __attribute__((packed));
+
 #define VIRTIO_BLK_REQ_HEADER_SIZE 16
 #define VIRTIO_BLK_REQ_FOOTER_SIZE 1
 struct virtio_blk_req {
@@ -162,6 +170,30 @@ struct virtio_blk_req {
 #define VIRTIO_BLK_S_IOERR    1
 #define VIRTIO_BLK_S_UNSUPP   2
 
+struct virtio_net_hdr {
+#define VIRTIO_NET_HDR_F_NEEDS_CSUM 1
+	uint8_t flags;
+#define VIRTIO_NET_HDR_GSO_NONE 0
+#define VIRTIO_NET_HDR_GSO_TCPV4 1
+#define VIRTIO_NET_HDR_GSO_UDP 3
+#define VIRTIO_NET_HDR_GSO_TCPV6 4
+#define VIRTIO_NET_HDR_GSO_ECN 0x80
+	uint8_t gso_type;
+	uint16_t hdr_len;
+	uint16_t gso_size;
+	uint16_t csum_start;
+	uint16_t csum_offset;
+	uint16_t num_buffers;
+};
+#define MAX_ETH_PKT_SIZE 1514
+
+struct virtio_net {
+	virtio_regs *regs;
+	volatile struct virtio_net_config *cfg;
+	struct virtqueue *rx;
+	struct virtqueue *tx;
+};
+
 /*
  * virtqueue routines
  */
@@ -178,3 +210,4 @@ void virtio_check_capabilities(virtio_regs *device, struct virtio_cap *caps, uin
 /*
  */
 int virtio_blk_init(virtio_regs *regs, uint32_t intid);
+int virtio_net_init(virtio_regs *regs, uint32_t intid);
