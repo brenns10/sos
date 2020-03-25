@@ -95,22 +95,6 @@ static int help(int argc, char **argv)
 }
 
 /*
- * Make the getchar() system call. Copied in from userspace.
- */
-static int getchar(void)
-{
-	int retval;
-	__asm__ __volatile__ (
-		"svc #3\n"
-		"mov %[rv], a1"
-		: /* output operands */ [rv] "=r" (retval)
-		: /* input operands */
-		: /* clobbers */ "a1", "a2", "a3", "a4"
-	);
-	return retval;
-}
-
-/*
  * Parsing logic
  */
 static void getline(void)
@@ -120,7 +104,7 @@ static void getline(void)
 	puts("ksh> ");
 
 	do {
-		input[i++] = getchar();
+		input[i++] = getc_blocking();
 		putc(input[i - 1]);
 	} while (input[i - 1] != '\r' && i < sizeof(input));
 	putc('\n');

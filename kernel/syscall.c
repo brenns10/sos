@@ -9,7 +9,7 @@
 void sys_relinquish(void)
 {
 	puts("[kernel] tRelinquish()\n");
-	schedule();
+	block(current->context);
 }
 
 void sys_display(char *buffer)
@@ -21,34 +21,13 @@ void sys_exit(uint32_t code)
 {
 	printf("[kernel] Process %u exited with code %u.\n", current->id,
 	       code);
-	destroy_process(current);
-	/*
-	 * Mark current AS null for schedule(), to inform it that we can't
-	 * continue running this even if there are no other options.
-	 */
-	current = NULL;
-	schedule();
+	destroy_current_process();
+	/* never returns */
 }
 
 int sys_getchar(void)
 {
-	int result = try_getc();
-	if (result < 0) {
-		/*
-		 * No result is currently available. Tell the UART driver to
-		 * mark this process as waiting on a result. When a result is
-		 * available, the process will be woken up with it. In the
-		 * meantime, schedule a new process.
-		 *
-		 * NOTE: uart_wait() marks the process as not ready, so that
-		 * schedule will not immediately return control to the process
-		 * if it's the only one.
-		 */
-		uart_wait(current);
-		schedule();
-	} else {
-		return result;
-	}
+	return getc_blocking();
 }
 
 int sys_runproc(char *imagename)

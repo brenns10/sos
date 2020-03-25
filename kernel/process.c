@@ -37,6 +37,12 @@ struct process *create_process(uint32_t binary)
 {
 	uint32_t size, phys, i, *dst, *src, virt;
 	struct process *p = slab_alloc(proc_slab);
+
+	/*
+	 * Allocate a kernel stack.
+	 */
+	p->kstack = (void*)kmem_get_pages(4096, 0) + 4096;
+
 	/*
 	 * Determine the size of the "process image" rounded to a whole page
 	 */
@@ -131,7 +137,7 @@ struct process *create_kthread(void (*func)(void*), void *arg)
 	p->flags.pr_ready = 1;
 	p->flags.pr_kernel = 1;
 	p->flags.pr_syscall = 0;
-	p->kstack = kmem_get_pages(4096, 0);
+	p->kstack = (void*)kmem_get_pages(4096, 0) + 4096;
 
 	/* kthread is in kernel memory space, no user memory region */
 	p->vmem_allocator = NULL;
@@ -139,14 +145,16 @@ struct process *create_kthread(void (*func)(void*), void *arg)
 	p->first = NULL;
 	p->shadow = NULL;
 
+	for (int i = 0; i < nelem(p->context); i++)
+		p->context[i] = 0;
 	p->context[PROC_CTX_SPSR] = (uint32_t)ARM_MODE_SYS;
 	p->context[PROC_CTX_A1] = (uint32_t)arg;
 	p->context[PROC_CTX_RET] = (uint32_t)func;
-	p->context[PROC_CTX_SP] = (uint32_t)(p->kstack + 4096);
+	p->context[PROC_CTX_SP] = (uint32_t)(p->kstack);
 	return p;
 }
 
-void destroy_process(struct process *proc)
+void destroy_current_process()
 {
 	uint32_t i;
 	//printf("[kernel]\t\tdestroy process %u (p=0x%x)\n", proc->id, proc);
@@ -154,34 +162,52 @@ void destroy_process(struct process *proc)
 	/*
 	 * Remove from the global process list
 	 */
-	list_remove(&proc->list);
+	list_remove(&current->list);
 
-	if (!proc->flags.pr_kernel) {
+	if (!current->flags.pr_kernel) {
 		/*
 		 * Free the process image's physical memory (it's not mapped
 		 * anywhere except for the process's virtual address space)
 		 */
-		free_pages(phys_allocator, proc->phys, proc->size);
+		free_pages(phys_allocator, current->phys, current->size);
 
 		/*
 		 * Free the process's virtual memory allocator.
 		 */
-		kmem_free_pages(proc->vmem_allocator, 0x1000);
+		kmem_free_pages(current->vmem_allocator, 0x1000);
 
 		/*
 		 * Find any second-level page tables, and free them too!
 		 */
 		for (i = 0; i < 0x1000; i++)
-			if (proc->shadow[i])
-				kmem_free_pages(proc->shadow[i], 0x1000);
+			if (current->shadow[i])
+				kmem_free_pages(current->shadow[i], 0x1000);
 
 		/*
 		 * Free the first-level table + shadow table
 		 */
-		kmem_free_pages(proc->first, 0x8000);
+		kmem_free_pages(current->first, 0x8000);
 	} else {
-		kmem_free_pages(proc->kstack, 4096);
 	}
+
+	/*
+	 * Free the kernel stack, which we stored the other end of for
+	 * our full-descending implementation.
+	 *
+	 * This is tricky because we're currently using that stack! This here is
+	 * a bit of a fudge, but we can simply reset the stack pointer to the
+	 * initial kernel stack to enable our final call into schedule.
+	 */
+	asm volatile("ldr sp, =stack_end" ::: "sp");
+	kmem_free_pages((void*)current->kstack - 4096, 4096);
+	slab_free(current);
+
+	/*
+	 * Mark current AS null for schedule(), to inform it that we can't
+	 * continue running this even if there are no other options.
+	 */
+	current = NULL;
+	schedule();
 }
 
 /* should be called only once */
@@ -200,42 +226,16 @@ void start_process(struct process *p)
 	);
 }
 
-static uint32_t *stack_top_for_current_mode(void)
-{
-	uint32_t mode;
-	get_cpsr(mode);
-	mode = mode & ARM_MODE_MASK;
-	switch (mode) {
-	case ARM_MODE_IRQ:
-		return (uint32_t*) irq_stack;
-	case ARM_MODE_SVC:
-		return (uint32_t*) &stack_end;
-	default:
-		printf("PANIC! Attempted to get stack top for mode 0x%x\n", mode);
-		break;
-	}
-	return NULL;
-}
-
 void context_switch(struct process *new_process)
 {
-	uint32_t *context = stack_top_for_current_mode() - nelem(current->context);
-	uint32_t i, use_retval;
+	uint32_t i, use_retval, mode;
 
 	/*printf("[kernel]\t\tswap current process %u for new process %u\n",
 			current ? current->id : 0, new_process->id);*/
+
 	if (new_process == current)
 		goto out;
 
-	/* save current context if the process is alive */
-	if (current)
-		for (i = 0; i < nelem(current->context); i++)
-			current->context[i] = context[i];
-
-	/* load new context */
-	for (i = 0; i < nelem(new_process->context); i++) {
-		context[i] = new_process->context[i];
-	}
 
 	/* Set the current ASID */
 	set_cpreg(new_process->id, c13, 0, c0, 1);
@@ -258,12 +258,7 @@ void context_switch(struct process *new_process)
 	 * that the process is no longer waiting for a syscall.
 	 */
 out:
-	use_retval = 0;
-	if (current->flags.pr_syscall) {
-		use_retval = 1;
-		current->flags.pr_syscall = 0;
-	}
-	return_from_exception(current->sysret, use_retval);
+	return_from_exception(0, 0, &current->context);
 }
 
 /**

@@ -64,7 +64,7 @@ extern void *svc_stack;
 void puts(char *string);
 void putc(char c);
 char getc(void);
-int try_getc(void);
+int getc_blocking(void);
 void uart_init(void);
 void uart_wait(struct process *p);
 void uart_isr(uint32_t intid);
@@ -235,6 +235,9 @@ void data_abort(uint32_t lr);
  * simulates a process without actually doing anything.
  */
 struct process {
+	/* For kernel thread, the stack */
+	void *kstack;
+
 	/**
 	 * Context kept for context switching:
 	 *
@@ -273,12 +276,6 @@ struct process {
 	uint32_t ttbr1;
 	uint32_t *first;
 	uint32_t **shadow;
-
-	/* For kernel thread, the stack */
-	void *kstack;
-
-	/* Return value of pending syscall */
-	uint32_t sysret;
 };
 
 /**
@@ -303,8 +300,8 @@ int32_t process_image_lookup(char *name);
 void start_process(struct process *p);
 void start_process_asm(void *startup);
 
-/* Remove a process from the list and free it. Must reschedule after. */
-void destroy_process(struct process *p);
+/* Destroy the current process and reschedule. Does not return. */
+void destroy_current_process(void);
 
 /* Schedule (i.e. choose and contextswitch a new process) */
 void schedule(void);
@@ -373,10 +370,13 @@ isr_t gic_get_isr(uint32_t intid);
 void timer_init(void);
 void timer_isr(uint32_t intid);
 
-/* return from exception, see entry.s */
-void return_from_exception(uint32_t retval, uint32_t use_ret);
+/* special exectuion functions, see entry.s */
+void return_from_exception(uint32_t retval, uint32_t use_ret, void *return_to);
+void block(uint32_t *ctx);
 
 /* Virtio */
 void virtio_init(void);
+
+#define EBUSY 1
 
 #define mb() asm("dsb")

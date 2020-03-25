@@ -546,12 +546,12 @@ void kmem_init(uint32_t phys, bool verbose)
 	 * Setup stacks for other modes, and map the first code page at 0x00 so
 	 * we can handle exceptions.
 	 */
-	stack = kmem_get_pages(4096, 0);
+	stack = kmem_get_pages(8192, 0);
 	setup_stacks(stack); /* asm; sets the stacks in each mode */
 	fiq_stack = stack + 1 * 1024;
-	irq_stack = stack + 2 * 1024;
-	abrt_stack = stack + 3 * 1024;
-	undf_stack = stack + 4 * 1024;
+	abrt_stack = stack + 2 * 1024;
+	undf_stack = stack + 3 * 1024;
+	irq_stack = stack + 8 * 1024;
 	svc_stack = &stack_end;
 
 	/* This may be a no-op, but let's map the interrupt vector at 0x0 */

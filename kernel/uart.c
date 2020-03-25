@@ -61,12 +61,17 @@ char getc(void)
 	return (char) base->UARTDR;
 }
 
-int try_getc(void)
+int getc_blocking(void)
 {
-	if (base->UARTFR & UARTFR_RXFE)
-		return -1;
-	else
-		return (char) (base->UARTDR & 0xFF);
+	if (waiting)
+		return -EBUSY;
+
+	while (READ32(base->UARTFR) & UARTFR_RXFE) {
+		current->flags.pr_ready = 0;
+		waiting = current;
+		block(current->context);
+	}
+	return READ32(base->UARTDR) & 0xFF;
 }
 
 void uart_isr(uint32_t intid)
@@ -78,25 +83,15 @@ void uart_isr(uint32_t intid)
 	if (reg != UARTIMSC_UART_RXIM) {
 		puts("BAD UART INTERRUPT\n");
 	} else if (waiting) {
-		result = try_getc();
-		if (result < 0)
-			puts("UART RX INTERRUPT LIED\n");
 		/* get the getc return value and mark process for return */
-		waiting->sysret = (uint32_t) result;
 		waiting->flags.pr_ready = 1;
+		waiting = NULL;
 	}
 
 	/* clear the interrupt */
 	reg = UARTIMSC_UART_RXIM;
 	WRITE32(base->UARTICR, reg);
 	gic_end_interrupt(intid);
-}
-
-void uart_wait(struct process *p)
-{
-	p->flags.pr_ready = 0;
-	p->flags.pr_syscall = 1;
-	waiting = p;
 }
 
 /**
