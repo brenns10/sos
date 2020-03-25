@@ -191,25 +191,21 @@ static void virtio_blk_handle_used(struct virtio_blk *dev, uint32_t usedidx)
 
 	req = virtq->desc_virt[desc1];
 	data = virtq->desc_virt[desc2];
-	if (req->status != VIRTIO_BLK_S_OK)
-		goto bad_status;
-
-	if (req->type == VIRTIO_BLK_T_IN) {
-		printf("virtio-blk: result: \"%s\"\n", data);
-	}
 
 	virtq_free_desc(virtq, desc1);
 	virtq_free_desc(virtq, desc2);
 	virtq_free_desc(virtq, desc3);
-	slab_free(req);
 
+	if (req->waiting) {
+		req->waiting->flags.pr_ready = 1;
+	} else {
+		/* nobody is waiting for you :'( */
+		slab_free(req);
+		puts("virtio-blk got an orphaned descriptor\n");
+	}
 	return;
 bad_desc:
 	puts("virtio-blk received malformed descriptors\n");
-	return;
-
-bad_status:
-	puts("virtio-blk: error in command response\n");
 	return;
 }
 
@@ -280,15 +276,18 @@ static int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	printf("virtio-blk 0x%x (intid %u): ready!\n", kmem_lookup_phys((void*)regs), intid);
 }
 
-static int virtio_blk_cmd(struct virtio_blk *blk, uint32_t type, uint32_t sector, uint8_t *data)
+struct virtio_blk_req *virtio_blk_cmd(struct virtio_blk *blk, uint32_t type,
+		uint32_t sector, uint8_t *data)
 {
 	struct virtio_blk_req *hdr = slab_alloc(blkreq_slab);
 	uint32_t d1, d2, d3, datamode = 0;
 
 	hdr->type = type;
 	hdr->sector = sector;
+	hdr->waiting = NULL;
 
 	d1 = virtq_alloc_desc(blk->virtq, hdr);
+	hdr->descriptor = d1;
 	blk->virtq->desc[d1].len = VIRTIO_BLK_REQ_HEADER_SIZE;
 	blk->virtq->desc[d1].flags = VIRTQ_DESC_F_NEXT;
 
@@ -305,20 +304,26 @@ static int virtio_blk_cmd(struct virtio_blk *blk, uint32_t type, uint32_t sector
 
 	blk->virtq->desc[d1].next = d2;
 	blk->virtq->desc[d2].next = d3;
+	return hdr;
+}
 
-	blk->virtq->avail->ring[blk->virtq->avail->idx] = d1;
+void virtio_blk_send(struct virtio_blk *blk, struct virtio_blk_req *hdr)
+{
+	blk->virtq->avail->ring[blk->virtq->avail->idx] = hdr->descriptor;
 	mb();
 	blk->virtq->avail->idx += 1;
 	mb();
 	WRITE32(blk->regs->QueueNotify, 0);
 }
 
-static int virtio_blk_read(struct virtio_blk *blk, uint32_t sector, uint8_t *data)
+struct virtio_blk_req *virtio_blk_read(struct virtio_blk *blk, uint32_t sector,
+		uint8_t *data)
 {
 	return virtio_blk_cmd(blk, VIRTIO_BLK_T_IN, sector, data);
 }
 
-static int virtio_blk_write(struct virtio_blk *blk, uint32_t sector, uint8_t *data)
+struct virtio_blk_req *virtio_blk_write(struct virtio_blk *blk, uint32_t sector,
+		uint8_t *data)
 {
 	return virtio_blk_cmd(blk, VIRTIO_BLK_T_OUT, sector, data);
 }
@@ -381,6 +386,7 @@ int virtio_blk_cmd_status(int argc, char **argv)
 int virtio_blk_cmd_read(int argc, char **argv)
 {
 	uint32_t sector;
+	struct virtio_blk_req *req;
 
 	if (argc != 2) {
 		puts("usage: read SECTOR\n");
@@ -388,13 +394,24 @@ int virtio_blk_cmd_read(int argc, char **argv)
 	}
 
 	sector = atoi(argv[1]);
-	virtio_blk_read(&blkdev, sector, buffer);
+	req = virtio_blk_read(&blkdev, sector, buffer);
+	req->waiting = current;
+	current->flags.pr_ready = 0;
+	virtio_blk_send(&blkdev, req);
+	block(current->context);
+	if (req->status != VIRTIO_BLK_S_OK) {
+		puts("ERROR\n");
+		return 1;
+	}
+	printf("result: \"%s\"\n", buffer);
+	slab_free(req);
 	return 0;
 }
 
 int virtio_blk_cmd_write(int argc, char **argv)
 {
 	uint32_t sector, len;
+	struct virtio_blk_req *req;
 
 	if (argc != 3) {
 		puts("usage: blkwrite SECTOR STRING\n");
@@ -404,7 +421,16 @@ int virtio_blk_cmd_write(int argc, char **argv)
 	sector = atoi(argv[1]);
 	len = strlen(argv[2]);
 	memcpy(buffer, argv[2], len+1);
-	virtio_blk_write(&blkdev, sector, buffer);
+	req = virtio_blk_write(&blkdev, sector, buffer);
+	req->waiting = current;
+	current->flags.pr_ready = 0;
+	virtio_blk_send(&blkdev, req);
+	block(current->context);
+	if (req->status != VIRTIO_BLK_S_OK) {
+		puts("ERROR\n");
+	}
+	puts("written!\n");
+	slab_free(req);
 	return 0;
 }
 

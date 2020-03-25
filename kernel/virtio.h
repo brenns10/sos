@@ -144,6 +144,10 @@ struct virtio_blk_req {
 	uint32_t reserved;
 	uint64_t sector;
 	uint8_t status;
+	/* end standard fields, begin helpers */
+	uint8_t _pad[3];
+	struct process *waiting;
+	uint32_t descriptor;
 } __attribute__((packed));
 
 #define VIRTIO_BLK_SECTOR_SIZE 512
