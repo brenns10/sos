@@ -8,6 +8,7 @@
 
 #define VIRTIO_MAGIC 0x74726976
 #define VIRTIO_VERSION 0x2
+#define VIRTIO_DEV_NIC 0x1
 #define VIRTIO_DEV_BLK 0x2
 #define wrap(x, len) ((x) & ~(len))
 
@@ -172,9 +173,8 @@ void virtq_add_to_device(volatile virtio_regs *regs, struct virtqueue *virtq, ui
 /*
  * General purpose routines for virtio drivers
  */
-int virtio_check_capabilities(uint32_t *device, uint32_t *request, struct virtio_cap *caps, uint32_t n);
+void virtio_check_capabilities(virtio_regs *device, struct virtio_cap *caps, uint32_t n);
 
 /*
- * virtio-blk routines
  */
 int virtio_blk_init(virtio_regs *regs, uint32_t intid);

@@ -102,21 +102,30 @@ void virtq_add_to_device(volatile virtio_regs *regs, struct virtqueue *virtq,
 	WRITE32(regs->QueueReady, 1);
 }
 
-int virtio_check_capabilities(uint32_t *device, uint32_t *request,
-                              struct virtio_cap *caps, uint32_t n)
+void virtio_check_capabilities(virtio_regs *regs, struct virtio_cap *caps,
+                               uint32_t n)
 {
 	uint32_t i;
+	uint32_t bank = 0;
+	uint32_t bit = 0;
+	uint32_t reg;
 	for (i = 0; i < n; i++) {
-		if (*device & caps[i].bit) {
+		bank = caps[i].bit / 32;
+		bit = caps[i].bit % 32;
+		WRITE32(regs->DeviceFeaturesSel, bank);
+		mb();
+		reg = READ32(regs->DeviceFeatures);
+		if (reg & (1 << caps[i].bit)) {
 			if (caps[i].support) {
-				*request |= caps[i].bit;
+				WRITE32(regs->DriverFeaturesSel, bank);
+				WRITE32(regs->DriverFeatures,
+					READ32(regs->DriverFeatures) | (1 << caps[i].bit));
 			} else {
 				printf("virtio supports unsupported option %s "
 				       "(%s)\n",
 				       caps[i].name, caps[i].help);
 			}
 		}
-		*device &= ~caps[i].bit;
 	}
 }
 

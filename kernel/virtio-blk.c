@@ -7,32 +7,32 @@
 #include "virtio.h"
 
 struct virtio_cap indp_caps[] = {
-	{ "VIRTIO_F_RING_INDIRECT_DESC", 1 << 28, false,
+	{ "VIRTIO_F_RING_INDIRECT_DESC", 28, false,
 	  "Negotiating this feature indicates that the driver can use"
 	  " descriptors with the VIRTQ_DESC_F_INDIRECT flag set, as"
 	  " described in 2.4.5.3 Indirect Descriptors." },
-	{ "VIRTIO_F_RING_EVENT_IDX", 1 << 29, false,
+	{ "VIRTIO_F_RING_EVENT_IDX", 29, false,
 	  "This feature enables the used_event and the avail_event fields"
 	  " as described in 2.4.7 and 2.4.8." },
-	/*{"VIRTIO_F_VERSION_1", 1<<32, false,
+	{"VIRTIO_F_VERSION_1", 32, false,
 	 "This indicates compliance with this specification, giving a"
-	 " simple way to detect legacy devices or drivers."},*/
+	 " simple way to detect legacy devices or drivers."},
 };
 
 struct virtio_cap blk_caps[] = {
-	{ "VIRTIO_BLK_F_SIZE_MAX", 1 << 1, false,
+	{ "VIRTIO_BLK_F_SIZE_MAX", 1, false,
 	  "Maximum size of any single segment is in size_max." },
-	{ "VIRTIO_BLK_F_SEG_MAX", 1 << 2, false,
+	{ "VIRTIO_BLK_F_SEG_MAX", 2, false,
 	  "Maximum number of segments in a request is in seg_max." },
-	{ "VIRTIO_BLK_F_GEOMETRY", 1 << 4, false,
+	{ "VIRTIO_BLK_F_GEOMETRY", 4, false,
 	  "Disk-style geometry specified in geometry." },
-	{ "VIRTIO_BLK_F_RO", 1 << 5, false, "Device is read-only." },
-	{ "VIRTIO_BLK_F_BLK_SIZE", 1 << 6, false,
+	{ "VIRTIO_BLK_F_RO", 5, false, "Device is read-only." },
+	{ "VIRTIO_BLK_F_BLK_SIZE", 6, false,
 	  "Block size of disk is in blk_size." },
-	{ "VIRTIO_BLK_F_FLUSH", 1 << 9, false, "Cache flush command support." },
-	{ "VIRTIO_BLK_F_TOPOLOGY", 1 << 10, false,
+	{ "VIRTIO_BLK_F_FLUSH", 9, false, "Cache flush command support." },
+	{ "VIRTIO_BLK_F_TOPOLOGY", 10, false,
 	  "Device exports information on optimal I/O alignment." },
-	{ "VIRTIO_BLK_F_CONFIG_WCE", 1 << 11, false,
+	{ "VIRTIO_BLK_F_CONFIG_WCE", 11, false,
 	  "Device can toggle its cache between writeback and "
 	  "writethrough modes." },
 };
@@ -251,25 +251,11 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	volatile struct virtio_blk_config *conf =
 	        (struct virtio_blk_config *)regs->Config;
 	struct virtqueue *virtq;
-	uint32_t request_features = 0;
-	uint32_t DeviceFeatures;
 	uint32_t i;
 
-	WRITE32(regs->DeviceFeaturesSel, 0);
-	WRITE32(regs->DriverFeaturesSel, 0);
-	mb();
-	DeviceFeatures = regs->DeviceFeatures;
-	virtio_check_capabilities(&DeviceFeatures, &request_features, blk_caps,
-	                          nelem(blk_caps));
-	virtio_check_capabilities(&DeviceFeatures, &request_features, indp_caps,
-	                          nelem(indp_caps));
+	virtio_check_capabilities(regs, blk_caps, nelem(blk_caps));
+	virtio_check_capabilities(regs, indp_caps, nelem(indp_caps));
 
-	if (DeviceFeatures) {
-		printf("virtio supports undocumented options 0x%x!\n",
-		       DeviceFeatures);
-	}
-
-	WRITE32(regs->DriverFeatures, request_features);
 	WRITE32(regs->Status, READ32(regs->Status) | VIRTIO_STATUS_FEATURES_OK);
 	mb();
 	if (!(regs->Status & VIRTIO_STATUS_FEATURES_OK)) {
