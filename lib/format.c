@@ -57,6 +57,18 @@ static inline uint32_t _format_hex(char *buf, uint32_t size, uint32_t out,
 	return out;
 }
 
+static inline uint32_t _format_mac(char *buf, uint32_t size, uint32_t out,
+                                   uint8_t *macptr)
+{
+	int i;
+	for (i = 0; i < 6; i++) {
+		if (i > 0)
+			SET(buf, size, out, ':');
+		out = _format_hex(buf, size, out, (uint32_t)macptr[i]);
+	}
+	return out;
+}
+
 /**
  * Implements the %u format specifier.
  */
@@ -74,6 +86,23 @@ static inline uint32_t _format_uint(char *buf, uint32_t size, uint32_t out,
 		tmpIdx--;
 		SET(buf, size, out, '0' + tmp[tmpIdx]);
 	} while (tmpIdx > 0);
+	return out;
+}
+
+/**
+ * Implements the %I format specifier - IPv4 address, in network byte order.
+ *
+ */
+static inline uint32_t _format_ipv4(char *buf, uint32_t size, uint32_t out,
+                                    uint32_t val)
+{
+	out = _format_uint(buf, size, out, (val >> 0) & 0xFF);
+	SET(buf, size, out, '.');
+	out = _format_uint(buf, size, out, (val >> 8) & 0xFF);
+	SET(buf, size, out, '.');
+	out = _format_uint(buf, size, out, (val >> 16) & 0xFF);
+	SET(buf, size, out, '.');
+	out = _format_uint(buf, size, out, (val >> 24) & 0xFF);
 	return out;
 }
 
@@ -111,6 +140,7 @@ uint32_t vsnprintf(char *buf, uint32_t size, const char *format, va_list vl)
 	uint32_t out = 0;
 	uint32_t uintval;
 	char *strval;
+	uint8_t *macptr;
 
 	for (uint16_t in = 0; format[in]; in++) {
 		if (format[in] == '%') {
@@ -135,6 +165,14 @@ uint32_t vsnprintf(char *buf, uint32_t size, const char *format, va_list vl)
 			case 'u':
 				uintval = va_arg(vl, uint32_t);
 				out = _format_uint(buf, size, out, uintval);
+				break;
+			case 'I':
+				uintval = va_arg(vl, uint32_t);
+				out = _format_ipv4(buf, size, out, uintval);
+				break;
+			case 'M':
+				macptr = va_arg(vl, uint8_t *);
+				out = _format_mac(buf, size, out, macptr);
 				break;
 			case '%':
 				SET(buf, size, out, '%');
