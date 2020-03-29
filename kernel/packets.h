@@ -13,6 +13,8 @@ struct etherframe {
 	uint16_t ethertype;
 } __attribute__((packed));
 
+#define ETHERTYPE_IP 0x0800
+
 /*
  * IP Header
  * https://tools.ietf.org/html/rfc791#page-11
@@ -31,6 +33,11 @@ struct iphdr {
 	uint8_t options[0];
 } __attribute__((packed));
 
+#define ip_get_version(ip) (((ip)->verihl & 0xF0) >> 4)
+#define ip_get_length(ip) (((ip)->verihl & 0x0F) * 4)
+
+#define IPPROTO_UDP 17
+
 /*
  * UDP Header
  * https://tools.ietf.org/html/rfc768
@@ -41,6 +48,9 @@ struct udphdr {
 	uint16_t len;
 	uint16_t csum;
 } __attribute__((packed));
+
+#define UDPPORT_DHCP_CLIENT 68
+#define UDPPORT_DHCP_SERVER 67
 
 struct dhcp_option {
 	uint8_t tag;
@@ -71,9 +81,41 @@ struct dhcp {
 	uint8_t options[0];
 } __attribute__((packed));
 
+#define BOOTREQUEST 1
+#define BOOTREPLY 2
 #define DHCP_MAGIC_COOKIE 0x63825363
 
-#define DHCPOPT_MSG_TYPE 53
+#define DHCP_HTYPE_ETHERNET 1
+
+enum {
+	DHCPOPT_PAD = 0,
+	DHCPOPT_SUBNET_MASK,
+	DHCPOPT_TIME_OFFSET,
+	DHCPOPT_ROUTER,
+	DHCPOPT_TIME_SERVER,
+	DHCPOPT_NAME_SERVER,
+	DHCPOPT_DOMAIN_NAME_SERVER,
+	DHCPOPT_LOG_SERVER,
+	DHCPOPT_COOKIE_SERVER,
+	DHCPOPT_LPR_SERVER,
+	DHCPOPT_IMPRESS_SERVER,
+	DHCPOPT_RESOURCE_LOCATION_SERVER,
+	DHCPOPT_HOST_NAME,
+	DHCPOPT_BOOT_FILE_SIZE,
+	DHCPOPT_MERIT_DUMP_FILE,
+	DHCPOPT_DOMAIN_NAME,
+	DHCPOPT_SWAP_SERVER,
+	DHCPOPT_ROOT_PATH,
+	DHCPOPT_EXTENSIONS_PATH,
+	DHCPOPT_IP_FORWARDING_ENABLE,
+	DHCPOPT_IP_NONLOCAL_SOURCE_ROUTING,
+
+	DHCPOPT_LEASE_TIME = 51,
+	/* lots of seemingly less relevant options, trimming here */
+	DHCPOPT_MSG_TYPE = 53,
+	DHCPOPT_SERVER_IDENTIFIER,
+	DHCPOPT_END = 255,
+};
 
 #define DHCPMTYPE_DHCPDISCOVER 1
 #define DHCPMTYPE_DHCPOFFER 2

@@ -151,7 +151,6 @@ void virtio_net_send(struct virtio_net *dev, void *data, uint32_t len)
 	d1 = virtq_alloc_desc(dev->tx, (void *)hdr);
 	dev->tx->desc[d1].len = VIRTIO_NET_HDRLEN;
 	dev->tx->desc[d1].flags = VIRTQ_DESC_F_NEXT;
-	printf("virtio_net_hdr len = %u\n", dev->tx->desc[d1].len);
 
 	d2 = virtq_alloc_desc(dev->tx, data);
 	dev->tx->desc[d2].len = len;
@@ -164,6 +163,47 @@ void virtio_net_send(struct virtio_net *dev, void *data, uint32_t len)
 	dev->tx->avail->idx += 1;
 	mb();
 	WRITE32(dev->regs->QueueNotify, VIRTIO_NET_Q_TX);
+}
+
+void dhcp_enumerate_options(struct dhcp *dhcp, uint32_t len)
+{
+	struct dhcp_option *opt = (struct dhcp_option *)&dhcp->options;
+	uint32_t offset = sizeof(struct dhcp);
+	uint32_t incr;
+
+	while (opt->tag != 255 && offset < len) {
+		if (opt->tag != DHCPOPT_PAD)
+			incr = opt->len + 2;
+		else
+			incr = 1;
+		switch (opt->tag) {
+			case DHCPOPT_PAD:
+				break;
+			case DHCPOPT_SUBNET_MASK:
+				printf("subnet mask: %I\n", *(uint32_t *)&opt->data);
+				break;
+			case DHCPOPT_ROUTER:
+				printf("router: %I (and %u more)\n", *(uint32_t *)&opt->data, opt->len/4-1);
+				break;
+			case DHCPOPT_DOMAIN_NAME_SERVER:
+				printf("domain name server: %I (and %u more)\n", *(uint32_t *)&opt->data, opt->len/4-1);
+				break;
+			case DHCPOPT_LEASE_TIME:
+				printf("lease time: %u\n", *(uint32_t *)&opt->data);
+				break;
+			case DHCPOPT_MSG_TYPE:
+				printf("message type: %u\n", opt->data[0]);
+				break;
+			case DHCPOPT_SERVER_IDENTIFIER:
+				printf("server identifier: %u\n", *(uint32_t *)&opt->data);
+				break;
+			default:
+				printf("unhandled option: %u\n", opt->tag);
+				break;
+		}
+		offset += incr;
+		opt = (struct dhcp_option *)((void *)opt + incr);
+	}
 }
 
 int virtio_net_send_dhcpdiscover(struct virtio_net *dev)
@@ -180,8 +220,8 @@ int virtio_net_send_dhcpdiscover(struct virtio_net *dev)
 	struct dhcp_option *dtype;
 
 	memset(packet, 0, MAX_ETH_PKT_SIZE);
-	dhcp->op = 1; /* BOOTREQUEST */
-	dhcp->htype = 1; /* ethernet */
+	dhcp->op = BOOTREQUEST;
+	dhcp->htype = DHCP_HTYPE_ETHERNET;
 	dhcp->hlen = 6; /* mac address = 6 bytes */
 	dhcp->xid = htonl(0xDEADBEEF);
 	dhcp->cookie = htonl(DHCP_MAGIC_COOKIE);
@@ -193,8 +233,8 @@ int virtio_net_send_dhcpdiscover(struct virtio_net *dev)
 	dtype->data[0] = DHCPMTYPE_DHCPDISCOVER;
 	dhcp->options[3] = 255; /* END option */
 
-	udphdr->src_port = htons(68);
-	udphdr->dst_port = htons(67);
+	udphdr->src_port = htons(UDPPORT_DHCP_CLIENT);
+	udphdr->dst_port = htons(UDPPORT_DHCP_SERVER);
 	/* our option space is a total of 4 bytes */
 	udphdr->len = htons(sizeof(struct udphdr) + sizeof(struct dhcp) + 4);
 
@@ -203,7 +243,7 @@ int virtio_net_send_dhcpdiscover(struct virtio_net *dev)
 	iphdr->len = htons(ntohs(udphdr->len) + 20);
 	iphdr->id = htons(1);
 	iphdr->ttl = 8; /* don't let our crappy packets bounce around long */
-	iphdr->proto = 17; /* udp yo */
+	iphdr->proto = IPPROTO_UDP;
 	iphdr->src = htonl(0); /* who even am i? */
 	iphdr->dst = htonl(0xFFFFFFFF); /* is anybody out there? */
 	csum_init(&csum);
@@ -221,7 +261,7 @@ int virtio_net_send_dhcpdiscover(struct virtio_net *dev)
 
 	memset(&etherframe->dst_mac, 0xFF, 6);
 	memcpy(&etherframe->src_mac, &cfg->mac, nelem(cfg->mac));
-	etherframe->ethertype = htons(0x0800); /* ip */
+	etherframe->ethertype = htons(ETHERTYPE_IP);
 
 	virtio_net_send(dev, packet, ntohs(iphdr->len) + 14);
 	return 0;
@@ -256,18 +296,84 @@ int virtio_net_cmd_status(int argc, char **argv)
 	printf("    ready = 0x%x\n", READ32(netdev.regs->QueueReady));
 }
 
+void virtio_handle_rxused(struct virtio_net *dev, uint32_t idx)
+{
+	uint32_t desc = dev->rx->used->ring[idx].id;
+	uint32_t len = dev->rx->used->ring[idx].len;
+
+	void *pkt = dev->rx->desc_virt[desc];
+	struct virtio_net_hdr *hdr = (struct virtio_net_hdr *)pkt;
+	struct etherframe *eth = (struct etherframe *)(pkt + VIRTIO_NET_HDRLEN);
+	printf("RX from=%M to=%M, ethertype=0x%x\n",
+	       &eth->src_mac, &eth->dst_mac, ntohs(eth->ethertype));
+
+	if (ntohs(eth->ethertype) != ETHERTYPE_IP) {
+		puts("  Non-IP packet, skipping\n");
+		goto cleanup;
+	}
+
+	struct iphdr *ip = (struct iphdr *)((void *)eth + sizeof(struct etherframe));
+	printf("  IP from=%I from=%I, len=%u, proto=%u\n",
+	       ip->src, ip->dst, ntohs(ip->len), ip->proto);
+
+	if (ip->proto != IPPROTO_UDP) {
+		puts("  Non-UDP packet, skipping\n");
+		goto cleanup;
+	}
+
+	/* TODO bounds checking bounds checking bounds checking don't just trust
+	 * arbitrary length fields that came in on a network packet bounds check
+	 * bounds check please */
+	struct udphdr *udp = (struct udphdr *)((void *)ip + ip_get_length(ip));
+	printf("  UDP from=%u to=%u len=%u\n", ntohs(udp->src_port),
+	       ntohs(udp->dst_port), ntohs(udp->len));
+
+	if (ntohs(udp->src_port) != UDPPORT_DHCP_SERVER ||
+	    ntohs(udp->dst_port) != UDPPORT_DHCP_CLIENT) {
+		puts("  Non-DHCP packet, skipping\n");
+		goto cleanup;
+	}
+
+	struct dhcp *dhcp = (struct dhcp *)((void *)udp + sizeof(struct udphdr));
+	if (dhcp->op != BOOTREPLY) {
+		printf("  wrong op for DHCP reply, expected BOOTREPLY, got %u\n", dhcp->op);
+		goto cleanup;
+	}
+
+	if (dhcp->options[0] != DHCPOPT_MSG_TYPE) {
+		printf("   error: expectected first option to be message type (53), got %u\n", dhcp->options[0]);
+		goto cleanup;
+	}
+	if (dhcp->options[2] == DHCPMTYPE_DHCPOFFER) {
+		puts("  DHCP OFFER HAS ARRIVED, BINGO!\n");
+	}
+	dhcp_enumerate_options(dhcp, ntohs(udp->len) - sizeof(struct udphdr));
+
+cleanup:
+	dev->rx->avail->ring[dev->rx->avail->idx] = desc;
+	mb();
+	dev->rx->avail->idx = wrap(dev->rx->avail->idx + 1, dev->rx->len);
+}
+
+void virtio_handle_txused(struct virtio_net *dev, uint32_t idx)
+{
+}
+
 void virtio_net_isr(uint32_t intid)
 {
+	uint32_t i;
 	struct virtio_net *dev = &netdev;
 	uint32_t stat = READ32(dev->regs->InterruptStatus);
-	printf("virtio-net: INTERRUPT status 0x%x\n", stat);
 	WRITE32(dev->regs->InterruptACK, stat);
-	if (dev->rx->seen_used != dev->rx->used->idx) {
-		puts("new used in rx\n");
+
+	for (i = dev->rx->seen_used; i != dev->rx->used->idx; i = wrap(i + 1, 32)) {
+		virtio_handle_rxused(dev, i);
 	}
-	if (dev->tx->seen_used != dev->tx->used->idx) {
-		puts("new used in tx\n");
+	dev->rx->seen_used = dev->rx->used->idx;
+	for (i = dev->tx->seen_used; i != dev->tx->used->idx; i = wrap(i + 1, 32)) {
+		virtio_handle_txused(dev, i);
 	}
+	dev->tx->seen_used = dev->tx->used->idx;
 	gic_end_interrupt(intid);
 }
 
@@ -304,8 +410,6 @@ int virtio_net_init(virtio_regs *regs, uint32_t intid)
 
 	maybe_init_nethdr_slab();
 
-	printf("virtio-net 0x%x (intid %u, MAC %x:%x:%x:%x:%x:%x): ready!\n",
-			kmem_lookup_phys((void *)regs), intid, cfg->mac[0],
-			cfg->mac[1], cfg->mac[2], cfg->mac[3], cfg->mac[4],
-			cfg->mac[5]);
+	printf("virtio-net 0x%x (intid %u, MAC %M): ready!\n",
+			kmem_lookup_phys((void *)regs), intid, &cfg->mac);
 }
