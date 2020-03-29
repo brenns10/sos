@@ -152,7 +152,7 @@ static void execute(void)
 void ksh(void *arg)
 {
 	(void) arg; /* unused */
-	puts("Stephen's OS, v" SOS_VERSION "\n");
+	puts("Stephen's OS, (kernel shell)\n");
 	while (true) {
 		getline();
 		tokenize();

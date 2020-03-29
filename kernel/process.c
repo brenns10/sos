@@ -304,7 +304,8 @@ void schedule(void)
 		 */
 		static bool warned = false;
 		if (count_seen == 0 && !warned) {
-			puts("[kernel] WARNING: no more processes remain\n");
+			puts("[kernel] WARNING: no more processes remain, "
+			     "dropping into kernel shell\n");
 			warned = true;
 			/* Create a kthread to run ksh. Next time we schedule
 			 * (on the next timer tick), it should get chosen and

@@ -122,7 +122,9 @@ static void execute(void)
 int main(void)
 {
 	int pid = getpid();
-	printf("Stephen's OS (user shell, pid=%u)\n", pid);
+	printf("\nStephen's OS (user shell, pid=%u)\n", pid);
+	puts("  This shell doesn't do much. Use the \"exit\" command to drop\n"
+	     "  into a kernel shell which can do scary things!\n\n");
 	while (true) {
 		getline();
 		tokenize();
