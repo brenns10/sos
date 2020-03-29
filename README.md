@@ -196,3 +196,4 @@ Here are some of the official standards and specifications I've relied on:
 [rfc2131]: https://tools.ietf.org/html/rfc2131
 [rfc1533]: https://tools.ietf.org/html/rfc1533
 [fat]: http://read.pudn.com/downloads77/ebook/294884/FAT32%20Spec%20%28SDA%20Contribution%29.pdf
+[dhcp-wiki]: https://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol
