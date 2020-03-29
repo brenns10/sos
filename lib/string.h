@@ -16,6 +16,7 @@ bool strsuffix(const char *haystack, const char *suffix);
 int strcmp(const char *lhs, const char *rhs);
 
 void *memcpy(void *dest, void *src, size_t n);
+void *memset(void *dest, int c, size_t n);
 
 struct buffer {
 	unsigned int cap;

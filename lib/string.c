@@ -72,6 +72,15 @@ void *memcpy(void *dest, void *src, size_t n)
 	return dest;
 }
 
+void *memset(void *dest, int c, size_t n)
+{
+	uint8_t *destc = (uint8_t *)dest;
+	size_t i;
+	for (i = 0; i < n; i++)
+		destc[i] = (uint8_t)c;
+	return dest;
+}
+
 unsigned int strlcat(char *dst, const char *src, unsigned int size)
 {
 	unsigned int len = strlen(dst);

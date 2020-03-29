@@ -14,9 +14,9 @@ struct virtio_cap indp_caps[] = {
 	{ "VIRTIO_F_RING_EVENT_IDX", 29, false,
 	  "This feature enables the used_event and the avail_event fields"
 	  " as described in 2.4.7 and 2.4.8." },
-	{"VIRTIO_F_VERSION_1", 32, false,
-	 "This indicates compliance with this specification, giving a"
-	 " simple way to detect legacy devices or drivers."},
+	{ "VIRTIO_F_VERSION_1", 32, false,
+	  "This indicates compliance with this specification, giving a"
+	  " simple way to detect legacy devices or drivers."},
 };
 
 struct virtio_cap blk_caps[] = {

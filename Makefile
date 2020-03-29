@@ -2,7 +2,8 @@
 
 QEMU = qemu-system-arm -M virt -global virtio-mmio.force-legacy=false \
        -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd \
-       -net user -device virtio-net-device
+       -netdev user,id=u1 -device virtio-net-device,netdev=u1 -object filter-dump,id=f1,netdev=u1,file=dump.pcap \
+       -d guest_errors
 TOOLCHAIN = arm-none-eabi-
 AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc

@@ -9,3 +9,4 @@ cov*.html
 
 tests/*.test
 mydisk
+dump.pcap

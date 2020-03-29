@@ -81,6 +81,12 @@ struct cmd cmds[] = {
 	{ .name = "blkstatus",
 	  .func = virtio_blk_cmd_status,
 	  .help="read block device status"},
+	{ .name = "netstatus",
+	  .func = virtio_net_cmd_status,
+	  .help="read net device status"},
+	{ .name = "dhcpdiscover",
+	  .func = virtio_net_cmd_dhcpdiscover,
+	  .help="send DHCPDISCOVER"},
 	{ .name = "help", .func = help, .help = "show this help message" },
 };
 

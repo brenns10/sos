@@ -184,8 +184,13 @@ struct virtio_net_hdr {
 	uint16_t csum_start;
 	uint16_t csum_offset;
 	uint16_t num_buffers;
-};
+} __attribute__((packed));
 #define MAX_ETH_PKT_SIZE 1514
+
+#define VIRTIO_NET_HDRLEN 10
+
+#define VIRTIO_NET_Q_RX 0
+#define VIRTIO_NET_Q_TX 1
 
 struct virtio_net {
 	virtio_regs *regs;
