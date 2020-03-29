@@ -1,0 +1,8 @@
+repos:
+-   repo: local
+    hooks:
+    -   id: clang-format
+        name: "Run clang-format"
+        language: system
+        files: "^.*\\.[ch]$"
+        entry: clang-format -i
