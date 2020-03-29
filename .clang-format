@@ -3,6 +3,7 @@ IndentWidth: 8
 UseTab: ForIndentation
 BreakBeforeBraces: Linux
 AllowShortIfStatementsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
 IndentCaseLabels: false
 ContinuationIndentWidth: 8
 Cpp11BracedListStyle: false
