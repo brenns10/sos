@@ -115,7 +115,10 @@ Here is a longer list of things my OS can do:
   - Interact with the world via system calls
   - Pre-emptive multi tasking (thanks to timer interrupt)
   - Scheduled via a round-robin scheduler
-* Driver for a virtio block device (see `kernel/virtio.c`)
+* Driver for a virtio block device (see `kernel/virtio-net.c`) and some very
+  basic functionality which uses it.
+* Driver for a virtio network device (see `kernel/virtio-net.c`) and some very
+  basic functionality which uses it.
 
 Some Limitations
 ----------------
@@ -133,47 +136,61 @@ Here are some odd limitations:
 
 Here are a bunch of things to add support for, or improve:
 
-* Filesystem
+* Implement a filesystem
 * Dynamic memory for processes
 * ELF parsing
 * Better DTB parsing, use it to determine peripherals
-* Networking?
+* Decent networking subsystem
+* Implement UDP sockets
+* Implement TCP?
 
 Resources
 ---------
 
-These are a bunch of things I've looked at while making this, but it's not
-exhaustive. The primary resource, of course, is the ARMv7-A architecture
-reference manual.
+Here are some non-official resources I have found useful during this project:
 
-The following links do similar things, but with different machines (i.e. not the
-"virt" board from qemu), which means different memory layouts, etc:
+- [Baking Pi][baking-pi] is a series of tutorials about writing bare metal
+  programs for Raspberry Pi. I followed this for a while before starting this
+  project, so it influenced me a lot. It's a lot of fun and has lots of great
+  information.
+- [This Stanford course website][course] has a lot of labs and references. For
+  some of my earlier questions, it just kept popping up on Google, and it's
+  really good.
+- [Bare-metal programming for ARM][ebook] helped a me get interrupts working.
+  This book has a fairly narrow focus, but I found it quite well-written and
+  helpful for the topics it did cover.
 
-https://balau82.wordpress.com/2010/02/28/hello-world-for-bare-metal-arm-using-qemu/
+[baking-pi]: https://www.cl.cam.ac.uk/projects/raspberrypi/tutorials/os/ok05.html
+[course]: http://cs107e.github.io/
+[ebook]: http://umanovskis.se/files/arm-baremetal-ebook.pdf
 
-https://community.arm.com/processors/b/blog/posts/hello-world-with-bare-metal-and-qemu
+Here are some of the official standards and specifications I've relied on:
 
-This one does similar things, but with ARM 64 bit.
+- [ARMv7-A Architecture Reference Manual][arm-arm]: the authoritative reference
+  for ARM assembly, and other architecture topics like the Virtual Memory System
+  Architecture (VMSA), the Generic Timer, exception and interrupt handling, and
+  more.
+- [ARM Generic Interrupt Controller Architecture Specification][arm-gic]:
+  specifies how the GIC works, which is crucial for being able to handle,
+  enable, and route interrupts.
+- [DeviceTree Specification][dtree]: This specifies the data structures which
+  store information about the devices in a system. I've partially implemented
+  this and will be revisiting it soon. When I last looked the spec was at
+  version 0.2 but now there's a 0.3!
+- [Virtio Specification][virtio]: This specifies how virtio devices work. This
+  underlies my block and network devices.
+- [RFC791][rfc791]: Internet Protocol!
+- [RFC768][rfc768]: User Datagram Protocol.
+- [RFC2131][rfc2131]: Dynamic Host Configuration Protocol. Also the [Wikipedia
+  page][dhcp-wiki] and the [options spec (RFC1533)][rfc1533].
+- [Microsoft FAT Specification][fat]
 
-https://github.com/freedomtan/aarch64-bare-metal-qemu
-
-ARM assembly reference card:
-
-http://ozark.hendrix.edu/~burch/cs/230/arm-ref.pdf
-
-Baking Pi
-
-https://www.cl.cam.ac.uk/projects/raspberrypi/tutorials/os/ok05.html
-
-This is an interesting alternative which uses qemu without a "system", just to
-run some ARM code. Interesting stuff:
-
-https://doppioandante.github.io/2015/07/10/Simple-ARM-programming-on-linux.html
-
-This course website is a useful reference as well:
-
-http://cs107e.github.io/
-
-I found this e-book immensely helpful trying to get interrupts working:
-
-http://umanovskis.se/files/arm-baremetal-ebook.pdf
+[arm-arm]: https://static.docs.arm.com/ddi0406/c/DDI0406C_C_arm_architecture_reference_manual.pdf
+[arm-gic]: https://static.docs.arm.com/ihi0069/d/IHI0069D_gic_architecture_specification.pdf
+[dtree]: https://www.devicetree.org/specifications/
+[virtio]: http://docs.oasis-open.org/virtio/virtio/v1.0/cs04/virtio-v1.0-cs04.html
+[rfc791]: https://tools.ietf.org/html/rfc791
+[rfc768]: https://tools.ietf.org/html/rfc768
+[rfc2131]: https://tools.ietf.org/html/rfc2131
+[rfc1533]: https://tools.ietf.org/html/rfc1533
+[fat]: http://read.pudn.com/downloads77/ebook/294884/FAT32%20Spec%20%28SDA%20Contribution%29.pdf
