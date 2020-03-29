@@ -173,6 +173,7 @@ Here are some of the official standards and specifications I've relied on:
 - [ARM Generic Interrupt Controller Architecture Specification][arm-gic]:
   specifies how the GIC works, which is crucial for being able to handle,
   enable, and route interrupts.
+- [PrimeCell PL011 UART Manual][pl011]
 - [DeviceTree Specification][dtree]: This specifies the data structures which
   store information about the devices in a system. I've partially implemented
   this and will be revisiting it soon. When I last looked the spec was at
@@ -187,6 +188,7 @@ Here are some of the official standards and specifications I've relied on:
 
 [arm-arm]: https://static.docs.arm.com/ddi0406/c/DDI0406C_C_arm_architecture_reference_manual.pdf
 [arm-gic]: https://static.docs.arm.com/ihi0069/d/IHI0069D_gic_architecture_specification.pdf
+[pl011]: http://infocenter.arm.com/help/topic/com.arm.doc.ddi0183f/DDI0183.pdf
 [dtree]: https://www.devicetree.org/specifications/
 [virtio]: http://docs.oasis-open.org/virtio/virtio/v1.0/cs04/virtio-v1.0-cs04.html
 [rfc791]: https://tools.ietf.org/html/rfc791
