@@ -6,19 +6,6 @@
 #include "string.h"
 #include "virtio.h"
 
-struct virtio_cap indp_caps[] = {
-	{ "VIRTIO_F_RING_INDIRECT_DESC", 28, false,
-	  "Negotiating this feature indicates that the driver can use"
-	  " descriptors with the VIRTQ_DESC_F_INDIRECT flag set, as"
-	  " described in 2.4.5.3 Indirect Descriptors." },
-	{ "VIRTIO_F_RING_EVENT_IDX", 29, false,
-	  "This feature enables the used_event and the avail_event fields"
-	  " as described in 2.4.7 and 2.4.8." },
-	{ "VIRTIO_F_VERSION_1", 32, false,
-	  "This indicates compliance with this specification, giving a"
-	  " simple way to detect legacy devices or drivers."},
-};
-
 struct virtio_cap blk_caps[] = {
 	{ "VIRTIO_BLK_F_SIZE_MAX", 1, false,
 	  "Maximum size of any single segment is in size_max." },
@@ -35,6 +22,7 @@ struct virtio_cap blk_caps[] = {
 	{ "VIRTIO_BLK_F_CONFIG_WCE", 11, false,
 	  "Device can toggle its cache between writeback and "
 	  "writethrough modes." },
+	VIRTIO_INDP_CAPS
 };
 
 struct slab *blkreq_slab;
@@ -253,8 +241,7 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	struct virtqueue *virtq;
 	uint32_t i;
 
-	virtio_check_capabilities(regs, blk_caps, nelem(blk_caps));
-	virtio_check_capabilities(regs, indp_caps, nelem(indp_caps));
+	virtio_check_capabilities(regs, blk_caps, nelem(blk_caps), "virtio-blk");
 
 	WRITE32(regs->Status, READ32(regs->Status) | VIRTIO_STATUS_FEATURES_OK);
 	mb();
@@ -262,12 +249,6 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 		puts("error: virtio-blk did not accept our features\n");
 		return -1;
 	}
-
-	printf("virtio-blk has 0x%x %x sectors\n", HI32(conf->capacity),
-	       LO32(conf->capacity));
-	printf("virtio-blk queuenummax %u\n", READ32(regs->QueueNumMax));
-	printf("virtio-blk Status %x\n", READ32(regs->Status));
-	printf("virtio-blk InterruptStatus %x\n", regs->InterruptStatus);
 
 	virtq = virtq_create(128);
 	virtq_add_to_device(regs, virtq, 0);
@@ -281,7 +262,6 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 
 	WRITE32(regs->Status, READ32(regs->Status) | VIRTIO_STATUS_DRIVER_OK);
 	mb();
-	printf("virtio-blk Status %x\n", READ32(regs->Status));
 
 	maybe_init_blkreq_slab();
 	printf("virtio-blk 0x%x (intid %u): ready!\n",

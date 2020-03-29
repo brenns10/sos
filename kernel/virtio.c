@@ -103,29 +103,54 @@ void virtq_add_to_device(volatile virtio_regs *regs, struct virtqueue *virtq,
 }
 
 void virtio_check_capabilities(virtio_regs *regs, struct virtio_cap *caps,
-                               uint32_t n)
+                               uint32_t n, char *whom)
 {
 	uint32_t i;
 	uint32_t bank = 0;
 	uint32_t bit = 0;
-	uint32_t reg;
+	uint32_t driver = 0;
+	uint32_t device;
+
+	WRITE32(regs->DeviceFeaturesSel, bank);
+	mb();
+	device = READ32(regs->DeviceFeatures);
+
 	for (i = 0; i < n; i++) {
-		bank = caps[i].bit / 32;
-		bit = caps[i].bit % 32;
-		WRITE32(regs->DeviceFeaturesSel, bank);
-		mb();
-		reg = READ32(regs->DeviceFeatures);
-		if (reg & (1 << caps[i].bit)) {
-			if (caps[i].support) {
-				WRITE32(regs->DriverFeaturesSel, bank);
-				WRITE32(regs->DriverFeatures,
-					READ32(regs->DriverFeatures) | (1 << caps[i].bit));
-			} else {
-				printf("virtio supports unsupported option %s "
-				       "(%s)\n",
-				       caps[i].name, caps[i].help);
+		if (caps[i].bit / 32 != bank) {
+			/* Time to write our selected bits for this bank */
+			WRITE32(regs->DriverFeaturesSel, bank);
+			mb();
+			WRITE32(regs->DriverFeatures, driver);
+			if (device) {
+				/*printf("%s: device supports unknown bits"
+				       " 0x%x in bank %u\n", whom, device, bank);*/
 			}
+			/* Now we set these variables for next time. */
+			bank = caps[i].bit / 32;
+			WRITE32(regs->DeviceFeaturesSel, bank);
+			mb();
+			device = READ32(regs->DeviceFeatures);
 		}
+		bit = caps[i].bit % 32;
+		if (device & (1 << caps[i].bit)) {
+			if (caps[i].support) {
+				driver |= (1 << caps[i].bit);
+			} else {
+				/*printf("virtio supports unsupported option %s "
+				       "(%s)\n",
+				       caps[i].name, caps[i].help);*/
+			}
+			/* clear this from device now */
+			device &= ~(1 << caps[i].bit);
+		}
+	}
+	/* Time to write our selected bits for this bank */
+	WRITE32(regs->DriverFeaturesSel, bank);
+	mb();
+	WRITE32(regs->DriverFeatures, driver);
+	if (device) {
+		/*printf("%s: device supports unknown bits"
+		       " 0x%x in bank %u\n", whom, device, bank);*/
 	}
 }
 

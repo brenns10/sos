@@ -4,6 +4,8 @@
 #include "kernel.h"
 #include "virtio.h"
 #include "packets.h"
+#include "string.h"
+#include "slab.h"
 
 struct virtio_net netdev;
 #define PACKET_PAGES 8192
@@ -69,6 +71,7 @@ struct virtio_cap net_caps[] = {
 	  "Device supports multiqueue with automatic receive steering." },
 	{ "VIRTIO_NET_F_CTRL_MAC_ADDR", 23, false,
 	  "Set MAC address through control channel" },
+	VIRTIO_INDP_CAPS
 };
 
 void init_packets(void **ptr)
@@ -176,8 +179,6 @@ int virtio_net_send_dhcpdiscover(struct virtio_net *dev)
 
 	struct dhcp_option *dtype;
 
-	printf("packet at 0x%x\n", packet);
-
 	memset(packet, 0, MAX_ETH_PKT_SIZE);
 	dhcp->op = 1; /* BOOTREQUEST */
 	dhcp->htype = 1; /* ethernet */
@@ -275,7 +276,7 @@ int virtio_net_init(virtio_regs *regs, uint32_t intid)
 	void *pages;
 	volatile struct virtio_net_config *cfg =
 		(struct virtio_net_config *)regs->Config;
-	virtio_check_capabilities(regs, net_caps, nelem(net_caps));
+	virtio_check_capabilities(regs, net_caps, nelem(net_caps), "virtio-net");
 
 	WRITE32(regs->Status, READ32(regs->Status) | VIRTIO_STATUS_FEATURES_OK);
 	mb();
@@ -283,9 +284,6 @@ int virtio_net_init(virtio_regs *regs, uint32_t intid)
 		puts("error: virtio-net did not accept our features\n");
 		return -1;
 	}
-
-	printf("virtio-net has MAC %x:%x:%x:%x:%x:%x\n", cfg->mac[0], cfg->mac[1],
-			cfg->mac[2], cfg->mac[3], cfg->mac[4], cfg->mac[5]);
 
 	netdev.regs = regs;
 	netdev.cfg = cfg;
@@ -306,7 +304,8 @@ int virtio_net_init(virtio_regs *regs, uint32_t intid)
 
 	maybe_init_nethdr_slab();
 
-	printf("virtio-net 0x%x (intid %u): read! (status %x)\n",
-			kmem_lookup_phys((void *)regs), intid,
-			READ32(regs->Status));
+	printf("virtio-net 0x%x (intid %u, MAC %x:%x:%x:%x:%x:%x): ready!\n",
+			kmem_lookup_phys((void *)regs), intid, cfg->mac[0],
+			cfg->mac[1], cfg->mac[2], cfg->mac[3], cfg->mac[4],
+			cfg->mac[5]);
 }
