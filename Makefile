@@ -50,6 +50,11 @@ kernel.elf: kernel/syscall.o
 kernel.elf: kernel/virtio.o
 kernel.elf: kernel/virtio-blk.o
 kernel.elf: kernel/virtio-net.o
+kernel.elf: kernel/eth.o
+kernel.elf: kernel/ip.o
+kernel.elf: kernel/udp.o
+kernel.elf: kernel/netutils.o
+kernel.elf: kernel/dhcp.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o

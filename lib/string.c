@@ -24,6 +24,15 @@ int strcmp(const char *lhs, const char *rhs)
 	return lhs[i] - rhs[i];
 }
 
+int memcmp(const uint8_t *lhs, const uint8_t *rhs, size_t n)
+{
+	size_t i;
+	for (i = 0; i < n; i++)
+		if (lhs[i] != rhs[i])
+			return lhs[i] - rhs[i];
+	return 0;
+}
+
 bool strprefix(const char *haystack, const char *prefix)
 {
 	uint32_t i;

@@ -3,6 +3,8 @@
  */
 #pragma once
 
+#include <stdint.h>
+
 /*
  * Ethernet Frame Header. A CRC-32 usually goes after the data.
  * https://en.wikipedia.org/wiki/Ethernet_frame

@@ -355,6 +355,7 @@ int virtio_blk_cmd_read(int argc, char **argv);
 int virtio_blk_cmd_write(int argc, char **argv);
 int virtio_net_cmd_status(int argc, char **argv);
 int virtio_net_cmd_dhcpdiscover(int argc, char **argv);
+int dhcp_cmd_discover(int argc, char **argv);
 
 /* GIC Driver */
 typedef void (*isr_t)(uint32_t);
@@ -375,6 +376,11 @@ void block(uint32_t *ctx);
 
 /* Virtio */
 void virtio_init(void);
+
+struct virtio_net;
+void virtio_net_send(struct virtio_net *dev, void *data, uint32_t len);
+struct netif;
+extern struct netif nif;
 
 #define EBUSY 1
 

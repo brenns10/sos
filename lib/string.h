@@ -17,6 +17,7 @@ int strcmp(const char *lhs, const char *rhs);
 
 void *memcpy(void *dest, void *src, size_t n);
 void *memset(void *dest, int c, size_t n);
+int memcmp(const uint8_t *lhs, const uint8_t *rhs, size_t n);
 
 struct buffer {
 	unsigned int cap;
