@@ -161,7 +161,6 @@ struct dtb_iter {
 	unsigned short nodeidx;
 };
 
-
 static void print_attr_unknown(const struct dtb_iter *, void *);
 static void print_attr_empty(const struct dtb_iter *, void *);
 static void print_attr_u32(const struct dtb_iter *, void *);
@@ -176,17 +175,11 @@ static void print_attr_interrupts(const struct dtb_iter *, void *);
 /*
  * Indexed by enum dt_fmt
  */
-typedef void (*dt_prop_printer)(const struct dtb_iter*, void*);
+typedef void (*dt_prop_printer)(const struct dtb_iter *, void *);
 dt_prop_printer PRINTERS[] = {
-	print_attr_unknown,
-	print_attr_empty,
-	print_attr_u32,
-	print_attr_u64,
-	print_attr_string,
-	print_attr_phandle,
-	print_attr_stringlist,
-	print_attr_reg,
-	print_attr_ranges,
+	print_attr_unknown,    print_attr_empty,  print_attr_u32,
+	print_attr_u64,        print_attr_string, print_attr_phandle,
+	print_attr_stringlist, print_attr_reg,    print_attr_ranges,
 	print_attr_interrupts,
 };
 
@@ -201,23 +194,23 @@ struct dt_propenc_field {
 };
 
 struct dt_prop_fmt STD_PROPS[] = {
-	{.prop="compatible", .fmt=FMT_STRINGLIST},
-	{.prop="model", .fmt=FMT_STRING},
-	{.prop="phandle", .fmt=FMT_U32},
-	{.prop="status", .fmt=FMT_STRING},
-	{.prop="#address-cells", .fmt=FMT_U32},
-	{.prop="#size-cells", .fmt=FMT_U32},
-	{.prop="#interrupt-cells", .fmt=FMT_U32},
-	{.prop="reg", .fmt=FMT_REG},
-	{.prop="virtual-reg", .fmt=FMT_U32},
-	{.prop="ranges", .fmt=FMT_RANGES},
-	{.prop="dma-ranges", .fmt=FMT_RANGES},
-	{.prop="name", .fmt=FMT_STRING},
-	{.prop="device_type", .fmt=FMT_STRING},
-	{.prop="interrupt-parent", .fmt=FMT_PHANDLE},
-	{.prop="interrupt-controller", .fmt=FMT_EMPTY},
-	{.prop="interrupts", .fmt=FMT_INTERRUPTS},
-	{.prop="msi-parent", .fmt=FMT_PHANDLE},
+	{ .prop = "compatible", .fmt = FMT_STRINGLIST },
+	{ .prop = "model", .fmt = FMT_STRING },
+	{ .prop = "phandle", .fmt = FMT_U32 },
+	{ .prop = "status", .fmt = FMT_STRING },
+	{ .prop = "#address-cells", .fmt = FMT_U32 },
+	{ .prop = "#size-cells", .fmt = FMT_U32 },
+	{ .prop = "#interrupt-cells", .fmt = FMT_U32 },
+	{ .prop = "reg", .fmt = FMT_REG },
+	{ .prop = "virtual-reg", .fmt = FMT_U32 },
+	{ .prop = "ranges", .fmt = FMT_RANGES },
+	{ .prop = "dma-ranges", .fmt = FMT_RANGES },
+	{ .prop = "name", .fmt = FMT_STRING },
+	{ .prop = "device_type", .fmt = FMT_STRING },
+	{ .prop = "interrupt-parent", .fmt = FMT_PHANDLE },
+	{ .prop = "interrupt-controller", .fmt = FMT_EMPTY },
+	{ .prop = "interrupts", .fmt = FMT_INTERRUPTS },
+	{ .prop = "msi-parent", .fmt = FMT_PHANDLE },
 };
 
 /* Bits determining when a callback for device tree iteration is executed */
@@ -248,7 +241,7 @@ static int dt_path_parse(struct dt_path *path, char *str)
 		if (str[i] == '/') {
 			str[i] = '\0';
 			path->path[path->len++] = &str[start];
-			start = i+1;
+			start = i + 1;
 		}
 	}
 
@@ -279,7 +272,8 @@ static bool dt_path_cmp(const struct dt_path *lhs, const struct dt_path *rhs)
 /*
  * Return true when haystack starts with pfx.
  */
-static bool dt_path_prefix(const struct dt_path *haystack, const struct dt_path *pfx)
+static bool dt_path_prefix(const struct dt_path *haystack,
+                           const struct dt_path *pfx)
 {
 	struct dt_path newhs = *haystack;
 	newhs.len = pfx->len;
@@ -338,15 +332,14 @@ static enum dt_fmt dt_lookup_fmt(const char *propname, uint32_t proplen)
  */
 uint32_t be2host(uint32_t orig)
 {
-	return ((orig & 0xFF) << 24)
-		| ((orig & 0xFF00) << 8)
-		| ((orig & 0xFF0000) >> 8)
-		| ((orig & 0xFF000000) >> 24);
+	return ((orig & 0xFF) << 24) | ((orig & 0xFF00) << 8) |
+	       ((orig & 0xFF0000) >> 8) | ((orig & 0xFF000000) >> 24);
 }
 
 static void print_attr_unknown(const struct dtb_iter *iter, void *data)
 {
-	printf("%s: (data in unknown format, len=%u)\n", iter->prop, iter->proplen);
+	printf("%s: (data in unknown format, len=%u)\n", iter->prop,
+	       iter->proplen);
 }
 
 static void print_attr_empty(const struct dtb_iter *iter, void *data)
@@ -356,19 +349,19 @@ static void print_attr_empty(const struct dtb_iter *iter, void *data)
 
 static void print_attr_u32(const struct dtb_iter *iter, void *data)
 {
-	printf("%s: 0x%x\n", iter->prop, be2host(*(uint32_t*)iter->propaddr));
+	printf("%s: 0x%x\n", iter->prop, be2host(*(uint32_t *)iter->propaddr));
 }
 
 static void print_attr_u64(const struct dtb_iter *iter, void *data)
 {
 	printf("%s: 0x%x %x\n", iter->prop,
-		be2host(*(uint32_t*)iter->propaddr),
-		be2host(*(uint32_t*)(iter->propaddr+4)));
+	       be2host(*(uint32_t *)iter->propaddr),
+	       be2host(*(uint32_t *)(iter->propaddr + 4)));
 }
 
 static void print_attr_string(const struct dtb_iter *iter, void *data)
 {
-	printf("%s: \"%s\"\n", iter->prop, (char*)iter->propaddr);
+	printf("%s: \"%s\"\n", iter->prop, (char *)iter->propaddr);
 }
 
 static void print_attr_phandle(const struct dtb_iter *iter, void *data)
@@ -395,7 +388,8 @@ static void print_attr_stringlist(const struct dtb_iter *iter, void *data)
 	puts("]\n");
 }
 
-static void print_attr_propenc(const struct dtb_iter *iter, struct dt_propenc_field fields[], int fcnt)
+static void print_attr_propenc(const struct dtb_iter *iter,
+                               struct dt_propenc_field fields[], int fcnt)
 {
 	uint32_t entry_size = 0, i, j, phandle, remain = iter->proplen;
 	uint32_t *reg = iter->propaddr;
@@ -406,14 +400,15 @@ static void print_attr_propenc(const struct dtb_iter *iter, struct dt_propenc_fi
 	for (i = 0; i < fcnt; i++) {
 		entry_size += 4 * fields[i].cells;
 		if (fields[i].phandle & fields[i].cells != 1)
-			puts("malformed prop-encoded array, has phandle with len != 1\n");
+			puts("malformed prop-encoded array, has phandle with "
+			     "len != 1\n");
 	}
 
 	printf("(len=%u/%u) ", iter->proplen, entry_size);
 
 	if (iter->proplen % entry_size != 0) {
 		printf("malformed prop-encoded array, len=%u, entry len=%u\n",
-			iter->proplen, entry_size);
+		       iter->proplen, entry_size);
 		return;
 	}
 
@@ -449,8 +444,10 @@ static void print_attr_reg(const struct dtb_iter *iter, void *data)
 {
 	unsigned short nodeidx = iter->nodeidx;
 	struct dt_propenc_field fields[] = {
-		{.cells=nodes[nodeidx].parent->address_cells, .phandle=false},
-		{.cells=nodes[nodeidx].parent->size_cells, .phandle=false},
+		{ .cells = nodes[nodeidx].parent->address_cells,
+		  .phandle = false },
+		{ .cells = nodes[nodeidx].parent->size_cells,
+		  .phandle = false },
 	};
 	print_attr_propenc(iter, fields, nelem(fields));
 }
@@ -459,9 +456,10 @@ static void print_attr_ranges(const struct dtb_iter *iter, void *data)
 {
 	unsigned short nodeidx = iter->nodeidx;
 	struct dt_propenc_field fields[] = {
-		{.cells=nodes[nodeidx].address_cells, .phandle=false},
-		{.cells=nodes[nodeidx].parent->address_cells, .phandle=false},
-		{.cells=nodes[nodeidx].size_cells, .phandle=false},
+		{ .cells = nodes[nodeidx].address_cells, .phandle = false },
+		{ .cells = nodes[nodeidx].parent->address_cells,
+		  .phandle = false },
+		{ .cells = nodes[nodeidx].size_cells, .phandle = false },
 	};
 	print_attr_propenc(iter, fields, nelem(fields));
 }
@@ -478,7 +476,7 @@ static void print_attr_interrupts(const struct dtb_iter *iter, void *data)
 		interrupt_cells = node->interrupt_cells;
 
 	struct dt_propenc_field fields[] = {
-		{.cells=interrupt_cells, .phandle=false},
+		{ .cells = interrupt_cells, .phandle = false },
 	};
 	print_attr_propenc(iter, fields, nelem(fields));
 }
@@ -497,7 +495,7 @@ void dtb_mem_reserved(void)
 	printf("+ reserved memory regions at 0x%x\n", info.rsv);
 	for (entry = info.rsv; entry->addr_le || entry->size_le; entry++)
 		printf("  addr=0x%x, size=0x%x\n", be2host(entry->addr_le),
-				be2host(entry->size_le));
+		       be2host(entry->size_le));
 }
 
 /**
@@ -518,7 +516,8 @@ void dtb_mem_reserved(void)
  *
  * Returns: void!
  */
-void dtb_iter(unsigned int cb_flags, bool (*cb)(const struct dtb_iter *, void *), void *data)
+void dtb_iter(unsigned int cb_flags,
+              bool (*cb)(const struct dtb_iter *, void *), void *data)
 {
 	char *str;
 
@@ -538,12 +537,13 @@ void dtb_iter(unsigned int cb_flags, bool (*cb)(const struct dtb_iter *, void *)
 			str = (char *)iter.tok + 4;
 			iter.path.path[iter.path.len] = str;
 			iter.path.len++;
-			iter.nodeidx = begin ? 0 : (iter.nodeidx+1);
+			iter.nodeidx = begin ? 0 : (iter.nodeidx + 1);
 			begin = false;
 			if (cb_flags & DT_ITER_BEGIN_NODE)
 				if (cb(&iter, data))
 					return;
-			iter.tok = (uint32_t*)align((uint32_t)str + strlen(str) + 1, 2);
+			iter.tok = (uint32_t *)align(
+			        (uint32_t)str + strlen(str) + 1, 2);
 			break;
 		case FDT_END_NODE:
 			if (cb_flags & DT_ITER_END_NODE)
@@ -555,13 +555,14 @@ void dtb_iter(unsigned int cb_flags, bool (*cb)(const struct dtb_iter *, void *)
 		case FDT_PROP:
 			iter.prop = info.str + be2host(iter.tok[2]);
 			iter.proplen = be2host(iter.tok[1]);
-			iter.propaddr = (void*)iter.tok + 12;
+			iter.propaddr = (void *)iter.tok + 12;
 			if (cb_flags & DT_ITER_PROP)
 				if (cb(&iter, data))
 					return;
 			iter.prop = NULL;
 			iter.propaddr = NULL;
-			iter.tok = (uint32_t*)align((uint32_t)iter.tok + 12 + iter.proplen, 2);
+			iter.tok = (uint32_t *)align(
+			        (uint32_t)iter.tok + 12 + iter.proplen, 2);
 			iter.proplen = 0;
 			break;
 		case FDT_END:
@@ -655,8 +656,7 @@ static bool dtb_dump_cb(const struct dtb_iter *iter, void *data)
 	int nodeidx = iter->path.len - 1;
 	switch (iter->typ) {
 	case FDT_BEGIN_NODE:
-		printf("%s%s {\n", indent(nodeidx),
-			iter->path.path[nodeidx]);
+		printf("%s%s {\n", indent(nodeidx), iter->path.path[nodeidx]);
 		break;
 	case FDT_END_NODE:
 		printf("%s}\n", indent(nodeidx));
@@ -676,7 +676,8 @@ int cmd_dtb_dump(int argc, char **argv)
 		return 1;
 	}
 
-	dtb_iter(DT_ITER_BEGIN_NODE|DT_ITER_END_NODE|DT_ITER_PROP, dtb_dump_cb, NULL);
+	dtb_iter(DT_ITER_BEGIN_NODE | DT_ITER_END_NODE | DT_ITER_PROP,
+	         dtb_dump_cb, NULL);
 	return 0;
 }
 
@@ -693,7 +694,7 @@ static bool dtb_init_cb(const struct dtb_iter *iter, void *data)
 	unsigned short nodeidx = iter->nodeidx;
 	switch (iter->typ) {
 	case FDT_BEGIN_NODE:
-		nodes[nodeidx].name = iter->path.path[iter->path.len-1];
+		nodes[nodeidx].name = iter->path.path[iter->path.len - 1];
 		nodes[nodeidx].tok = iter->tok;
 		nodes[nodeidx].depth = iter->path.len;
 		nodes[nodeidx].address_cells = 2;
@@ -702,7 +703,8 @@ static bool dtb_init_cb(const struct dtb_iter *iter, void *data)
 		nodes[nodeidx].phandle = 0;
 		if (nodeidx != 0) {
 			i = nodeidx - 1;
-			while (i >= 0 && nodes[i].depth != nodes[nodeidx].depth-1)
+			while (i >= 0 &&
+			       nodes[i].depth != nodes[nodeidx].depth - 1)
 				i--;
 			nodes[nodeidx].parent = &nodes[i];
 		} else {
@@ -719,7 +721,8 @@ static bool dtb_init_cb(const struct dtb_iter *iter, void *data)
 			nodes[nodeidx].interrupt_cells = be2host(iter->tok[3]);
 		} else if (strcmp(iter->prop, "phandle") == 0) {
 			nodes[nodeidx].phandle = be2host(iter->tok[3]);
-			phandle_map[phandlecount].phandle = nodes[nodeidx].phandle;
+			phandle_map[phandlecount].phandle =
+			        nodes[nodeidx].phandle;
 			phandle_map[phandlecount].node = &nodes[nodeidx];
 			phandlecount++;
 		}
@@ -747,7 +750,9 @@ bool dtb_init_interrupt_cb(const struct dtb_iter *iter, void *data)
 		} else {
 			puts("dtb: error: for node ");
 			dt_path_print(&iter->path);
-			printf(", interrupt-parent specifies unknown phandle 0x%x\n", phandle);
+			printf(", interrupt-parent specifies unknown phandle "
+			       "0x%x\n",
+			       phandle);
 		}
 	}
 	return false;
@@ -764,11 +769,12 @@ void dtb_init(uint32_t phys)
 	uint32_t virt = alloc_pages(kern_virt_allocator, 0x4000, 0);
 	kmem_map_pages((uint32_t)virt, phys, 0x4000, PRW_UNA);
 
-	info.hdr = (struct fdt_header *) virt;
-	info.rsv = (void*) (virt + be2host(info.hdr->off_mem_rsvmap));
-	info.tok = (void*) (virt + be2host(info.hdr->off_dt_struct));
-	info.str = (void*) (virt + be2host(info.hdr->off_dt_strings));
+	info.hdr = (struct fdt_header *)virt;
+	info.rsv = (void *)(virt + be2host(info.hdr->off_mem_rsvmap));
+	info.tok = (void *)(virt + be2host(info.hdr->off_dt_struct));
+	info.str = (void *)(virt + be2host(info.hdr->off_dt_strings));
 
-	dtb_iter(DT_ITER_BEGIN_NODE|DT_ITER_END_NODE|DT_ITER_PROP, dtb_init_cb, NULL);
+	dtb_iter(DT_ITER_BEGIN_NODE | DT_ITER_END_NODE | DT_ITER_PROP,
+	         dtb_init_cb, NULL);
 	dtb_iter(DT_ITER_PROP, dtb_init_interrupt_cb, NULL);
 }

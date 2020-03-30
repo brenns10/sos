@@ -1,8 +1,8 @@
 /*
  * salutations.c: a simple first process
  */
-#include "syscall.h"
 #include "format.h"
+#include "syscall.h"
 
 int main()
 {

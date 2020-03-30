@@ -19,8 +19,7 @@ void sys_display(char *buffer)
 
 void sys_exit(uint32_t code)
 {
-	printf("[kernel] Process %u exited with code %u.\n", current->id,
-	       code);
+	printf("[kernel] Process %u exited with code %u.\n", current->id, code);
 	destroy_current_process();
 	/* never returns */
 }

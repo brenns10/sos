@@ -23,7 +23,7 @@ typedef uint32_t spinsem_t;
  * Presently this does nothing special, but I'm sure it will be useful someday.
  */
 #define DECLARE_SPINSEM(name, init) spinsem_t name = init
-#define INIT_SPINSEM(addr, val) *(addr) = (val)
+#define INIT_SPINSEM(addr, val)     *(addr) = (val)
 
 /*
  * spin_acquire(inputaddr): attempt to "acquire" the semaphore pointed by
@@ -44,21 +44,19 @@ typedef uint32_t spinsem_t;
  *   3) Finally, execute a memory barrier to ensure that memory accesses after
  *      this take place after we've gained mutual exclusion.
  */
-#define spin_acquire(inputaddr) \
-	__asm__ __volatile__( \
-		"1:  clrex\n\t"                   \
-		"    ldrex r0, [%[addr]]\n\t"     \
-		"    cmp   r0, #0\n\t"            \
-		"    beq   1b\n\t"                \
-		"    sub   r0, r0, #1\n\t"        \
-		"    strex r1, r0, [%[addr]]\n\t" \
-		"    cmp   r1, #0\n\t"            \
-		"    bne   1b\n\t"                \
-		"    dmb\n\t"                     \
-		: /* no output */                 \
-		: [addr] "r" (inputaddr)          \
-		: "r0", "r1", "cc", "memory"      \
-	)
+#define spin_acquire(inputaddr)                                                \
+	__asm__ __volatile__("1:  clrex\n\t"                                   \
+	                     "    ldrex r0, [%[addr]]\n\t"                     \
+	                     "    cmp   r0, #0\n\t"                            \
+	                     "    beq   1b\n\t"                                \
+	                     "    sub   r0, r0, #1\n\t"                        \
+	                     "    strex r1, r0, [%[addr]]\n\t"                 \
+	                     "    cmp   r1, #0\n\t"                            \
+	                     "    bne   1b\n\t"                                \
+	                     "    dmb\n\t"                                     \
+	                     : /* no output */                                 \
+	                     : [ addr ] "r"(inputaddr)                         \
+	                     : "r0", "r1", "cc", "memory")
 
 /*
  * spin_release(inputaddr): release the semaphore pointed by inputaddr. This
@@ -72,15 +70,13 @@ typedef uint32_t spinsem_t;
  *   2) We still need a loop here, so that we can retry in case our exclusive
  *      store got interrupted by somebody else.
  */
-#define spin_release(inputaddr) \
-	__asm__ __volatile__( \
-		"    dmb\n\t"                     \
-		"1:  ldrex r0, [%[addr]]\n\t"     \
-		"    add   r0, r0, #1\n\t"        \
-		"    strex r1, r0, [%[addr]]\n\t" \
-		"    cmp   r1, #0\n\t"            \
-		"    bne   1b\n\t"                \
-		: /* no output */                 \
-		: [addr] "r" (inputaddr)          \
-		: "r0", "r1", "cc", "memory"      \
-	)
+#define spin_release(inputaddr)                                                \
+	__asm__ __volatile__("    dmb\n\t"                                     \
+	                     "1:  ldrex r0, [%[addr]]\n\t"                     \
+	                     "    add   r0, r0, #1\n\t"                        \
+	                     "    strex r1, r0, [%[addr]]\n\t"                 \
+	                     "    cmp   r1, #0\n\t"                            \
+	                     "    bne   1b\n\t"                                \
+	                     : /* no output */                                 \
+	                     : [ addr ] "r"(inputaddr)                         \
+	                     : "r0", "r1", "cc", "memory")

@@ -8,8 +8,8 @@
  *
  * Stephen Brennan
  */
-#include <stdint.h>
 #include <stdarg.h>
+#include <stdint.h>
 
 /* Your puts() should fit this signature (roughly) */
 extern void puts(char *string);
@@ -20,13 +20,13 @@ extern void puts(char *string);
  * so that we don't have to constantly think about them. It also "automatically"
  * nul-terminates the string if we hit the end of the buffer.
  */
-#define SET(buf, size, out, value)                                      \
-	do {                                                            \
-		if (out < size - 1)                                     \
-			buf[out] = value;                               \
-		else if (out == size - 1)                               \
-			buf[out] = '\0';                                \
-		out++;                                                  \
+#define SET(buf, size, out, value)                                             \
+	do {                                                                   \
+		if (out < size - 1)                                            \
+			buf[out] = value;                                      \
+		else if (out == size - 1)                                      \
+			buf[out] = '\0';                                       \
+		out++;                                                         \
 	} while (0);
 
 /**
@@ -81,7 +81,7 @@ static inline uint32_t _format_uint(char *buf, uint32_t size, uint32_t out,
 		rem = val % 10; // should do uidivmod, only one call
 		val = val / 10;
 		tmp[tmpIdx++] = rem;
-	} while(val);
+	} while (val);
 	do {
 		tmpIdx--;
 		SET(buf, size, out, '0' + tmp[tmpIdx]);

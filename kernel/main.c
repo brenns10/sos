@@ -12,7 +12,6 @@ void start_ush(void)
 	start_process(proc);
 }
 
-
 void main(uint32_t phys)
 {
 	puts("SOS: Startup\n");

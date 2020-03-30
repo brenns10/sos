@@ -10,7 +10,8 @@
 uint32_t strlen(const char *string)
 {
 	uint32_t len;
-	for (len = 0; string[len]; len++){};
+	for (len = 0; string[len]; len++) {
+	};
 	return len;
 }
 
@@ -91,7 +92,8 @@ int buf_append(struct buffer *buf, const char *str)
 {
 	/* basically strlcat, but we already know len & size */
 	unsigned int len_src = strlen(str);
-	unsigned int copied = strlcpy(&buf->buf[buf->len], str, buf->cap - buf->len);
+	unsigned int copied =
+	        strlcpy(&buf->buf[buf->len], str, buf->cap - buf->len);
 	if (copied != len_src)
 		return 1;
 	else

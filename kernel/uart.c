@@ -10,29 +10,29 @@ typedef volatile struct __attribute__((packed)) {
 	uint32_t UARTRSR;
 	uint32_t _reserved0[4];
 	const uint32_t UARTFR;
-#define UARTFR_RI   (1<<8)
-#define UARTFR_TXFE (1<<7)
-#define UARTFR_RXFF (1<<6)
-#define UARTFR_TXFF (1<<5)
-#define UARTFR_RXFE (1<<4)
-#define UARTFR_BUSY (1<<3)
-#define UARTFR_DCD  (1<<2)
-#define UARTFR_DSR  (1<<1)
-#define UARTFR_CTS  (1<<0)
+#define UARTFR_RI   (1 << 8)
+#define UARTFR_TXFE (1 << 7)
+#define UARTFR_RXFF (1 << 6)
+#define UARTFR_TXFF (1 << 5)
+#define UARTFR_RXFE (1 << 4)
+#define UARTFR_BUSY (1 << 3)
+#define UARTFR_DCD  (1 << 2)
+#define UARTFR_DSR  (1 << 1)
+#define UARTFR_CTS  (1 << 0)
 	uint32_t _reserved;
 	uint32_t UARTILPR;
 	uint32_t UARTIBRD;
 	uint32_t UARTFBRD;
 	uint32_t UARTLCR_H;
-#define UARTLCR_FEN (1<<4)
-#define UARTLCR_8BIT (3<<5)
+#define UARTLCR_FEN  (1 << 4)
+#define UARTLCR_8BIT (3 << 5)
 	uint32_t UARTCR;
-#define UARTCR_UARTEN (1<<0)
-#define UARTCR_TXE    (1<<8)
-#define UARTCR_RXE    (1<<9)
+#define UARTCR_UARTEN (1 << 0)
+#define UARTCR_TXE    (1 << 8)
+#define UARTCR_RXE    (1 << 9)
 	uint32_t UARTIFLS;
 	uint32_t UARTIMSC;
-#define UARTIMSC_UART_RXIM (1<<4)
+#define UARTIMSC_UART_RXIM (1 << 4)
 	uint32_t UARTRIS;
 	uint32_t UARTMIS;
 	uint32_t UARTICR;
@@ -41,11 +41,12 @@ typedef volatile struct __attribute__((packed)) {
 
 uint32_t uart_base = 0x09000000;
 struct process *waiting = NULL;
-#define base ((pl011_registers*) uart_base)
+#define base ((pl011_registers *)uart_base)
 
 void putc(char c)
 {
-	while (base->UARTFR & UARTFR_TXFF) {}
+	while (base->UARTFR & UARTFR_TXFF) {
+	}
 	WRITE32(base->UARTDR, c);
 }
 
@@ -57,8 +58,9 @@ void puts(char *string)
 
 char getc(void)
 {
-	while (base->UARTFR & UARTFR_RXFE) {}
-	return (char) base->UARTDR;
+	while (base->UARTFR & UARTFR_RXFE) {
+	}
+	return (char)base->UARTDR;
 }
 
 int getc_blocking(void)

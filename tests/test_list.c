@@ -1,7 +1,7 @@
 #include <stdio.h>
 
-#include "unittest.h"
 #include "list.h"
+#include "unittest.h"
 
 struct list_head list;
 
@@ -48,7 +48,8 @@ static void test_insert_end(struct unittest *test)
 	list_insert(&list, &first.list);
 	list_insert_end(&list, &second.list);
 
-	list_for_each_entry(iter, &list, list, struct item) {
+	list_for_each_entry(iter, &list, list, struct item)
+	{
 		i++;
 		UNITTEST_EXPECT_EQ(test, iter->number, i);
 	}
@@ -57,14 +58,14 @@ static void test_insert_end(struct unittest *test)
 struct unittest_case cases[] = {
 	UNITTEST_CASE(test_insert_and_remove),
 	UNITTEST_CASE(test_insert_end),
-	{0}
+	{ 0 },
 };
 
 struct unittest_module module = {
-	.name="lists",
-	.init=init,
-	.cases=cases,
-	.printf=printf,
+	.name = "lists",
+	.init = init,
+	.cases = cases,
+	.printf = printf,
 };
 
 UNITTEST(module);

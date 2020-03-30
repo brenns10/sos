@@ -3,8 +3,8 @@
  */
 #include <stdint.h>
 
-#include "syscall.h"
 #include "format.h"
+#include "syscall.h"
 
 int main()
 {

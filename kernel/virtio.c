@@ -123,7 +123,8 @@ void virtio_check_capabilities(virtio_regs *regs, struct virtio_cap *caps,
 			WRITE32(regs->DriverFeatures, driver);
 			if (device) {
 				/*printf("%s: device supports unknown bits"
-				       " 0x%x in bank %u\n", whom, device, bank);*/
+				       " 0x%x in bank %u\n", whom, device,
+				   bank);*/
 			}
 			/* Now we set these variables for next time. */
 			bank = caps[i].bit / 32;
@@ -136,7 +137,8 @@ void virtio_check_capabilities(virtio_regs *regs, struct virtio_cap *caps,
 			if (caps[i].support) {
 				driver |= (1 << caps[i].bit);
 			} else {
-				/*printf("virtio supports unsupported option %s "
+				/*printf("virtio supports unsupported option %s
+				   "
 				       "(%s)\n",
 				       caps[i].name, caps[i].help);*/
 			}

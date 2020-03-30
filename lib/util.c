@@ -13,7 +13,7 @@ uint32_t align(uint32_t n, uint32_t b)
 	uint32_t mask = (1 << b) - 1; /* 3 -> 0x1000 -> 0x111 */
 
 	if (n & mask)
-		n += (1<<b) - n&mask;
+		n += (1 << b) - n & mask;
 
 	return n;
 }

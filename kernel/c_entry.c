@@ -62,4 +62,7 @@ void irq(void)
 		printf("Unhandled IRQ: ID=%u, not ending\n", intid);
 }
 
-void fiq(void) { puts("FIQ!\n"); }
+void fiq(void)
+{
+	puts("FIQ!\n");
+}

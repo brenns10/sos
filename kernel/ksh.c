@@ -74,19 +74,19 @@ struct cmd cmds[] = {
 	  .help = "get current timer ctl register" },
 	{ .name = "blkread",
 	  .func = virtio_blk_cmd_read,
-	  .help="read block device sector"},
+	  .help = "read block device sector" },
 	{ .name = "blkwrite",
 	  .func = virtio_blk_cmd_write,
-	  .help="write block device sector"},
+	  .help = "write block device sector" },
 	{ .name = "blkstatus",
 	  .func = virtio_blk_cmd_status,
-	  .help="read block device status"},
+	  .help = "read block device status" },
 	{ .name = "netstatus",
 	  .func = virtio_net_cmd_status,
-	  .help="read net device status"},
+	  .help = "read net device status" },
 	{ .name = "dhcpdiscover",
 	  .func = virtio_net_cmd_dhcpdiscover,
-	  .help="send DHCPDISCOVER"},
+	  .help = "send DHCPDISCOVER" },
 	{ .name = "help", .func = help, .help = "show this help message" },
 };
 
@@ -151,7 +151,7 @@ static void execute(void)
 
 void ksh(void *arg)
 {
-	(void) arg; /* unused */
+	(void)arg; /* unused */
 	puts("Stephen's OS, (kernel shell)\n");
 	while (true) {
 		getline();

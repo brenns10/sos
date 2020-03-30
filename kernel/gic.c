@@ -4,8 +4,8 @@
 #include "gic.h"
 #include "kernel.h"
 
-#define GIC_IF_BASE 0x08010000
-#define GIC_DIST_BASE 0x08000000
+#define GIC_IF_BASE         0x08010000
+#define GIC_DIST_BASE       0x08000000
 #define GIC_INTERRUPT_COUNT 1024 /* a random guess lol */
 
 static gic_distributor_registers *gic_dregs;
@@ -51,9 +51,15 @@ void gic_enable_interrupt(uint8_t int_id)
 	WRITE32(gic_dregs->DITARGETSR[reg], reg_val);
 }
 
-uint32_t gic_interrupt_acknowledge(void) { return gic_ifregs->CIAR; }
+uint32_t gic_interrupt_acknowledge(void)
+{
+	return gic_ifregs->CIAR;
+}
 
-void gic_end_interrupt(uint32_t int_id) { WRITE32(gic_ifregs->CEOIR, int_id); }
+void gic_end_interrupt(uint32_t int_id)
+{
+	WRITE32(gic_ifregs->CEOIR, int_id);
+}
 
 void gic_register_isr(uint32_t intid_start, uint32_t intid_count, isr_t isr)
 {

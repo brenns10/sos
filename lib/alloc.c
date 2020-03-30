@@ -19,7 +19,7 @@ void init_page_allocator(void *allocator, uint32_t start, uint32_t end)
 	 * Everything beginning at dynamic_start and ending at 0xFFFFFFFF is
 	 * assumed to be available for us to allocate.
 	 */
-	struct zonehdr *zonehdr = (struct zonehdr*) allocator;
+	struct zonehdr *zonehdr = (struct zonehdr *)allocator;
 	zonehdr->next = 0;
 	zonehdr->count = 2;
 	zonehdr->zones[0].addr = start >> PAGE_BITS;
@@ -30,13 +30,13 @@ void init_page_allocator(void *allocator, uint32_t start, uint32_t end)
 
 void show_pages(void *allocator)
 {
-	struct zonehdr *hdr = (struct zonehdr*) allocator;
+	struct zonehdr *hdr = (struct zonehdr *)allocator;
 	int i;
 
 	printf("BEGIN MEMORY ZONES (%u)\n", hdr->count);
 	for (i = 0; i < hdr->count; i++)
 		printf(" 0x%x: %s\n", hdr->zones[i].addr << PAGE_BITS,
-				hdr->zones[i].free ? "FREE" : "ALLOCATED");
+		       hdr->zones[i].free ? "FREE" : "ALLOCATED");
 	printf("END MEMORY ZONES\n");
 }
 
@@ -74,20 +74,18 @@ static void shift_zones_down(struct zonehdr *hdr, int dst, int to_shift)
  * Change the allocation status of region `exact` of length `count` within the
  * (potentially larger) region `region`.
  */
-static bool change_status(
-	struct zonehdr *hdr, uint32_t exact, uint32_t count, uint32_t region,
-	uint32_t index, int status
-)
+static bool change_status(struct zonehdr *hdr, uint32_t exact, uint32_t count,
+                          uint32_t region, uint32_t index, int status)
 {
 	int to_insert = 0;
 	uint32_t next = 0;
 
 	bool have_left_zone = (index > 0);
 	bool have_right_zone = (index < hdr->count - 1);
-	bool exact_on_left=false, exact_on_right=false;
+	bool exact_on_left = false, exact_on_right = false;
 
 	if (have_right_zone) {
-		next = hdr->zones[index+1].addr << PAGE_BITS;
+		next = hdr->zones[index + 1].addr << PAGE_BITS;
 		exact_on_right = (exact + count == next);
 	}
 	exact_on_left = (region == exact);
@@ -116,7 +114,7 @@ static bool change_status(
 			 * AAAAAA
 			 */
 			shift_zones_down(hdr, index, 1);
-			hdr->zones[index].addr = (exact>>PAGE_BITS);
+			hdr->zones[index].addr = (exact >> PAGE_BITS);
 		}
 	} else if (exact_on_left) {
 		/*
@@ -130,11 +128,12 @@ static bool change_status(
 		 * ?a?AAA bb AAA
 		 */
 		if (have_left_zone) {
-			hdr->zones[index].addr = ((exact+count)>>PAGE_BITS);
+			hdr->zones[index].addr = ((exact + count) >> PAGE_BITS);
 		} else {
 			if (!shift_zones_up(hdr, index, 1))
 				return false;
-			hdr->zones[index+1].addr = ((exact+count)>>PAGE_BITS);
+			hdr->zones[index + 1].addr =
+			        ((exact + count) >> PAGE_BITS);
 			hdr->zones[index].free = status;
 		}
 	} else if (exact_on_right) {
@@ -145,7 +144,7 @@ static bool change_status(
 		 *
 		 * ?a? bb AAAaaa
 		 */
-		hdr->zones[index+1].addr = (exact>>PAGE_BITS);
+		hdr->zones[index + 1].addr = (exact >> PAGE_BITS);
 	} else {
 		/*
 		 * ?a? bbBBBbb ?a?
@@ -157,10 +156,10 @@ static bool change_status(
 		 */
 		if (!shift_zones_up(hdr, index, 2))
 			return false;
-		hdr->zones[index+1].addr = (exact >> PAGE_BITS);
-		hdr->zones[index+1].free = status;
-		hdr->zones[index+2].addr = ((exact+count) >> PAGE_BITS);
-		hdr->zones[index+2].free = hdr->zones[index].free;
+		hdr->zones[index + 1].addr = (exact >> PAGE_BITS);
+		hdr->zones[index + 1].free = status;
+		hdr->zones[index + 2].addr = ((exact + count) >> PAGE_BITS);
+		hdr->zones[index + 2].free = hdr->zones[index].free;
 	}
 	return true;
 }
@@ -178,7 +177,7 @@ static bool change_status(
 uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align)
 {
 	uint32_t i, align_mask, zone, alignzone, next;
-	struct zonehdr *hdr = (struct zonehdr*) allocator;
+	struct zonehdr *hdr = (struct zonehdr *)allocator;
 	bool result = false;
 
 	/* threshold alignment between PAGE_BITS <= align <= 32 */
@@ -189,7 +188,8 @@ uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align)
 	align_mask = 0xFFFFFFFF >> (32 - align);
 
 	for (i = 0; i < hdr->count; i++) {
-		if (!hdr->zones[i].free) continue;
+		if (!hdr->zones[i].free)
+			continue;
 		alignzone = zone = hdr->zones[i].addr << PAGE_BITS;
 
 		/* align memory if necessary */
@@ -203,9 +203,7 @@ uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align)
 			continue;
 		}
 
-		result = change_status(
-			hdr, alignzone, count, zone, i, 0
-		);
+		result = change_status(hdr, alignzone, count, zone, i, 0);
 		if (result) {
 			return alignzone;
 		}
@@ -222,15 +220,16 @@ bool free_pages(void *allocator, uint32_t start, uint32_t count)
 
 	for (i = 0; i < hdr->count; i++) {
 		addr = hdr->zones[i].addr << PAGE_BITS;
-		has_next = i+1 < hdr->count;
+		has_next = i + 1 < hdr->count;
 
-		/* Trying to free a region from before the allocator's memory. */
+		/* Trying to free a region from before the allocator's memory.
+		 */
 		if (addr > start)
 			return false;
 
 		/* Compute next */
 		if (has_next)
-			next = hdr->zones[i+1].addr << PAGE_BITS;
+			next = hdr->zones[i + 1].addr << PAGE_BITS;
 
 		/* If the zone doesn't fit within this block, continue */
 		if (has_next && start + count > next)
@@ -240,8 +239,7 @@ bool free_pages(void *allocator, uint32_t start, uint32_t count)
 		if (hdr->zones[i].free)
 			return false;
 
-		return change_status(
-			hdr, start, count, addr, i, 1);
+		return change_status(hdr, start, count, addr, i, 1);
 	}
 	return false;
 }
@@ -254,15 +252,16 @@ bool mark_alloc(void *allocator, uint32_t start, uint32_t count)
 
 	for (i = 0; i < hdr->count; i++) {
 		addr = hdr->zones[i].addr << PAGE_BITS;
-		has_next = i+1 < hdr->count;
+		has_next = i + 1 < hdr->count;
 
-		/* Trying to free a region from before the allocator's memory. */
+		/* Trying to free a region from before the allocator's memory.
+		 */
 		if (addr > start)
 			return false;
 
 		/* Compute next */
 		if (has_next)
-			next = hdr->zones[i+1].addr << PAGE_BITS;
+			next = hdr->zones[i + 1].addr << PAGE_BITS;
 
 		/* If the zone doesn't fit within this block, continue */
 		if (has_next && start + count > next)
@@ -272,8 +271,7 @@ bool mark_alloc(void *allocator, uint32_t start, uint32_t count)
 		if (!hdr->zones[i].free)
 			return false;
 
-		return change_status(
-			hdr, start, count, addr, i, 0);
+		return change_status(hdr, start, count, addr, i, 0);
 	}
 	return false;
 }

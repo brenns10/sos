@@ -86,5 +86,4 @@ void timer_isr(uint32_t intid)
 		 * reschedule safely. */
 		schedule();
 	}
-
 }

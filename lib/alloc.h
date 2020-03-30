@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #define PAGE_SIZE 4096
 #define PAGE_BITS 12

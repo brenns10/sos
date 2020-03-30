@@ -241,7 +241,8 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	struct virtqueue *virtq;
 	uint32_t i;
 
-	virtio_check_capabilities(regs, blk_caps, nelem(blk_caps), "virtio-blk");
+	virtio_check_capabilities(regs, blk_caps, nelem(blk_caps),
+	                          "virtio-blk");
 
 	WRITE32(regs->Status, READ32(regs->Status) | VIRTIO_STATUS_FEATURES_OK);
 	mb();

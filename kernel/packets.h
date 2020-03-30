@@ -34,7 +34,7 @@ struct iphdr {
 } __attribute__((packed));
 
 #define ip_get_version(ip) (((ip)->verihl & 0xF0) >> 4)
-#define ip_get_length(ip) (((ip)->verihl & 0x0F) * 4)
+#define ip_get_length(ip)  (((ip)->verihl & 0x0F) * 4)
 
 #define IPPROTO_UDP 17
 
@@ -81,13 +81,14 @@ struct dhcp {
 	uint8_t options[0];
 } __attribute__((packed));
 
-#define BOOTREQUEST 1
-#define BOOTREPLY 2
+#define BOOTREQUEST       1
+#define BOOTREPLY         2
 #define DHCP_MAGIC_COOKIE 0x63825363
 
 #define DHCP_HTYPE_ETHERNET 1
 
 enum {
+	/* clang-format: please allow tab indentation here */
 	DHCPOPT_PAD = 0,
 	DHCPOPT_SUBNET_MASK,
 	DHCPOPT_TIME_OFFSET,
@@ -118,9 +119,9 @@ enum {
 };
 
 #define DHCPMTYPE_DHCPDISCOVER 1
-#define DHCPMTYPE_DHCPOFFER 2
-#define DHCPMTYPE_DHCPREQUEST 3
-#define DHCPMTYPE_DHCPDECLINE 4
-#define DHCPMTYPE_DHCPACK 5
-#define DHCPMTYPE_DHCPNAK 6
-#define DHCPMTYPE_DHCPRELEASE 7
+#define DHCPMTYPE_DHCPOFFER    2
+#define DHCPMTYPE_DHCPREQUEST  3
+#define DHCPMTYPE_DHCPDECLINE  4
+#define DHCPMTYPE_DHCPACK      5
+#define DHCPMTYPE_DHCPNAK      6
+#define DHCPMTYPE_DHCPRELEASE  7

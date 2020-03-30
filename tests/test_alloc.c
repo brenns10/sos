@@ -6,9 +6,12 @@
 #include "alloc_private.h"
 #include "unittest.h"
 
-#define FREE 1
+#define FREE  1
 #define ALLOC 0
-#define ZONE(addr_, free_) {.addr=(addr_)>>PAGE_BITS, .free=free_}
+#define ZONE(addr_, free_)                                                     \
+	{                                                                      \
+		.addr = (addr_) >> PAGE_BITS, .free = free_                    \
+	}
 uint8_t allocator[PAGE_SIZE];
 
 void init(struct unittest *test)
@@ -19,7 +22,7 @@ void init(struct unittest *test)
 void expect_zones(struct unittest *test, struct zone zones[])
 {
 	int i;
-	struct zonehdr *hdr = (struct zonehdr *) allocator;
+	struct zonehdr *hdr = (struct zonehdr *)allocator;
 	for (i = 0; zones[i].addr != 0; i++) {
 		UNITTEST_EXPECT_EQ(test, hdr->zones[i].addr, zones[i].addr);
 		UNITTEST_EXPECT_EQ(test, hdr->zones[i].free, zones[i].free);
@@ -34,7 +37,7 @@ void test_first_fit(struct unittest *test)
 	 * when there are no extra requirements (e.g. alignment)
 	 */
 	uint32_t allocated;
-	
+
 	init(test);
 	allocated = alloc_pages(allocator, PAGE_SIZE, 0);
 	UNITTEST_EXPECT_EQ(test, allocated, 0x1000);
@@ -55,7 +58,7 @@ void test_combine_adjacent(struct unittest *test)
 		ZONE(0x1000, ALLOC),
 		ZONE(0x3000, FREE),
 		ZONE(0X100000, ALLOC),
-		{}
+		{},
 	};
 	expect_zones(test, zones);
 }
@@ -76,7 +79,7 @@ void test_alignment(struct unittest *test)
 		ZONE(0x2000, ALLOC),
 		ZONE(0x3000, FREE),
 		ZONE(0x100000, ALLOC),
-		{}
+		{},
 	};
 	expect_zones(test, zones);
 }
@@ -98,12 +101,8 @@ void test_skip_hole(struct unittest *test)
 	UNITTEST_EXPECT_EQ(test, allocated, 0x4000);
 
 	struct zone zones[] = {
-		ZONE(0x1000, ALLOC),
-		ZONE(0x2000, FREE),
-		ZONE(0x3000, ALLOC),
-		ZONE(0x6000, FREE),
-		ZONE(0x100000, ALLOC),
-		{}
+		ZONE(0x1000, ALLOC), ZONE(0x2000, FREE),    ZONE(0x3000, ALLOC),
+		ZONE(0x6000, FREE),  ZONE(0x100000, ALLOC), {},
 	};
 	expect_zones(test, zones);
 }
@@ -128,7 +127,7 @@ void test_exact_hole(struct unittest *test)
 		ZONE(0x1000, ALLOC),
 		ZONE(0x4000, FREE),
 		ZONE(0x100000, ALLOC),
-		{}
+		{},
 	};
 	expect_zones(test, zones);
 }
@@ -140,7 +139,7 @@ void test_free(struct unittest *test)
 	 */
 	uint32_t allocated;
 	bool result;
-	
+
 	init(test);
 	allocated = alloc_pages(allocator, PAGE_SIZE, 0);
 	UNITTEST_EXPECT_EQ(test, allocated, 0x1000);
@@ -148,11 +147,7 @@ void test_free(struct unittest *test)
 	result = free_pages(allocator, allocated, PAGE_SIZE);
 	UNITTEST_EXPECT_EQ(test, result, true);
 
-	struct zone zones[] = {
-		ZONE(0x1000, FREE),
-		ZONE(0x100000, ALLOC),
-		{}
-	};
+	struct zone zones[] = { ZONE(0x1000, FREE), ZONE(0x100000, ALLOC), {} };
 	expect_zones(test, zones);
 }
 
@@ -163,7 +158,7 @@ void test_free_after_free_region(struct unittest *test)
 	 */
 	uint32_t allocated;
 	bool result;
-	
+
 	init(test);
 	/* should get 0x2000 - 0x6000 */
 	allocated = alloc_pages(allocator, PAGE_SIZE * 4, PAGE_BITS + 1);
@@ -182,7 +177,7 @@ void test_free_after_free_region(struct unittest *test)
 		ZONE(0x4000, ALLOC),
 		ZONE(0x5000, FREE),
 		ZONE(0x100000, ALLOC),
-		{}
+		{},
 	};
 	expect_zones(test, zones);
 
@@ -195,7 +190,7 @@ void test_free_after_free_region(struct unittest *test)
 	struct zone final_zones[] = {
 		ZONE(0x1000, FREE),
 		ZONE(0x100000, ALLOC),
-		{}
+		{},
 	};
 	expect_zones(test, final_zones);
 }
@@ -214,11 +209,7 @@ void test_alloc_whole_thing(struct unittest *test)
 
 	free_pages(allocator, allocated, 0x100000 - 0x1000);
 
-	struct zone zones[] = {
-		ZONE(0x1000, FREE),
-		ZONE(0x100000, ALLOC),
-		{}
-	};
+	struct zone zones[] = { ZONE(0x1000, FREE), ZONE(0x100000, ALLOC), {} };
 	expect_zones(test, zones);
 }
 
@@ -231,14 +222,14 @@ void test_free_exact_on_right_but_not_left(struct unittest *test)
 	uint32_t allocated;
 
 	init(test);
-	alloc_pages(allocator, 0x2000, 0); /* gives me 0x1000-0x3000 */
+	alloc_pages(allocator, 0x2000, 0);     /* gives me 0x1000-0x3000 */
 	free_pages(allocator, 0x2000, 0x1000); /* free 0x2000-0x3000 */
 
 	struct zone zones[] = {
 		ZONE(0x1000, ALLOC),
 		ZONE(0x2000, FREE),
 		ZONE(0x100000, ALLOC),
-		{}
+		{},
 	};
 	expect_zones(test, zones);
 }
@@ -277,7 +268,7 @@ void test_unsatisfiable_free(struct unittest *test)
 		ZONE(0x1000, ALLOC),
 		ZONE(0x2000, FREE),
 		ZONE(0x100000, ALLOC),
-		{}
+		{},
 	};
 	expect_zones(test, zones);
 }
@@ -289,11 +280,7 @@ void test_free_already_freed(struct unittest *test)
 	result = free_pages(allocator, 0x1000, 0x1000);
 	UNITTEST_EXPECT_EQ(test, result, false);
 
-	struct zone zones[] = {
-		ZONE(0x1000, FREE),
-		ZONE(0x100000, ALLOC),
-		{}
-	};
+	struct zone zones[] = { ZONE(0x1000, FREE), ZONE(0x100000, ALLOC), {} };
 	expect_zones(test, zones);
 }
 
@@ -315,16 +302,16 @@ void test_mark_alloc(struct unittest *test)
 	result = mark_alloc(allocator, 0x4000, 0x1000);
 	UNITTEST_EXPECT_EQ(test, result, true);
 
-	result = mark_alloc(allocator, 0x100000-0x1000, 0x1000);
+	result = mark_alloc(allocator, 0x100000 - 0x1000, 0x1000);
 	UNITTEST_EXPECT_EQ(test, result, true);
 
 	struct zone zones[] = {
-	 ZONE(0x1000, ALLOC),
-	 ZONE(0x3000, FREE),
-	 ZONE(0x4000, ALLOC),
-	 ZONE(0x5000, FREE),
-	 ZONE(0x100000-0x1000, ALLOC),
-	 {}
+		ZONE(0x1000, ALLOC),
+		ZONE(0x3000, FREE),
+		ZONE(0x4000, ALLOC),
+		ZONE(0x5000, FREE),
+		ZONE(0x100000 - 0x1000, ALLOC),
+		{},
 	};
 	expect_zones(test, zones);
 }
@@ -358,7 +345,7 @@ void test_mark_alloc_already_alloced(struct unittest *test)
 		ZONE(0x2000, ALLOC),
 		ZONE(0x4000, FREE),
 		ZONE(0X100000, ALLOC),
-		{}
+		{},
 	};
 	expect_zones(test, zones);
 }
@@ -378,13 +365,13 @@ struct unittest_case cases[] = {
 	UNITTEST_CASE(test_free_already_freed),
 	UNITTEST_CASE(test_mark_alloc),
 	UNITTEST_CASE(test_mark_alloc_already_alloced),
-	{0}
+	{ 0 },
 };
 
 struct unittest_module module = {
-	.name="lists",
-	.cases=cases,
-	.printf=printf,
+	.name = "lists",
+	.cases = cases,
+	.printf = printf,
 };
 
 UNITTEST(module);

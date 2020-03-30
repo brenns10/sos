@@ -28,8 +28,8 @@ struct mem {
 	uint32_t *base;
 	uint32_t **shadow;
 
-	#define STRAT_KERNEL 1
-	#define STRAT_SHADOW 2
+#define STRAT_KERNEL 1
+#define STRAT_SHADOW 2
 	uint32_t strategy;
 };
 
@@ -85,7 +85,7 @@ static uint32_t *get_second(struct mem *mem, uint32_t first_idx)
 	if (mem->strategy == STRAT_KERNEL) {
 		return second_level_table + (first_idx * 1024);
 	} else {
-		return (uint32_t*)mem->shadow[first_idx];
+		return (uint32_t *)mem->shadow[first_idx];
 	}
 }
 
@@ -137,7 +137,8 @@ static void destroy_second(struct mem *mem, uint32_t first_idx)
  * phys: physical virtual address (should be page aligned)
  * attrs: access control attributes
  */
-static void map_page(struct mem *mem, uint32_t virt, uint32_t phys, uint32_t attrs)
+static void map_page(struct mem *mem, uint32_t virt, uint32_t phys,
+                     uint32_t attrs)
 {
 	uint32_t *second;
 	uint32_t first_idx = virt >> 20;
@@ -155,7 +156,8 @@ static void map_page(struct mem *mem, uint32_t virt, uint32_t phys, uint32_t att
 	second[second_idx] = (phys & 0xFFFFF000) | attrs | SLD_SMALL;
 }
 
-void umem_map_page(struct process *p, uint32_t virt, uint32_t phys, uint32_t attrs)
+void umem_map_page(struct process *p, uint32_t virt, uint32_t phys,
+                   uint32_t attrs)
 {
 	struct mem mem;
 	mem.base = p->first;
@@ -177,14 +179,12 @@ void kmem_map_page(uint32_t virt, uint32_t phys, uint32_t attrs)
  */
 static uint32_t lookup_phys(struct mem *mem, void *virt_ptr)
 {
-	uint32_t virt = (uint32_t) virt_ptr;
+	uint32_t virt = (uint32_t)virt_ptr;
 	uint32_t first_idx = virt >> 20;
 	uint32_t second_idx = (virt >> 12) & 0xFF;
 	uint32_t *second = get_second(mem, first_idx);
-	return (
-		(second[second_idx] & top_n_bits(20)) |
-		(virt & bot_n_bits(12))
-	);
+	return ((second[second_idx] & top_n_bits(20)) |
+	        (virt & bot_n_bits(12)));
 }
 
 uint32_t umem_lookup_phys(struct process *p, void *virt_ptr)
@@ -212,7 +212,8 @@ void kmem_map_pages(uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs)
 		kmem_map_page(virt + i, phys + i, attrs);
 }
 
-void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs)
+void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys,
+                    uint32_t len, uint32_t attrs)
 {
 	uint32_t *base = first_level_table;
 	uint32_t i;
@@ -252,7 +253,8 @@ static void unmap_pages(struct mem *mem, uint32_t start, uint32_t len)
 		uint32_t first_idx = start >> 20;
 		uint32_t to_unmap;
 		uint32_t next_mb = (start & top_n_bits(12)) + (1 << 20);
-		uint32_t *second = get_second(mem, first_idx);;
+		uint32_t *second = get_second(mem, first_idx);
+		;
 		if (next_mb - start < len)
 			to_unmap = next_mb - start;
 		else
@@ -324,26 +326,22 @@ static void print_second_level(uint32_t *second, uint32_t start, uint32_t end)
 
 	while (start < end && i < 256) {
 		switch (second[i] & SLD_MASK) {
-			case SLD_LARGE:
-				printf("\t0x%x: 0x%x (large)\n",
-					virt_base + (i << 12),
-					second[i] & top_n_bits(16)
-				);
-				break;
-			case 0x3:
-			case SLD_SMALL:
-				printf("\t0x%x: 0x%x (small), xn=%u, tex=%u, ap=%u, apx=%u, ng=%u\n",
-					virt_base + (i << 12),
-					second[i] & top_n_bits(20),
-					second[i] & 0x1,
-					(second[i] >> 6) & 0x7,
-					(second[i] >> 4) & 0x3,
-					(second[i] & (1 << 9)) ? 1 : 0,
-					(second[i] & SLD_NG) ? 1 : 0
-				);
-				break;
-			default:
-				break;
+		case SLD_LARGE:
+			printf("\t0x%x: 0x%x (large)\n", virt_base + (i << 12),
+			       second[i] & top_n_bits(16));
+			break;
+		case 0x3:
+		case SLD_SMALL:
+			printf("\t0x%x: 0x%x (small), xn=%u, tex=%u, ap=%u, "
+			       "apx=%u, ng=%u\n",
+			       virt_base + (i << 12),
+			       second[i] & top_n_bits(20), second[i] & 0x1,
+			       (second[i] >> 6) & 0x7, (second[i] >> 4) & 0x3,
+			       (second[i] & (1 << 9)) ? 1 : 0,
+			       (second[i] & SLD_NG) ? 1 : 0);
+			break;
+		default:
+			break;
 		}
 		i += 1;
 		start = virt_base | (i << 12);
@@ -357,29 +355,22 @@ static void print_first_level(struct mem *mem, uint32_t start, uint32_t stop)
 	uint32_t *second;
 	while (i <= stop_idx) {
 		switch (mem->base[i] & FLD_MASK) {
-			case FLD_SECTION:
-				printf("0x%x: SECTION 0x%x, domain=%u\n",
-					i << 20,
-					mem->base[i] & top_n_bits(10),
-					(mem->base[i] >> 5) & 0xF
-				);
-				break;
-			case FLD_COARSE:
-				second = get_second(mem, i);
-				printf("0x%x: SECOND 0x%x phys / 0x%x virt, domain=%u\n",
-					i << 20,
-					mem->base[i] & top_n_bits(22),
-					second,
-					(mem->base[i] >> 5) & 0xF
-				);
-				print_second_level(
-					get_second(mem, i),
-					start, stop
-				);
-				break;
-			case FLD_UNMAPPED:
-			default:
-				break;
+		case FLD_SECTION:
+			printf("0x%x: SECTION 0x%x, domain=%u\n", i << 20,
+			       mem->base[i] & top_n_bits(10),
+			       (mem->base[i] >> 5) & 0xF);
+			break;
+		case FLD_COARSE:
+			second = get_second(mem, i);
+			printf("0x%x: SECOND 0x%x phys / 0x%x virt, "
+			       "domain=%u\n",
+			       i << 20, mem->base[i] & top_n_bits(22), second,
+			       (mem->base[i] >> 5) & 0xF);
+			print_second_level(get_second(mem, i), start, stop);
+			break;
+		case FLD_UNMAPPED:
+		default:
+			break;
 		}
 		i += 1;
 		start = i << 20;
@@ -411,9 +402,9 @@ void umem_print(struct process *p, uint32_t start, uint32_t stop)
  */
 void *kmem_get_pages(uint32_t bytes, uint32_t align)
 {
-	void *virt = (void*)alloc_pages(kern_virt_allocator, bytes, align);
+	void *virt = (void *)alloc_pages(kern_virt_allocator, bytes, align);
 	uint32_t phys = alloc_pages(phys_allocator, bytes, 0);
-	kmem_map_pages((uint32_t) virt, phys, bytes, PRW_UNA | EXECUTE_NEVER);
+	kmem_map_pages((uint32_t)virt, phys, bytes, PRW_UNA | EXECUTE_NEVER);
 	return virt;
 }
 
@@ -438,7 +429,7 @@ void *kmem_get_page(void)
 void kmem_free_pages(void *virt_ptr, uint32_t len)
 {
 	uint32_t phys = kmem_lookup_phys(virt_ptr);
-	uint32_t virt = (uint32_t) virt_ptr;
+	uint32_t virt = (uint32_t)virt_ptr;
 
 	free_pages(phys_allocator, phys, len);
 	free_pages(kern_virt_allocator, virt, len);
@@ -458,16 +449,17 @@ void kmem_init(uint32_t phys, bool verbose)
 	/*
 	 * First, setup some global well-known variables to help ourselves out.
 	 */
-	phys_code_start = phys + ((void*)code_start - (void*)code_start);
-	phys_code_end = phys + ((void*)code_end - (void*)code_start);
-	phys_data_start = phys + ((void*)data_start - (void*)code_start);
-	phys_data_end = phys + ((void*)data_end - (void*)code_start);
-	phys_stack_start = phys + ((void*)stack_start - (void*)code_start);
-	phys_stack_end = phys + ((void*)stack_end - (void*)code_start);
-	phys_first_level_table = phys + ((void*)first_level_table - (void*)code_start);
+	phys_code_start = phys + ((void *)code_start - (void *)code_start);
+	phys_code_end = phys + ((void *)code_end - (void *)code_start);
+	phys_data_start = phys + ((void *)data_start - (void *)code_start);
+	phys_data_end = phys + ((void *)data_end - (void *)code_start);
+	phys_stack_start = phys + ((void *)stack_start - (void *)code_start);
+	phys_stack_end = phys + ((void *)stack_end - (void *)code_start);
+	phys_first_level_table =
+	        phys + ((void *)first_level_table - (void *)code_start);
 	phys_second_level_table = phys_first_level_table + 0x4000;
 	phys_dynamic = phys_second_level_table + 0x00400000;
-	second_level_table = (void*) first_level_table + 0x4000;
+	second_level_table = (void *)first_level_table + 0x4000;
 	dynamic = second_level_table + 0x00400000;
 
 	if (verbose) {
@@ -477,8 +469,10 @@ void kmem_init(uint32_t phys, bool verbose)
 		printf("\tphys_data_end = 0x%x\n", phys_data_end);
 		printf("\tphys_stack_start = 0x%x\n", phys_stack_start);
 		printf("\tphys_stack_end = 0x%x\n", phys_stack_end);
-		printf("\tphys_first_level_table = 0x%x\n", phys_first_level_table);
-		printf("\tphys_second_level_table = 0x%x\n", phys_second_level_table);
+		printf("\tphys_first_level_table = 0x%x\n",
+		       phys_first_level_table);
+		printf("\tphys_second_level_table = 0x%x\n",
+		       phys_second_level_table);
 		printf("\tphys_dynamic = 0x%x\n", phys_dynamic);
 		printf("\tsecond_level_table = 0x%x\n", second_level_table);
 		printf("\tdynamic = 0x%x\n", dynamic);
@@ -491,13 +485,15 @@ void kmem_init(uint32_t phys, bool verbose)
 	 */
 	phys_allocator = dynamic;
 	kern_virt_allocator = dynamic + 0x1000;
-	kmem_map_pages((uint32_t) dynamic, phys_dynamic, 0x2000, PRW_UNA | EXECUTE_NEVER);
+	kmem_map_pages((uint32_t)dynamic, phys_dynamic, 0x2000,
+	               PRW_UNA | EXECUTE_NEVER);
 
 	alloc_so_far = phys_dynamic - phys_code_start + 0x2000;
 	init_page_allocator(phys_allocator, phys_code_start, 0xFFFFFFFF);
 	mark_alloc(phys_allocator, phys_code_start, alloc_so_far);
-	init_page_allocator(kern_virt_allocator, (uint32_t) code_start, 0x3FFFFFFF);
-	mark_alloc(kern_virt_allocator, (uint32_t) code_start, alloc_so_far);
+	init_page_allocator(kern_virt_allocator, (uint32_t)code_start,
+	                    0x3FFFFFFF);
+	mark_alloc(kern_virt_allocator, (uint32_t)code_start, alloc_so_far);
 
 	if (verbose) {
 		printf("We have allocators now!\n");
@@ -512,7 +508,8 @@ void kmem_init(uint32_t phys, bool verbose)
 	new_uart = alloc_pages(kern_virt_allocator, 0x1000, 0);
 	old_uart = uart_base;
 	if (verbose)
-		printf("Old UART was 0x%x, new will be 0x%x\n", old_uart, new_uart);
+		printf("Old UART was 0x%x, new will be 0x%x\n", old_uart,
+		       new_uart);
 	kmem_map_page(new_uart, uart_base, PRW_UNA | EXECUTE_NEVER);
 	uart_base = new_uart;
 
@@ -533,11 +530,12 @@ void kmem_init(uint32_t phys, bool verbose)
 	 * and the flags on the data to be execute never. This is safer and
 	 * generally a bit more secure.
 	 */
-	kmem_map_pages((uint32_t) code_start, phys_code_start,
-			(uint32_t)(code_end - code_start), PRO_URO);
-	kmem_map_pages((uint32_t) data_start, phys_data_start,
-			((uint32_t)first_level_table + 0x00404000 - (uint32_t)data_start),
-			PRW_UNA | EXECUTE_NEVER);
+	kmem_map_pages((uint32_t)code_start, phys_code_start,
+	               (uint32_t)(code_end - code_start), PRO_URO);
+	kmem_map_pages((uint32_t)data_start, phys_data_start,
+	               ((uint32_t)first_level_table + 0x00404000 -
+	                (uint32_t)data_start),
+	               PRW_UNA | EXECUTE_NEVER);
 
 	if (verbose)
 		printf("We have adjusted memory permissions!\n");
@@ -579,10 +577,14 @@ void kmem_init(uint32_t phys, bool verbose)
 	 */
 	kmem_unmap_pages((uint32_t)first_level_table + 0x1000, 0x3000);
 	kmem_unmap_pages((uint32_t)second_level_table + 0x00100000, 0x00300000);
-	free_pages(phys_allocator, (uint32_t)phys_first_level_table + 0x1000, 0x3000);
-	free_pages(phys_allocator, (uint32_t)phys_second_level_table + 0x00100000, 0x00300000);
-	free_pages(kern_virt_allocator, (uint32_t)first_level_table + 0x1000, 0x3000);
-	free_pages(kern_virt_allocator, (uint32_t)second_level_table + 0x00100000, 0x00300000);
+	free_pages(phys_allocator, (uint32_t)phys_first_level_table + 0x1000,
+	           0x3000);
+	free_pages(phys_allocator,
+	           (uint32_t)phys_second_level_table + 0x00100000, 0x00300000);
+	free_pages(kern_virt_allocator, (uint32_t)first_level_table + 0x1000,
+	           0x3000);
+	free_pages(kern_virt_allocator,
+	           (uint32_t)second_level_table + 0x00100000, 0x00300000);
 
 	cpreg = 2;
 	set_cpreg(cpreg, c2, 0, c0, 2);

@@ -35,8 +35,10 @@ struct list_head {
 /**
  * Initialize a "header" for a list by making it point to itself (i.e. empty)
  */
-#define INIT_LIST_HEAD(name) do { \
-		name.next = &name; name.prev = &name; \
+#define INIT_LIST_HEAD(name)                                                   \
+	do {                                                                   \
+		name.next = &name;                                             \
+		name.prev = &name;                                             \
 	} while (0);
 
 /**
@@ -62,13 +64,14 @@ void list_remove(struct list_head *item);
  * variable: name of a `struct list_head *` variable to store each node
  * head: name of the list header
  */
-#define list_for_each(variable, head)  \
-	for (variable = (head)->next; variable != (head); variable = variable->next)
+#define list_for_each(variable, head)                                          \
+	for (variable = (head)->next; variable != (head);                      \
+	     variable = variable->next)
 
 /**
  * Offset, in bytes, of a field named `member` within type `type`.
  */
-#define list_offsetof(type, member) ((size_t)&(((type*)0)->member))
+#define list_offsetof(type, member) ((size_t) & (((type *)0)->member))
 
 /**
  * Evaluates to a pointer to the struct containing a member:
@@ -77,8 +80,8 @@ void list_remove(struct list_head *item);
  * type: type of the containing struct (not a pointer, just the type)
  * member: field name of member within the struct
  */
-#define container_of(ptr, type, member) \
-	((type *)( (char *)ptr - list_offsetof(type, member)))
+#define container_of(ptr, type, member)                                        \
+	((type *)((char *)ptr - list_offsetof(type, member)))
 
 /**
  * Iterate over every item within a list. Use like a normal for statement.
@@ -105,9 +108,8 @@ void list_remove(struct list_head *item);
  *   }
  *
  */
-#define list_for_each_entry(var_ptr, head, field_name, container_type) \
+#define list_for_each_entry(var_ptr, head, field_name, container_type)         \
 	for (var_ptr = container_of((head)->next, container_type, field_name); \
-			&var_ptr->field_name != (head); \
-			var_ptr = container_of(var_ptr->field_name.next, container_type, field_name))
-
-
+	     &var_ptr->field_name != (head);                                   \
+	     var_ptr = container_of(var_ptr->field_name.next, container_type,  \
+	                            field_name))

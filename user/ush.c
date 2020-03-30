@@ -1,9 +1,9 @@
 /**
  * User Shell
  */
-#include "syscall.h"
-#include "string.h"
 #include "format.h"
+#include "string.h"
+#include "syscall.h"
 
 static char input[256];
 static char *tokens[16];

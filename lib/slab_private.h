@@ -10,7 +10,7 @@ struct slab {
 	struct list_head pages; /* list of pages */
 
 	void *(*page_getter)(void);
-	void (*page_freer)(void*);
+	void (*page_freer)(void *);
 };
 
 struct slab_page {

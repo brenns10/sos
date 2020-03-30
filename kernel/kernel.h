@@ -14,14 +14,15 @@
 /* Useful macros for the kernel to use */
 #define nelem(x) (sizeof(x) / sizeof(x[0]))
 
-#define ALIGN(x,a)              __ALIGN_MASK(x,(typeof(x))(a)-1)
-#define __ALIGN_MASK(x,mask)    (((x)+(mask))&~(mask))
+#define ALIGN(x, a)           __ALIGN_MASK(x, (typeof(x))(a)-1)
+#define __ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
 
-#define WRITE32(_reg, _val) do { \
-		register uint32_t __myval__ = (_val); \
-		*(volatile uint32_t *)&(_reg) = __myval__; \
+#define WRITE32(_reg, _val)                                                    \
+	do {                                                                   \
+		register uint32_t __myval__ = (_val);                          \
+		*(volatile uint32_t *)&(_reg) = __myval__;                     \
 	} while (0)
-#define READ32(_reg) (*(volatile uint32_t*)&(_reg))
+#define READ32(_reg) (*(volatile uint32_t *)&(_reg))
 
 struct process;
 
@@ -125,27 +126,27 @@ extern void *kern_virt_allocator;
 
 /* first level descriptor types */
 #define FLD_UNMAPPED 0x00
-#define FLD_COARSE 0x01
-#define FLD_SECTION 0x02
+#define FLD_COARSE   0x01
+#define FLD_SECTION  0x02
 
 #define FLD_MASK 0x03
 
 /* second level descriptor types */
 #define SLD_UNMAPPED 0x00
-#define SLD_LARGE 0x01
-#define SLD_SMALL 0x02
+#define SLD_LARGE    0x01
+#define SLD_SMALL    0x02
 
 #define SLD_MASK 0x03
 
 #define SLD_NG (1 << 11)
 
 /* access control for second level */
-#define NOT_GLOBAL (0x1 << 11)
-#define PRW_UNA (SLD__AP0)            /* AP=0b001 */
-#define PRW_URO (SLD__AP1)            /* AP=0b010 */
-#define PRW_URW (SLD__AP1 | SLD__AP0) /* AP=0b011 */
-#define PRO_UNA (SLD__AP2 | SLD__AP0) /* AP=0b101 */
-#define PRO_URO (SLD__AP2 | SLD__AP1) /* AP=0b110 */
+#define NOT_GLOBAL    (0x1 << 11)
+#define PRW_UNA       (SLD__AP0)            /* AP=0b001 */
+#define PRW_URO       (SLD__AP1)            /* AP=0b010 */
+#define PRW_URW       (SLD__AP1 | SLD__AP0) /* AP=0b011 */
+#define PRO_UNA       (SLD__AP2 | SLD__AP0) /* AP=0b101 */
+#define PRO_URO       (SLD__AP2 | SLD__AP1) /* AP=0b110 */
 #define EXECUTE_NEVER 0x01
 
 /*
@@ -169,7 +170,7 @@ void data_abort(uint32_t lr);
 #define get_cpreg(dst, CRn, op1, CRm, op2)                                     \
 	__asm__ __volatile__("mrc p15, " #op1 ", %[rd], " #CRn ", " #CRm       \
 	                     ", " #op2                                         \
-	                     : [rd] "=r"(dst)                                  \
+	                     : [ rd ] "=r"(dst)                                \
 	                     :                                                 \
 	                     :)
 
@@ -179,7 +180,7 @@ void data_abort(uint32_t lr);
 #define set_cpreg(src, CRn, op1, CRm, op2)                                     \
 	__asm__ __volatile__("mcr p15, " #op1 ", %[rs], " #CRn ", " #CRm       \
 	                     ", " #op2                                         \
-	                     : [rs] "+r"(src)                                  \
+	                     : [ rs ] "+r"(src)                                \
 	                     :                                                 \
 	                     :)
 
@@ -188,13 +189,13 @@ void data_abort(uint32_t lr);
  */
 #define get_cpreg64(dstlo, dsthi, CRm, op3)                                    \
 	__asm__ __volatile__("mrrc p15, " #op3 ", %[Rt], %[Rt2], " #CRm        \
-	                     : [Rt] "=r"(dstlo), [Rt2] "=r"(dsthi)             \
+	                     : [ Rt ] "=r"(dstlo), [ Rt2 ] "=r"(dsthi)         \
 	                     :                                                 \
 	                     :)
 
 #define set_cpreg64(srclo, srchi, CRm, op3)                                    \
 	__asm__ __volatile__("mcrr p15, " #op3 ", %[Rt], %[Rt2], " #CRm        \
-	                     : [Rt] "+r"(srclo), [Rt2] "+r"(srchi)             \
+	                     : [ Rt ] "+r"(srclo), [ Rt2 ] "+r"(srchi)         \
 	                     :                                                 \
 	                     :)
 
@@ -202,17 +203,13 @@ void data_abort(uint32_t lr);
  * Load SPSR
  */
 #define get_spsr(dst)                                                          \
-	__asm__ __volatile__("mrs %[rd], spsr"                                 \
-	                     : [rd] "=r" (dst)                                 \
-	                     : : )
+	__asm__ __volatile__("mrs %[rd], spsr" : [ rd ] "=r"(dst) : :)
 
 /**
  * Load CPSR
  */
 #define get_cpsr(dst)                                                          \
-	__asm__ __volatile__("mrs %[rd], cpsr"                                 \
-	                     : [rd] "=r" (dst)                                 \
-	                     : : )
+	__asm__ __volatile__("mrs %[rd], cpsr" : [ rd ] "=r"(dst) : :)
 
 #define ARM_MODE_USER 0x10U
 #define ARM_MODE_FIQ  0x11U
@@ -226,7 +223,7 @@ void data_abort(uint32_t lr);
 /**
  * Load stack pointer
  */
-#define get_sp(dst) __asm__ __volatile__("mov %[rd], sp" : [rd] "=r"(dst) : :)
+#define get_sp(dst) __asm__ __volatile__("mov %[rd], sp" : [ rd ] "=r"(dst) : :)
 
 /**
  * This "process" is hardly a process. It runs in user mode, but shares its
@@ -252,9 +249,9 @@ struct process {
 	uint32_t context[17];
 
 	struct {
-		int pr_ready : 1;  /* ready to be scheduled? */
+		int pr_ready : 1;   /* ready to be scheduled? */
 		int pr_syscall : 1; /* is the process suspended by syscall? */
-		int pr_kernel : 1; /* is a kernel thread? */
+		int pr_kernel : 1;  /* is a kernel thread? */
 	} flags;
 
 	/** Global process list entry. */
@@ -284,16 +281,16 @@ struct process {
  * - SPSR: saved program status register, returned to CPSR on return
  * - SP: process stack pointer
  */
-#define PROC_CTX_RET 15
+#define PROC_CTX_RET  15
 #define PROC_CTX_SPSR 16
-#define PROC_CTX_SP 0
-#define PROC_CTX_A1 2
+#define PROC_CTX_SP   0
+#define PROC_CTX_A1   2
 
 /* Create a process */
 struct process *create_process(uint32_t binary);
 #define BIN_SALUTATIONS 0
-#define BIN_HELLO 1
-#define BIN_USH 2
+#define BIN_HELLO       1
+#define BIN_USH         2
 int32_t process_image_lookup(char *name);
 
 /* Start a process running, never return. */
@@ -340,7 +337,7 @@ extern uint32_t process_ush_end[];
 
 void dtb_init(uint32_t phys);
 
-void ksh(void*);
+void ksh(void *);
 
 /* ksh commands */
 int cmd_mkproc(int argc, char **argv);
@@ -360,7 +357,7 @@ int virtio_net_cmd_status(int argc, char **argv);
 int virtio_net_cmd_dhcpdiscover(int argc, char **argv);
 
 /* GIC Driver */
-typedef void(*isr_t)(uint32_t);
+typedef void (*isr_t)(uint32_t);
 void gic_init(void);
 void gic_enable_interrupt(uint8_t int_id);
 uint32_t gic_interrupt_acknowledge(void);

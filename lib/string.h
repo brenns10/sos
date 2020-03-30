@@ -4,9 +4,9 @@
 #ifndef SOS_STRING_H
 #define SOS_STRING_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 uint32_t strlen(const char *string);
 

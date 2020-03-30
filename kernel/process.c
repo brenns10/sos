@@ -20,9 +20,13 @@ struct static_binary {
 };
 
 struct static_binary binaries[] = {
-	{.start=process_salutations_start, .end=process_salutations_end, .name="salutations"},
-	{.start=process_hello_start, .end=process_hello_end, .name="hello"},
-	{.start=process_ush_start, .end=process_ush_end, .name="ush"},
+	{ .start = process_salutations_start,
+	  .end = process_salutations_end,
+	  .name = "salutations" },
+	{ .start = process_hello_start,
+	  .end = process_hello_end,
+	  .name = "hello" },
+	{ .start = process_ush_start, .end = process_ush_end, .name = "ush" },
 };
 
 /**
@@ -41,19 +45,18 @@ struct process *create_process(uint32_t binary)
 	/*
 	 * Allocate a kernel stack.
 	 */
-	p->kstack = (void*)kmem_get_pages(4096, 0) + 4096;
+	p->kstack = (void *)kmem_get_pages(4096, 0) + 4096;
 
 	/*
 	 * Determine the size of the "process image" rounded to a whole page
 	 */
 	size = (
-		/* subtract start from end */
-		(uint32_t) binaries[binary].end
-		- (uint32_t) binaries[binary].start
-		/* object file doesn't include stack space, so we assume 8 bytes
-		 * of alignment and a page of stack */
-		+ 0x1000 + 8
-	);
+	        /* subtract start from end */
+	        (uint32_t)binaries[binary].end -
+	        (uint32_t)binaries[binary].start
+	        /* object file doesn't include stack space, so we assume 8 bytes
+	         * of alignment and a page of stack */
+	        + 0x1000 + 8);
 	size = ((size >> PAGE_BITS) + 1) << PAGE_BITS;
 
 	/*
@@ -70,10 +73,10 @@ struct process *create_process(uint32_t binary)
 	phys = alloc_pages(phys_allocator, 0x8000, 14);
 	virt = alloc_pages(kern_virt_allocator, 0x8000, 0);
 	kmem_map_pages(virt, phys, 0x8000, PRW_UNA);
-	p->first = (uint32_t*)virt;
-	p->shadow = (void*)p->first + 0x4000;
+	p->first = (uint32_t *)virt;
+	p->shadow = (void *)p->first + 0x4000;
 	p->ttbr1 = phys;
-	for (i = 0; i < 0x2000; i++)  /* one day I'll implement memset() */
+	for (i = 0; i < 0x2000; i++) /* one day I'll implement memset() */
 		p->first[i] = 0;
 
 	/*
@@ -87,9 +90,9 @@ struct process *create_process(uint32_t binary)
 	/*
 	 * Copy the "process image" over.
 	 */
-	dst = (uint32_t*) virt;
-	src = (uint32_t*) binaries[binary].start;
-	for (i = 0; i < size>>2; i++)
+	dst = (uint32_t *)virt;
+	src = (uint32_t *)binaries[binary].start;
+	for (i = 0; i<size>> 2; i++)
 		dst[i] = src[i];
 
 	/*
@@ -128,7 +131,7 @@ struct process *create_process(uint32_t binary)
  * Create a kernel thread! This thread cannot be started with start_process(),
  * but may be context-switched in.
  */
-struct process *create_kthread(void (*func)(void*), void *arg)
+struct process *create_kthread(void (*func)(void *), void *arg)
 {
 	struct process *p = slab_alloc(proc_slab);
 	p->id = pid++;
@@ -137,7 +140,7 @@ struct process *create_kthread(void (*func)(void*), void *arg)
 	p->flags.pr_ready = 1;
 	p->flags.pr_kernel = 1;
 	p->flags.pr_syscall = 0;
-	p->kstack = (void*)kmem_get_pages(4096, 0) + 4096;
+	p->kstack = (void *)kmem_get_pages(4096, 0) + 4096;
 
 	/* kthread is in kernel memory space, no user memory region */
 	p->vmem_allocator = NULL;
@@ -157,7 +160,7 @@ struct process *create_kthread(void (*func)(void*), void *arg)
 void destroy_current_process()
 {
 	uint32_t i;
-	//printf("[kernel]\t\tdestroy process %u (p=0x%x)\n", proc->id, proc);
+	// printf("[kernel]\t\tdestroy process %u (p=0x%x)\n", proc->id, proc);
 
 	/*
 	 * Remove from the global process list
@@ -199,7 +202,7 @@ void destroy_current_process()
 	 * initial kernel stack to enable our final call into schedule.
 	 */
 	asm volatile("ldr sp, =stack_end" ::: "sp");
-	kmem_free_pages((void*)current->kstack - 4096, 4096);
+	kmem_free_pages((void *)current->kstack - 4096, 4096);
 	slab_free(current);
 
 	/*
@@ -220,10 +223,9 @@ void start_process(struct process *p)
 	set_cpreg(p->ttbr1, c2, 0, c0, 1);
 
 	current = p;
-	//printf("[kernel]\t\tstart process %u (ttbr1=0x%x)\n", p->id, p->ttbr1);
-	start_process_asm(
-		(void*)p->context[PROC_CTX_RET]
-	);
+	// printf("[kernel]\t\tstart process %u (ttbr1=0x%x)\n", p->id,
+	// p->ttbr1);
+	start_process_asm((void *)p->context[PROC_CTX_RET]);
 }
 
 void context_switch(struct process *new_process)
@@ -231,11 +233,10 @@ void context_switch(struct process *new_process)
 	uint32_t i, use_retval, mode;
 
 	/*printf("[kernel]\t\tswap current process %u for new process %u\n",
-			current ? current->id : 0, new_process->id);*/
+	                current ? current->id : 0, new_process->id);*/
 
 	if (new_process == current)
 		goto out;
-
 
 	/* Set the current ASID */
 	set_cpreg(new_process->id, c13, 0, c0, 1);
@@ -266,10 +267,11 @@ out:
  */
 void schedule(void)
 {
-	struct process *iter, *chosen=NULL;
+	struct process *iter, *chosen = NULL;
 	int count_seen = 0, count_ready = 0;
 
-	list_for_each_entry(iter, &process_list, list, struct process) {
+	list_for_each_entry(iter, &process_list, list, struct process)
+	{
 		count_seen++;
 		if (iter->flags.pr_ready) {
 			count_ready++;
@@ -349,7 +351,8 @@ int cmd_mkproc(int argc, char **argv)
 int cmd_lsproc(int argc, char **argv)
 {
 	struct process *p;
-	list_for_each_entry(p, &process_list, list, struct process) {
+	list_for_each_entry(p, &process_list, list, struct process)
+	{
 		printf("%u\n", p->id);
 	}
 	return 0;
@@ -367,7 +370,8 @@ int cmd_execproc(int argc, char **argv)
 	pid = atoi(argv[1]);
 
 	printf("starting process execution with pid=%u\n", pid);
-	list_for_each_entry(p, &process_list, list, struct process) {
+	list_for_each_entry(p, &process_list, list, struct process)
+	{
 		if (p->id == pid) {
 			break;
 		}
@@ -395,7 +399,8 @@ static void idle(void *arg)
 void process_init(void)
 {
 	INIT_LIST_HEAD(process_list);
-	proc_slab = slab_new(sizeof(struct process), kmem_get_page, kmem_free_page);
+	proc_slab =
+	        slab_new(sizeof(struct process), kmem_get_page, kmem_free_page);
 	idle_process = create_kthread(idle, NULL);
 	idle_process->flags.pr_ready = 0; /* idle process is never ready */
 }

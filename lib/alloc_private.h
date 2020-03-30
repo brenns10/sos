@@ -19,12 +19,12 @@
  * bytes, containing the start address of the zone.
  */
 struct zone {
- unsigned int addr : 20;        /* last 12 bits do not matter */
- unsigned int _unallocated: 11; /* reserved for other uses */
- unsigned int free : 1;         /* boolean */
+	unsigned int addr : 20;         /* last 12 bits do not matter */
+	unsigned int _unallocated : 11; /* reserved for other uses */
+	unsigned int free : 1;          /* boolean */
 };
 struct zonehdr {
- unsigned int next : 22;        /* last 10 bits do not matter */
- unsigned int count : 10;       /* number of zone structs */
- struct zone zones[];           /* array of zones */
+	unsigned int next : 22;  /* last 10 bits do not matter */
+	unsigned int count : 10; /* number of zone structs */
+	struct zone zones[];     /* array of zones */
 };
