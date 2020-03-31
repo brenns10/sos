@@ -15,8 +15,7 @@ int udp_send(struct netif *netif, struct packet *pkt, uint32_t src_ip,
 
 	pkt->udp->src_port = htons(src_port);
 	pkt->udp->dst_port = htons(dst_port);
-	pkt->udp->len = htons(pkt->end - pkt->al);
-	printf("udp len %u\n", ntohs(pkt->udp->len));
+	pkt->udp->len = htons(pkt->end - pkt->tl);
 	pkt->udp->csum = 0;
 	csum_init(&csum);
 	csum_add(&csum, &src_ip, 2);
