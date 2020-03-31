@@ -13,9 +13,8 @@ struct slab;
  * getter: a function which returns pages of memory
  * freer: a function which frees pages of memory
  */
-struct slab *slab_new(unsigned int size, void *(*getter)(void),
-                      void (*freer)(void *));
+struct slab *slab_new(unsigned int size, void *(*getter)(void));
 
 void *slab_alloc(struct slab *slab);
 
-void slab_free(void *ptr);
+void slab_free(struct slab *slab, void *ptr);

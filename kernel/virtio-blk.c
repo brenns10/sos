@@ -36,8 +36,8 @@ struct virtio_blk {
 static void maybe_init_blkreq_slab(void)
 {
 	if (!blkreq_slab)
-		blkreq_slab = slab_new(sizeof(struct virtio_blk_req),
-		                       kmem_get_page, kmem_free_page);
+		blkreq_slab =
+		        slab_new(sizeof(struct virtio_blk_req), kmem_get_page);
 }
 
 #define HI32(u64) ((uint32_t)((0xFFFFFFFF00000000ULL & (u64)) >> 32))
@@ -73,7 +73,7 @@ static void virtio_blk_handle_used(struct virtio_blk *dev, uint32_t usedidx)
 		req->waiting->flags.pr_ready = 1;
 	} else {
 		/* nobody is waiting for you :'( */
-		slab_free(req);
+		slab_free(blkreq_slab, req);
 		puts("virtio-blk got an orphaned descriptor\n");
 	}
 	return;
@@ -196,7 +196,7 @@ int virtio_blk_cmd_read(int argc, char **argv)
 	}
 	printf("result: \"%s\"\n", buffer);
 cleanup:
-	slab_free(req);
+	slab_free(blkreq_slab, req);
 	kmem_free_page(buffer);
 	return 0;
 }
@@ -229,7 +229,7 @@ int virtio_blk_cmd_write(int argc, char **argv)
 	puts("written!\n");
 
 cleanup:
-	slab_free(req);
+	slab_free(blkreq_slab, req);
 	kmem_free_page(buffer);
 	return rv;
 }

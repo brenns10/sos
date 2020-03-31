@@ -28,15 +28,6 @@ void *page_getter(void)
 	}
 }
 
-void page_freer(void *page)
-{
-	if (page == (void *)first_page) {
-		first_page_freed = true;
-	} else {
-		second_page_freed = true;
-	}
-}
-
 void init(struct unittest *test)
 {
 	pages_allocd = 0;
@@ -48,7 +39,7 @@ void test_allocates(struct unittest *test)
 {
 	void *alloc, *expected;
 	init(test);
-	slab = slab_new(64, page_getter, page_freer);
+	slab = slab_new(64, page_getter);
 	alloc = slab_alloc(slab);
 
 	expected = (void *)first_page + sizeof(struct slab) +
@@ -64,10 +55,10 @@ void test_frees(struct unittest *test)
 {
 	void *alloc1, *alloc2, *alloc3;
 	init(test);
-	slab = slab_new(64, page_getter, page_freer);
+	slab = slab_new(64, page_getter);
 	alloc1 = slab_alloc(slab);
 	alloc2 = slab_alloc(slab);
-	slab_free(alloc2);
+	slab_free(slab, alloc2);
 	alloc3 = slab_alloc(slab);
 	UNITTEST_EXPECT_EQ(test, alloc2, alloc3);
 }

@@ -1,89 +1,66 @@
 /*
  * Slab allocator for frequently used structures. Built on top of a page
- * allocator. Supports sizes, but not alignment.
- *
- * Each page of memory contains a header for a linked list joining them all
- * together, as well as allocation counts within the page. The first page
- * further contains a struct slab, which has overall bookkeeping for the
- * allocator.
+ * allocator. The first page allocated contains the struct slab, and the
+ * remaining space is filled by structures. Subsequent pages contain only the
+ * structures.
  */
 #include <stdint.h>
 
 #include "slab_private.h"
 
 #define PAGE_SIZE 4096
-#define PAGE_MASK (~0xFFF)
 
-static void slab_page_create_entries(struct slab_page *page,
-                                     unsigned int offset)
+static void slab_add_entries(struct slab *slab, void *page, unsigned int len)
 {
 	unsigned int i;
 	struct list_head *tmp;
-	INIT_LIST_HEAD(page->entries);
 
-	for (i = 0; i < page->total; i++) {
-		tmp = (struct list_head *)((void *)page + offset +
-		                           page->slab->size * i);
-		list_insert_end(&page->entries, tmp);
+	for (i = 0; i + slab->size <= len; i += slab->size) {
+		tmp = (struct list_head *)(page + i);
+		list_insert_end(&slab->entries, tmp);
+		slab->total += 1;
+		slab->free += 1;
 	}
 }
 
-struct slab *slab_new(unsigned int size, void *(*getter)(void),
-                      void (*freer)(void *))
+struct slab *slab_new(unsigned int size, void *(*getter)(void))
 {
 	void *void_page = getter();
-	struct slab *slab = void_page + sizeof(struct slab_page);
-	struct slab_page *page = void_page;
-	struct list_head *tmp;
+	struct slab *slab = void_page;
 	unsigned int i;
 
 	slab->size = size;
-	slab->total =
-	        (PAGE_SIZE - sizeof(struct slab) - sizeof(struct slab_page)) /
-	        size;
+	slab->total = 0;
 	slab->free = slab->total;
 	slab->page_getter = getter;
-	slab->page_freer = freer;
+	INIT_LIST_HEAD(slab->entries);
 
-	page->slab = slab;
-	page->total = slab->total;
-	page->free = slab->free;
-
-	INIT_LIST_HEAD(slab->pages);
-	list_insert(&slab->pages, &page->pages);
-
-	slab_page_create_entries(page, sizeof(struct slab) +
-	                                       sizeof(struct slab_page));
+	slab_add_entries(slab, void_page + sizeof(struct slab),
+	                 PAGE_SIZE - sizeof(struct slab));
 	return slab;
 }
 
 void *slab_alloc(struct slab *slab)
 {
-	struct slab_page *page;
 	struct list_head *entry;
-	if (slab->free > 0) {
-		/* Return the first available entry from the first page */
-		list_for_each_entry(page, &slab->pages, pages, struct slab_page)
-		{
-			list_for_each(entry, &page->entries)
-			{
-				page->free -= 1;
-				slab->free -= 1;
-				list_remove(entry);
-				return (void *)entry;
-			}
-		}
-	} else {
-		/* TODO need to expand the cache */
-		return NULL;
+
+	/* Expand if necessary */
+	if (slab->free == 0) {
+		void *page = slab->page_getter();
+		slab_add_entries(slab, page, PAGE_SIZE);
+	}
+
+	/* Return the first available entry from the first page */
+	list_for_each(entry, &slab->entries)
+	{
+		slab->free -= 1;
+		list_remove(entry);
+		return (void *)entry;
 	}
 }
 
-void slab_free(void *ptr)
+void slab_free(struct slab *slab, void *ptr)
 {
-	struct slab_page *page =
-	        (struct slab_page *)((uintptr_t)ptr & PAGE_MASK);
-	list_insert(&page->entries, ptr);
-	page->free++;
-	page->slab->free++;
+	list_insert(&slab->entries, (struct list_head *)ptr);
+	slab->free++;
 }

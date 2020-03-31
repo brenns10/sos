@@ -83,8 +83,8 @@ void init_packets(void **ptr)
 static void maybe_init_nethdr_slab(void)
 {
 	if (!nethdr_slab)
-		nethdr_slab = slab_new(sizeof(struct virtio_net_hdr),
-		                       kmem_get_page, kmem_free_page);
+		nethdr_slab =
+		        slab_new(sizeof(struct virtio_net_hdr), kmem_get_page);
 }
 
 void add_to_virtqueue(struct packet **pkts, int n, struct virtqueue *virtq)
@@ -221,7 +221,7 @@ void virtio_handle_rxused(struct virtio_net *dev, uint32_t idx)
 	eth_recv(&nif, pkt);
 	virtq_free_desc(dev->rx, d1);
 	virtq_free_desc(dev->rx, d2);
-	slab_free(hdr);
+	slab_free(nethdr_slab, hdr);
 }
 
 void virtio_handle_txused(struct virtio_net *dev, uint32_t idx)

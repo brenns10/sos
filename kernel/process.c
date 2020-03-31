@@ -203,7 +203,7 @@ void destroy_current_process()
 	 */
 	asm volatile("ldr sp, =stack_end" ::: "sp");
 	kmem_free_pages((void *)current->kstack - 4096, 4096);
-	slab_free(current);
+	slab_free(proc_slab, current);
 
 	/*
 	 * Mark current AS null for schedule(), to inform it that we can't
@@ -399,8 +399,7 @@ static void idle(void *arg)
 void process_init(void)
 {
 	INIT_LIST_HEAD(process_list);
-	proc_slab =
-	        slab_new(sizeof(struct process), kmem_get_page, kmem_free_page);
+	proc_slab = slab_new(sizeof(struct process), kmem_get_page);
 	idle_process = create_kthread(idle, NULL);
 	idle_process->flags.pr_ready = 0; /* idle process is never ready */
 }
