@@ -1,5 +1,12 @@
 /* network utilities */
+#include "kernel.h"
+#include "net.h"
+#include "slab.h"
+#include "string.h"
 #include <stdint.h>
+
+struct slab *pktslab = NULL;
+#define PACKET_SIZE 2048
 
 uint32_t ntohl(uint32_t orig)
 {
@@ -49,4 +56,22 @@ uint16_t csum_finalize(uint32_t *csum)
 		*csum += add;
 	}
 	return ~((uint16_t)*csum);
+}
+
+void packet_init(void)
+{
+	pktslab = slab_new(PACKET_SIZE, kmem_get_page);
+}
+
+struct packet *packet_alloc(void)
+{
+	struct packet *pkt = (struct packet *)slab_alloc(pktslab);
+	memset(pkt, 0, PACKET_SIZE);
+	pkt->capacity = PACKET_CAPACITY;
+	return pkt;
+}
+
+void packet_free(struct packet *pkt)
+{
+	slab_free(pktslab, (void *)pkt);
 }

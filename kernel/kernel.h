@@ -378,10 +378,13 @@ void block(uint32_t *ctx);
 void virtio_init(void);
 
 struct virtio_net;
-void virtio_net_send(struct virtio_net *dev, void *data, uint32_t len);
+struct packet;
+void virtio_net_send(struct virtio_net *dev, struct packet *pkt);
 struct netif;
 extern struct netif nif;
 
 #define EBUSY 1
 
 #define mb() asm("dsb")
+
+void packet_init(void);

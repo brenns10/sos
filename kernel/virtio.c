@@ -67,7 +67,7 @@ uint32_t virtq_alloc_desc(struct virtqueue *virtq, void *addr)
 {
 	uint32_t desc = virtq->free_desc;
 	uint32_t next = virtq->desc[desc].next;
-	if (next == virtq->len)
+	if (desc == virtq->len)
 		puts("ERROR: ran out of virtqueue descriptors\n");
 	virtq->free_desc = next;
 

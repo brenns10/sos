@@ -21,6 +21,7 @@ void main(uint32_t phys)
 	gic_init();
 	timer_init();
 	uart_init();
+	packet_init();
 	virtio_init();
 
 	start_ush();

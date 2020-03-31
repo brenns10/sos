@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include "net.h"
+#include "string.h"
 
 static uint32_t ipid = 0;
 
@@ -22,7 +23,7 @@ static uint8_t *get_mapping(uint32_t ip)
 			return mappings[i].mac;
 }
 
-static void upsert_mapping(uint32_t ip, uint8_t mac)
+static void upsert_mapping(uint32_t ip, uint8_t *mac)
 {
 	int i;
 	for (i = 0; i < nmap; i++)
@@ -43,18 +44,24 @@ void ip_recv(struct netif *netif, struct packet *pkt)
 	printf("ip_recv src=%I dst=%I\n", pkt->ip->src, pkt->ip->dst);
 	if (pkt->ip->dst != netif->ip && pkt->ip->dst != 0xFFFFFFFF) {
 		puts("received IP packet not destined for us, dropping\n");
-		return;
+		goto cleanup;
 	}
 	pkt->tl = pkt->nl + ip_get_length(pkt->ip);
 	if (pkt->tl > pkt->end) {
 		puts("received IP packet with bad IHL field, dropping\n");
-		return;
+		goto cleanup;
 	}
 	switch (pkt->ip->proto) {
 	case IPPROTO_UDP:
 		udp_recv(netif, pkt);
-		/* TODO implement tcp, others */
+		return;
+	default:
+		printf("unimplemented ipproto 0x%x, dropping\n",
+		       pkt->ip->proto);
+		goto cleanup;
 	}
+cleanup:
+	packet_free(pkt);
 }
 
 uint32_t ip_route(struct netif *netif, uint32_t dst_ip)

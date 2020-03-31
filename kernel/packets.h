@@ -127,3 +127,38 @@ enum {
 #define DHCPMTYPE_DHCPACK      5
 #define DHCPMTYPE_DHCPNAK      6
 #define DHCPMTYPE_DHCPRELEASE  7
+
+struct packet {
+	/* Link-layer header pointer */
+	union {
+		void *ll;
+		struct etherframe *eth;
+	};
+
+	/* Network-layer header pointer */
+	union {
+		void *nl;
+		struct iphdr *ip;
+	};
+
+	/* Transport-layer header pointer */
+	union {
+		void *tl;
+		struct udphdr *udp;
+	};
+
+	/* App-layer pointer */
+	union {
+		void *al;
+		void *app;
+	};
+
+	void *end;
+	uint32_t capacity;
+	uint8_t data[0];
+};
+
+struct packet *packet_alloc(void);
+void packet_free(struct packet *pkt);
+#define PACKET_SIZE     2048
+#define PACKET_CAPACITY (PACKET_SIZE - sizeof(struct packet))

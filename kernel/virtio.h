@@ -170,6 +170,7 @@ struct virtio_blk_req {
 #define VIRTIO_BLK_S_IOERR  1
 #define VIRTIO_BLK_S_UNSUPP 2
 
+struct packet;
 struct virtio_net_hdr {
 #define VIRTIO_NET_HDR_F_NEEDS_CSUM 1
 	uint8_t flags;
@@ -184,6 +185,7 @@ struct virtio_net_hdr {
 	uint16_t csum_start;
 	uint16_t csum_offset;
 	uint16_t num_buffers;
+	struct packet *packet;
 } __attribute__((packed));
 #define MAX_ETH_PKT_SIZE 1514
 

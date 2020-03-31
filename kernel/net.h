@@ -11,39 +11,6 @@ struct netif {
 	uint32_t subnet_mask;
 };
 
-struct packet {
-	/* Link-layer header pointer */
-	union {
-		void *ll;
-		struct etherframe *eth;
-	};
-
-	/* Network-layer header pointer */
-	union {
-		void *nl;
-		struct iphdr *ip;
-	};
-
-	/* Transport-layer header pointer */
-	union {
-		void *tl;
-		struct udphdr *udp;
-	};
-
-	/* App-layer pointer */
-	union {
-		void *al;
-		void *app;
-	};
-
-	void *end;
-	uint32_t capacity;
-	uint8_t data[0];
-};
-
-struct packet *packet_alloc(void);
-void packet_free(void);
-
 void eth_recv(struct netif *netif, struct packet *pkt);
 int eth_send(struct netif *netif, struct packet *pkt, uint16_t ethertype,
              uint8_t dst_mac[6]);

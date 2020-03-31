@@ -5,6 +5,7 @@ void udp_recv(struct netif *netif, struct packet *pkt)
 {
 	printf("udp_recv src=%u dst=%u\n", ntohs(pkt->udp->src_port),
 	       ntohs(pkt->udp->dst_port));
+	packet_free(pkt);
 }
 
 int udp_send(struct netif *netif, struct packet *pkt, uint32_t src_ip,

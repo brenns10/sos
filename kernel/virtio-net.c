@@ -9,11 +9,6 @@
 
 struct netif nif;
 struct virtio_net netdev;
-#define PACKET_PAGES 8192
-#define NPACKETS     4
-#define RESERVED     2048
-struct packet *rxpackets[NPACKETS];
-struct packet *txpackets[NPACKETS];
 struct slab *nethdr_slab = NULL;
 
 struct virtio_cap net_caps[] = {
@@ -53,33 +48,6 @@ struct virtio_cap net_caps[] = {
 	VIRTIO_INDP_CAPS
 };
 
-struct packet *packet_alloc(void)
-{
-	struct packet *pkt = txpackets[0];
-	pkt->ll = NULL;
-	pkt->nl = NULL;
-	pkt->tl = NULL;
-	pkt->al = NULL;
-	pkt->end = NULL;
-	pkt->capacity = RESERVED - sizeof(struct packet);
-	return pkt;
-}
-
-void packet_free(void)
-{
-}
-
-void init_packets(void **ptr)
-{
-	void *pages = kmem_get_pages(PACKET_PAGES, 0);
-	/* add 2 for align */
-	uint32_t pkt_size = RESERVED;
-	uint32_t i;
-	for (i = 0; i < NPACKETS; i++) {
-		ptr[i] = (struct packet *)(pages + i * pkt_size);
-	}
-}
-
 static void maybe_init_nethdr_slab(void)
 {
 	if (!nethdr_slab)
@@ -87,28 +55,31 @@ static void maybe_init_nethdr_slab(void)
 		        slab_new(sizeof(struct virtio_net_hdr), kmem_get_page);
 }
 
-void add_to_virtqueue(struct packet **pkts, int n, struct virtqueue *virtq)
+void add_packets_to_virtqueue(int n, struct virtqueue *virtq)
 {
 	int i;
 	uint32_t d1, d2;
 	struct virtio_net_hdr *hdr;
+	struct packet *pkt;
 	for (i = 0; i < n; i++) {
 		hdr = slab_alloc(nethdr_slab);
+		pkt = packet_alloc();
+		hdr->packet = pkt;
 		d1 = virtq_alloc_desc(virtq, hdr);
-		d2 = virtq_alloc_desc(virtq, &pkts[i]->data);
+		d2 = virtq_alloc_desc(virtq, pkt->data);
 		virtq->desc[d1].len = VIRTIO_NET_HDRLEN;
 		virtq->desc[d1].flags = VIRTQ_DESC_F_WRITE | VIRTQ_DESC_F_NEXT;
 		virtq->desc[d1].next = d2;
-		virtq->desc[d2].len = RESERVED - sizeof(struct packet);
+		virtq->desc[d2].len = PACKET_CAPACITY;
 		virtq->desc[d2].flags = VIRTQ_DESC_F_WRITE;
-		pkts[i]->capacity = RESERVED - sizeof(struct packet);
+		pkt->capacity = PACKET_CAPACITY;
 		virtq->avail->ring[virtq->avail->idx + i] = d1;
 	}
 	mb();
 	virtq->avail->idx += n;
 }
 
-void virtio_net_send(struct virtio_net *dev, void *data, uint32_t len)
+void virtio_net_send(struct virtio_net *dev, struct packet *pkt)
 {
 	uint32_t d1, d2;
 	struct virtio_net_hdr *hdr =
@@ -121,13 +92,14 @@ void virtio_net_send(struct virtio_net *dev, void *data, uint32_t len)
 	hdr->csum_start = 0;
 	hdr->csum_offset = 0;
 	hdr->num_buffers = 0xDEAD;
+	hdr->packet = pkt;
 
 	d1 = virtq_alloc_desc(dev->tx, (void *)hdr);
 	dev->tx->desc[d1].len = VIRTIO_NET_HDRLEN;
 	dev->tx->desc[d1].flags = VIRTQ_DESC_F_NEXT;
 
-	d2 = virtq_alloc_desc(dev->tx, data);
-	dev->tx->desc[d2].len = len;
+	d2 = virtq_alloc_desc(dev->tx, pkt->ll);
+	dev->tx->desc[d2].len = (pkt->end - pkt->ll);
 	dev->tx->desc[d2].flags = 0;
 
 	dev->tx->desc[d1].next = d2;
@@ -214,18 +186,39 @@ void virtio_handle_rxused(struct virtio_net *dev, uint32_t idx)
 	uint32_t len = dev->rx->used->ring[idx].len;
 	struct virtio_net_hdr *hdr =
 	        (struct virtio_net_hdr *)dev->rx->desc_virt[d1];
-	struct packet *pkt = (struct packet *)((void *)dev->rx->desc_virt[d2] -
-	                                       sizeof(struct packet));
-	pkt->ll = &pkt->data;
-	pkt->end = (void *)&pkt->data + (len - VIRTIO_NET_HDRLEN);
+	/* We can get this from d2, but hdr->packet is more foolproof, since we
+	 * don't necessarily know the offset into the packet structure which d2
+	 * will point at. */
+	struct packet *pkt = hdr->packet;
+	pkt->ll = dev->rx->desc_virt[d2];
+	pkt->end = (void *)&pkt->ll + (len - VIRTIO_NET_HDRLEN);
 	eth_recv(&nif, pkt);
-	virtq_free_desc(dev->rx, d1);
-	virtq_free_desc(dev->rx, d2);
-	slab_free(nethdr_slab, hdr);
+
+	/* eth_recv takes ownership of pkt, we will put a new packet in there
+	 * and stick the descriptor back into the avail queue */
+	pkt = packet_alloc();
+	hdr->packet = pkt;
+	dev->rx->desc[d2].addr = kmem_lookup_phys(&pkt->data);
+	dev->rx->desc_virt[d2] = &pkt->data;
+
+	dev->rx->avail->ring[dev->rx->avail->idx] = d1;
+	dev->rx->avail->ring[wrap(dev->rx->avail->idx + 1, dev->rx->len)] = d2;
+	mb();
+	dev->rx->avail->idx = wrap(dev->rx->avail->idx + 2, dev->rx->len);
 }
 
 void virtio_handle_txused(struct virtio_net *dev, uint32_t idx)
 {
+	uint32_t d1 = dev->tx->used->ring[idx].id;
+	uint32_t d2 = dev->tx->desc[d1].next;
+	uint32_t len = dev->tx->used->ring[idx].len;
+
+	struct virtio_net_hdr *hdr =
+	        (struct virtio_net_hdr *)dev->tx->desc_virt[d1];
+	struct packet *pkt = hdr->packet;
+
+	slab_free(nethdr_slab, hdr);
+	packet_free(pkt);
 }
 
 void virtio_net_isr(uint32_t intid)
@@ -269,15 +262,13 @@ int virtio_net_init(virtio_regs *regs, uint32_t intid)
 	netdev.rx = virtq_create(128);
 
 	nif.ip = 0;
-	memcpy(&nif.mac, &cfg->mac, 6);
+	memcpy(&nif.mac, (void *)&cfg->mac, 6);
 	nif.gateway_ip = 0;
 	nif.subnet_mask = 0;
 	nif.dev = &netdev;
 
 	maybe_init_nethdr_slab();
-	init_packets(rxpackets);
-	init_packets(txpackets);
-	add_to_virtqueue(rxpackets, NPACKETS, netdev.rx);
+	add_packets_to_virtqueue(64, netdev.rx);
 
 	virtq_add_to_device(regs, netdev.rx, VIRTIO_NET_Q_RX);
 	virtq_add_to_device(regs, netdev.tx, VIRTIO_NET_Q_TX);

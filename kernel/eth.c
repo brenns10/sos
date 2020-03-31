@@ -17,9 +17,15 @@ void eth_recv(struct netif *netif, struct packet *pkt)
 		case ETHERTYPE_IP:
 			ip_recv(netif, pkt);
 			break;
+		default:
+			printf("received ethernet packet of unknown ethertype "
+			       "0x%x\n",
+			       ntohs(pkt->eth->ethertype));
+			packet_free(pkt);
 		}
 	} else {
 		puts("received ethernet packet not destined for us\n");
+		packet_free(pkt);
 	}
 }
 
@@ -35,7 +41,6 @@ int eth_send(struct netif *netif, struct packet *pkt, uint16_t ethertype,
 	memcpy(pkt->eth->dst_mac, dst_mac, MAC_SIZE);
 	pkt->eth->ethertype = htons(ethertype);
 
-	/* TODO: how do we recover struct netdev after tx? */
-	virtio_net_send(netif->dev, pkt->ll, (pkt->end - pkt->ll));
+	virtio_net_send(netif->dev, pkt);
 	return 0;
 }
