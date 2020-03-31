@@ -1,10 +1,57 @@
 #include "kernel.h"
 #include "net.h"
 
+struct udp_wait_entry {
+	struct process *proc;
+	struct packet *rcv;
+	uint16_t port;
+	struct list_head list;
+};
+
+struct list_head waitlist = { &waitlist, &waitlist };
+
+/*
+ * Wait for a packet to come in on "port".
+ *
+ * YOU MUST HAVE ALREADY DISABLED INTERRUPTS BEFORE CALLING THIS FUNCTION.
+ *
+ * Why? We are about to go into a sleep which we can only wake from by the
+ * receipt of a packet. Presumably, you have already sent out the packet which
+ * will trigger this receipt. If intrerupts are enabled, the packet could be
+ * received and handled BEFORE we have entered our sleep.
+ */
+struct packet *udp_wait(uint16_t port)
+{
+	struct udp_wait_entry entry;
+	entry.proc = current;
+	entry.port = port;
+	entry.rcv = NULL;
+	list_insert(&waitlist, &entry.list);
+
+	current->flags.pr_ready = 0;
+
+	interrupt_enable();
+	block(current->context);
+
+	list_remove(&entry.list);
+	return entry.rcv;
+}
+
 void udp_recv(struct netif *netif, struct packet *pkt)
 {
+	struct udp_wait_entry *entry;
 	printf("udp_recv src=%u dst=%u\n", ntohs(pkt->udp->src_port),
 	       ntohs(pkt->udp->dst_port));
+	pkt->al = pkt->tl + sizeof(struct udphdr);
+	list_for_each_entry(entry, &waitlist, list, struct udp_wait_entry)
+	{
+		if (entry->port == ntohs(pkt->udp->dst_port)) {
+			entry->rcv = pkt;
+			entry->proc->flags.pr_ready = true;
+			return;
+		}
+	}
+	puts("nobody was waiting for this packet, freeing\n");
 	packet_free(pkt);
 }
 

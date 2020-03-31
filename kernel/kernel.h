@@ -385,6 +385,8 @@ extern struct netif nif;
 
 #define EBUSY 1
 
-#define mb() asm("dsb")
+#define mb()                asm("dsb")
+#define interrupt_disable() __asm__ __volatile__("cpsid i")
+#define interrupt_enable()  __asm__ __volatile__("cpsie i")
 
 void packet_init(void);
