@@ -390,3 +390,4 @@ extern struct netif nif;
 #define interrupt_enable()  __asm__ __volatile__("cpsie i")
 
 void packet_init(void);
+struct packet *udp_wait(uint16_t port);

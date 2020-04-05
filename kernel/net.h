@@ -9,6 +9,7 @@ struct netif {
 
 	uint32_t gateway_ip;
 	uint32_t subnet_mask;
+	uint32_t dns;
 };
 
 void eth_recv(struct netif *netif, struct packet *pkt);
