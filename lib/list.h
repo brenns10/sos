@@ -33,13 +33,21 @@ struct list_head {
 };
 
 /**
- * Initialize a "header" for a list by making it point to itself (i.e. empty)
+ * Initialize a "header" for a list by making it point to itself (i.e. empty).
+ * This should be used dynamically. You need not use this before adding an
+ * element to an existing list.
  */
 #define INIT_LIST_HEAD(name)                                                   \
 	do {                                                                   \
 		name.next = &name;                                             \
 		name.prev = &name;                                             \
 	} while (0);
+
+/**
+ * Declare a "header" for a list which points to itself. Use this for static
+ * allocations.
+ */
+#define DECLARE_LIST_HEAD(name) struct list_head name = { &name, &name }
 
 /**
  * Insert `item` (presumably embedded into a struct) into a list which is

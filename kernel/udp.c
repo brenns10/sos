@@ -8,7 +8,7 @@ struct udp_wait_entry {
 	struct list_head list;
 };
 
-struct list_head waitlist = { &waitlist, &waitlist };
+DECLARE_LIST_HEAD(waitlist);
 
 /*
  * Wait for a packet to come in on "port".
