@@ -356,6 +356,7 @@ int virtio_blk_cmd_write(int argc, char **argv);
 int virtio_net_cmd_status(int argc, char **argv);
 int virtio_net_cmd_dhcpdiscover(int argc, char **argv);
 int dhcp_cmd_discover(int argc, char **argv);
+int ip_cmd_show_arptable(int argc, char **argv);
 
 /* GIC Driver */
 typedef void (*isr_t)(uint32_t);

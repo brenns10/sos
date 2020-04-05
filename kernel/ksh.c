@@ -88,6 +88,9 @@ struct cmd cmds[] = {
 	  .func = dhcp_cmd_discover,
 	  .help = "send DHCPDISCOVER" },
 	{ .name = "help", .func = help, .help = "show this help message" },
+	{ .name = "show-arptable",
+	  .func = ip_cmd_show_arptable,
+	  .help = "show the arp table" },
 };
 
 /*

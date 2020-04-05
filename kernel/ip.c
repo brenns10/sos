@@ -39,6 +39,14 @@ static void upsert_mapping(uint32_t ip, uint8_t *mac)
 	memcpy(mappings[i].mac, mac, 6);
 }
 
+int ip_cmd_show_arptable(int argc, char **argv)
+{
+	int i;
+	puts("IP <--> MAC\n");
+	for (i = 0; i < nmap; i++)
+		printf("%I: %M\n", mappings[i].ip, mappings[i].mac);
+}
+
 void ip_recv(struct netif *netif, struct packet *pkt)
 {
 	printf("ip_recv src=%I dst=%I\n", pkt->ip->src, pkt->ip->dst);
@@ -51,6 +59,7 @@ void ip_recv(struct netif *netif, struct packet *pkt)
 		puts("received IP packet with bad IHL field, dropping\n");
 		goto cleanup;
 	}
+	upsert_mapping(pkt->ip->src, pkt->eth->src_mac);
 	switch (pkt->ip->proto) {
 	case IPPROTO_UDP:
 		udp_recv(netif, pkt);
