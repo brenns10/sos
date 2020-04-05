@@ -42,8 +42,7 @@ void test_allocates(struct unittest *test)
 	slab = slab_new(64, page_getter);
 	alloc = slab_alloc(slab);
 
-	expected = (void *)first_page + sizeof(struct slab) +
-	           sizeof(struct slab_page);
+	expected = (void *)first_page + sizeof(struct slab);
 	UNITTEST_EXPECT_EQ(test, alloc, expected);
 
 	alloc = slab_alloc(slab);
