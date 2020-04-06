@@ -183,7 +183,7 @@ int virtio_blk_cmd_read(int argc, char **argv)
 		return 1;
 	}
 
-	buffer = kmem_get_page();
+	buffer = kmalloc(512);
 	sector = atoi(argv[1]);
 	req = virtio_blk_read(&blkdev, sector, buffer);
 	req->waiting = current;
@@ -198,7 +198,7 @@ int virtio_blk_cmd_read(int argc, char **argv)
 	printf("result: \"%s\"\n", buffer);
 cleanup:
 	slab_free(blkreq_slab, req);
-	kmem_free_page(buffer);
+	kfree(buffer, 512);
 	return 0;
 }
 
@@ -213,7 +213,7 @@ int virtio_blk_cmd_write(int argc, char **argv)
 		return 1;
 	}
 
-	buffer = kmem_get_page();
+	buffer = kmalloc(512);
 	sector = atoi(argv[1]);
 	len = strlen(argv[2]);
 	memcpy(buffer, argv[2], len + 1);
@@ -231,7 +231,7 @@ int virtio_blk_cmd_write(int argc, char **argv)
 
 cleanup:
 	slab_free(blkreq_slab, req);
-	kmem_free_page(buffer);
+	kfree(buffer, 512);
 	return rv;
 }
 
