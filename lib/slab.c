@@ -37,6 +37,12 @@ struct slab *slab_new(char *name, unsigned int size, void *(*getter)(void))
 	struct slab *slab = void_page;
 	unsigned int i;
 
+	if (size < sizeof(struct list_head)) {
+		printf("slab: invalid slab size %u smaller than llnode %u\n",
+		       size, sizeof(struct list_head));
+		return NULL;
+	}
+
 	slab->size = size;
 	slab->total = 0;
 	slab->free = slab->total;
