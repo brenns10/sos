@@ -399,7 +399,7 @@ static void idle(void *arg)
 void process_init(void)
 {
 	INIT_LIST_HEAD(process_list);
-	proc_slab = slab_new(sizeof(struct process), kmem_get_page);
+	proc_slab = slab_new("process", sizeof(struct process), kmem_get_page);
 	idle_process = create_kthread(idle, NULL);
 	idle_process->flags.pr_ready = 0; /* idle process is never ready */
 }

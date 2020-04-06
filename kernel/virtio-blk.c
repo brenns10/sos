@@ -37,7 +37,8 @@ static void maybe_init_blkreq_slab(void)
 {
 	if (!blkreq_slab)
 		blkreq_slab =
-		        slab_new(sizeof(struct virtio_blk_req), kmem_get_page);
+		        slab_new("virtio_blk_req",
+		                 sizeof(struct virtio_blk_req), kmem_get_page);
 }
 
 #define HI32(u64) ((uint32_t)((0xFFFFFFFF00000000ULL & (u64)) >> 32))

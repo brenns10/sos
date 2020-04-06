@@ -10,6 +10,14 @@
 
 #define PAGE_SIZE 4096
 
+/**
+ * Declare this so we don't depend on any particular library providing printf,
+ * whether it's the standard library or my own printf implementation...
+ */
+extern int printf(const char *fmt, ...);
+
+DECLARE_LIST_HEAD(slabs);
+
 static void slab_add_entries(struct slab *slab, void *page, unsigned int len)
 {
 	unsigned int i;
@@ -23,7 +31,7 @@ static void slab_add_entries(struct slab *slab, void *page, unsigned int len)
 	}
 }
 
-struct slab *slab_new(unsigned int size, void *(*getter)(void))
+struct slab *slab_new(char *name, unsigned int size, void *(*getter)(void))
 {
 	void *void_page = getter();
 	struct slab *slab = void_page;
@@ -34,6 +42,8 @@ struct slab *slab_new(unsigned int size, void *(*getter)(void))
 	slab->free = slab->total;
 	slab->page_getter = getter;
 	INIT_LIST_HEAD(slab->entries);
+	list_insert_end(&slabs, &slab->slabs);
+	slab->name = name;
 
 	slab_add_entries(slab, void_page + sizeof(struct slab),
 	                 PAGE_SIZE - sizeof(struct slab));
@@ -63,4 +73,32 @@ void slab_free(struct slab *slab, void *ptr)
 {
 	list_insert(&slab->entries, (struct list_head *)ptr);
 	slab->free++;
+}
+
+void slab_report(struct slab *slab)
+{
+	int headerct, headerwaste, regct, regwaste, pages;
+	printf(" slab \"%s\":\n", slab->name);
+	printf("  item_size %u\n  %u alloc / %u total (%u free)\n", slab->size,
+	       slab->total - slab->free, slab->total, slab->free);
+	headerct = (PAGE_SIZE - sizeof(struct slab)) / slab->size;
+	regct = PAGE_SIZE / slab->size;
+	headerwaste = PAGE_SIZE - sizeof(struct slab) - slab->size * headerct;
+	regwaste = PAGE_SIZE - slab->size * regct;
+	printf("  header fits %u structures, wasting %u bytes\n", headerct,
+	       headerwaste);
+	printf("  regular page fits %u structures, wasting %u bytes\n", regct,
+	       regwaste);
+	pages = (slab->total - headerct) / regct + 1;
+	printf("  %u pages (including header) allocated = %u bytes\n", pages,
+	       pages * PAGE_SIZE);
+}
+
+void slab_report_all(void)
+{
+	struct slab *slab;
+	list_for_each_entry(slab, &slabs, slabs, struct slab)
+	{
+		slab_report(slab);
+	}
 }

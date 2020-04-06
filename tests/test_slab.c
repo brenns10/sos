@@ -39,7 +39,7 @@ void test_allocates(struct unittest *test)
 {
 	void *alloc, *expected;
 	init(test);
-	slab = slab_new(64, page_getter);
+	slab = slab_new("tester", 64, page_getter);
 	alloc = slab_alloc(slab);
 
 	expected = (void *)first_page + sizeof(struct slab);
@@ -54,7 +54,7 @@ void test_frees(struct unittest *test)
 {
 	void *alloc1, *alloc2, *alloc3;
 	init(test);
-	slab = slab_new(64, page_getter);
+	slab = slab_new("tester", 64, page_getter);
 	alloc1 = slab_alloc(slab);
 	alloc2 = slab_alloc(slab);
 	slab_free(slab, alloc2);

@@ -52,7 +52,8 @@ static void maybe_init_nethdr_slab(void)
 {
 	if (!nethdr_slab)
 		nethdr_slab =
-		        slab_new(sizeof(struct virtio_net_hdr), kmem_get_page);
+		        slab_new("virtio_net_hdr",
+		                 sizeof(struct virtio_net_hdr), kmem_get_page);
 }
 
 void add_packets_to_virtqueue(int n, struct virtqueue *virtq)

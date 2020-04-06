@@ -42,6 +42,11 @@ static int cmd_release(int argc, char **argv)
 	spin_release(&sem);
 }
 
+static int cmd_slab_report(int argc, char **argv)
+{
+	slab_report_all();
+}
+
 static int help(int argc, char **argv);
 struct cmd cmds[] = {
 	{ .name = "echo",
@@ -91,6 +96,9 @@ struct cmd cmds[] = {
 	{ .name = "show-arptable",
 	  .func = ip_cmd_show_arptable,
 	  .help = "show the arp table" },
+	{ .name = "slab-report",
+	  .func = cmd_slab_report,
+	  .help = "print all slab stats" },
 };
 
 /*

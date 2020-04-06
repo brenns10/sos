@@ -60,7 +60,7 @@ uint16_t csum_finalize(uint32_t *csum)
 
 void packet_init(void)
 {
-	pktslab = slab_new(PACKET_SIZE, kmem_get_page);
+	pktslab = slab_new("packet", PACKET_SIZE, kmem_get_page);
 }
 
 struct packet *packet_alloc(void)
