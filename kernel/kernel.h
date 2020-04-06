@@ -150,6 +150,13 @@ extern void *kern_virt_allocator;
 #define EXECUTE_NEVER 0x01
 
 /*
+ * KMalloc
+ */
+void *kmalloc(uint32_t size);
+void kfree(void *ptr, uint32_t size);
+void kmalloc_init(void);
+
+/*
  * System info debugging command (see sysinfo.c for details)
  */
 void sysinfo(void);
