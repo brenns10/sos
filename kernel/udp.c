@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include "net.h"
+#include "socket.h"
 
 struct udp_wait_entry {
 	struct process *proc;
@@ -81,4 +82,13 @@ int udp_send(struct netif *netif, struct packet *pkt, uint32_t src_ip,
 int udp_reserve(void)
 {
 	return ip_reserve() + sizeof(struct udphdr);
+}
+
+struct sockops udp_ops = {
+	.proto = IPPROTO_UDP,
+};
+
+void udp_init(void)
+{
+	socket_register_proto(&udp_ops);
 }

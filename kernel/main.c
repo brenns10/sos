@@ -2,6 +2,7 @@
  * Entry point for C code. At this point, the MMU is enabled.
  */
 #include "kernel.h"
+#include "socket.h"
 
 #define VERBOSE false
 
@@ -24,6 +25,9 @@ void main(uint32_t phys)
 	uart_init();
 	packet_init();
 	virtio_init();
+
+	socket_init();
+	udp_init();
 
 	start_ush();
 }

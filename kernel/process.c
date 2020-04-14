@@ -3,6 +3,7 @@
  */
 #include "kernel.h"
 #include "slab.h"
+#include "socket.h"
 #include "string.h"
 
 struct list_head process_list;
@@ -124,6 +125,9 @@ struct process *create_process(uint32_t binary)
 
 	/*umem_print(p, 0x40000000, 0xFFFFFFFF);*/
 
+	INIT_LIST_HEAD(p->sockets);
+	p->max_fildes = 0;
+
 	return p;
 }
 
@@ -148,6 +152,9 @@ struct process *create_kthread(void (*func)(void *), void *arg)
 	p->first = NULL;
 	p->shadow = NULL;
 
+	INIT_LIST_HEAD(p->sockets);
+	p->max_fildes = 0;
+
 	for (int i = 0; i < nelem(p->context); i++)
 		p->context[i] = 0;
 	p->context[PROC_CTX_SPSR] = (uint32_t)ARM_MODE_SYS;
@@ -160,6 +167,7 @@ struct process *create_kthread(void (*func)(void *), void *arg)
 void destroy_current_process()
 {
 	uint32_t i;
+	struct socket *sock;
 	// printf("[kernel]\t\tdestroy process %u (p=0x%x)\n", proc->id, proc);
 
 	/*
@@ -191,6 +199,11 @@ void destroy_current_process()
 		 */
 		kmem_free_pages(current->first, 0x8000);
 	} else {
+	}
+
+	list_for_each_entry(sock, &current->sockets, sockets, struct socket)
+	{
+		socket_destroy(sock);
 	}
 
 	/*

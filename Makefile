@@ -16,7 +16,7 @@ HOSTCC = gcc
 
 ARCH := armv7-a
 ASFLAGS = -g -march=$(ARCH)
-CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=$(ARCH) -Ilib -marm
+CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=$(ARCH) -Ilib -Iinclude -marm
 LDFLAGS = -nostdlib
 
 TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g
@@ -65,6 +65,7 @@ kernel.elf: kernel/udp.o
 kernel.elf: kernel/netutils.o
 kernel.elf: kernel/dhcp.o
 kernel.elf: kernel/kmalloc.o
+kernel.elf: kernel/socket.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o

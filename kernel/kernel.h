@@ -264,6 +264,11 @@ struct process {
 	/** Global process list entry. */
 	struct list_head list;
 
+	/** List of sockets */
+	struct list_head sockets;
+
+	uint32_t max_fildes;
+
 	/** Basically a pid */
 	uint32_t id;
 

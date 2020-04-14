@@ -48,3 +48,14 @@ int getpid(void)
 	                     : /* clobbers */ "a1", "a2", "a3", "a4");
 	return retval;
 }
+
+int socket(int domain, int type, int protocol)
+{
+	int retval;
+	__asm__ __volatile__("svc #6\n"
+	                     "mov %[rv], a1"
+	                     : /* output operands */[ rv ] "=r"(retval)
+	                     : /* input operands */
+	                     : /* clobbers */ "a1", "a2", "a3", "a4");
+	return retval;
+}

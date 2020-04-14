@@ -35,7 +35,8 @@
 #define SYS_GETCHAR    3
 #define SYS_RUNPROC    4
 #define SYS_GETPID     5
-#define MAX_SYS        5
+#define SYS_SOCKET     6
+#define MAX_SYS        6
 
 /*
  * System call syntax sugars
@@ -47,6 +48,7 @@
 int getchar(void);
 int runproc(char *imagename);
 int getpid(void);
+int socket(int domain, int type, int protocol);
 
 /*
  * Declare a puts() which wraps the display() system call, necessary for printf

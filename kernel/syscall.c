@@ -5,6 +5,7 @@
  * entry.s. They shouldn't be called by external code anyway.
  */
 #include "kernel.h"
+#include "socket.h"
 
 void sys_relinquish(void)
 {
@@ -41,6 +42,11 @@ int sys_runproc(char *imagename)
 int sys_getpid(void)
 {
 	return current->id;
+}
+
+int sys_socket(int domain, int type, int protocol)
+{
+	return socket_socket(domain, type, protocol);
 }
 
 void sys_unknown(uint32_t svc_num)

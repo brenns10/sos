@@ -3,6 +3,7 @@
  */
 #include "format.h"
 #include "string.h"
+#include "sys/socket.h"
 #include "syscall.h"
 
 static char input[256];
@@ -41,6 +42,15 @@ static int cmd_run(int argc, char **argv)
 		printf("failed: rv=0x%x\n", rv);
 }
 
+static int cmd_socket(int argc, char **argv)
+{
+	int rv;
+
+	rv = socket(AF_INET, SOCK_DGRAM, 0);
+	printf("socket() = %u\n", rv);
+	return rv;
+}
+
 static int cmd_demo(int argc, char **argv)
 {
 	int i;
@@ -57,6 +67,7 @@ struct cmd cmds[] = {
 	{ .name = "help", .func = help, .help = "show this help message" },
 	{ .name = "run", .func = cmd_run, .help = "run a process" },
 	{ .name = "demo", .func = cmd_demo, .help = "run many processes" },
+	{ .name = "socket", .func = cmd_socket, .help = "create socket" },
 	{ .name = "exit", .func = cmd_exit, .help = "exit this process" },
 };
 

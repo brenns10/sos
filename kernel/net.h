@@ -26,6 +26,7 @@ void udp_recv(struct netif *netif, struct packet *pkt);
 int udp_send(struct netif *netif, struct packet *pkt, uint32_t src_ip,
              uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
 int udp_reserve(void);
+void udp_init(void);
 
 uint32_t ntohl(uint32_t orig);
 uint16_t ntohs(uint16_t orig);
