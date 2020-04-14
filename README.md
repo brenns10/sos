@@ -10,16 +10,17 @@ improve.
 Instructions
 ------------
 
-To build and run this, you need two important pieces of software:
+To build and run this, you need two important pieces of software: QEMU 4.2+, and
+an ARM cross compiler. These dependencies are straightforward on Arch Linux, but
+Ubuntu users should see more detailed setup instructions in
+[Ubuntu.md](Ubuntu.md).
 
-- [QEMU][qemu]: the virtual machine software used to emulate an ARM system
-- ARM embedded toolchain: a compiler which targets ARM systems with no other
-  operating system, e.g. "arm-none-eabi-gcc". For Ubuntu there's a [PPA][ppa].
+    # Arch Linux
+    $ sudo pacman -Sy arm-none-eabi-gcc arm-none-eabi-binutils arm-none-eabi-gdb \
+          qemu qemu-arch-extra
 
-[qemu]: https://www.qemu.org/
-[ppa]: https://launchpad.net/~team-gcc-arm-embedded/+archive/ubuntu/ppa
 
-With these two programs you can do:
+With these dependencies satisfied, you can do the following:
 
     # Build & run the OS in a VM:
     make run

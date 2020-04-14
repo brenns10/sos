@@ -12,3 +12,4 @@ mydisk
 dump.pcap
 tags
 compile_commands.json
+conf.mk

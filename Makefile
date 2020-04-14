@@ -1,19 +1,28 @@
 .PHONY: clean debug run gdb test
 
-QEMU = qemu-system-arm -M virt -global virtio-mmio.force-legacy=false \
+QEMU = qemu-system-arm
+QEMU_CMD = $(QEMU) -M virt -global virtio-mmio.force-legacy=false \
        -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd \
        -netdev user,id=u1 -device virtio-net-device,netdev=u1 -object filter-dump,id=f1,netdev=u1,file=dump.pcap \
        -d guest_errors
-TOOLCHAIN = arm-none-eabi-
+TOOLCHAIN ?= arm-none-eabi-
 AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc
+LD = $(TOOLCHAIN)ld
+OBJCOPY = $(TOOLCHAIN)objcopy
+GDB = $(TOOLCHAIN)gcc
 
-ARCH=armv7-a
+HOSTCC = gcc
+
+ARCH := armv7-a
 ASFLAGS = -g -march=$(ARCH)
 CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=$(ARCH) -Ilib -marm
 LDFLAGS = -nostdlib
 
 TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g
+
+# Include here to allow overriding settings via a more permanent conf.mk
+-include conf.mk
 
 mydisk:
 	dd if=/dev/zero of=mydisk bs=1m count=1
@@ -21,16 +30,16 @@ mydisk:
 run: kernel.bin mydisk
 	@echo Running. Exit with Ctrl-A X
 	@echo
-	$(QEMU) -kernel kernel.bin -nographic
+	$(QEMU_CMD) -kernel kernel.bin -nographic
 
 debug: kernel.bin mydisk
 	@echo Entering debug mode. Go run \"make gdb\" in another terminal.
 	@echo You can terminate the qemu process with Ctrl-A X
 	@echo
-	$(QEMU) -kernel kernel.bin -nographic -gdb tcp::9000 -S
+	$(QEMU_CMD) -kernel kernel.bin -nographic -gdb tcp::9000 -S
 
 gdb:
-	$(TOOLCHAIN)gdb -x gdbscript
+	$(GDB) -x gdbscript
 
 # Object files going into the kernel:
 kernel.elf: kernel/uart.o
@@ -76,31 +85,31 @@ kernel/rawdata.o: user/salutations.bin user/hello.bin user/ush.bin
 
 # To build a userspace program:
 user/%.elf:
-	$(TOOLCHAIN)ld -T user.ld $^ -o $@
+	$(LD) -T user.ld $^ -o $@
 user/%.bin: user/%.elf
-	$(TOOLCHAIN)objcopy -O binary $< $@
+	$(OBJCOPY) -O binary $< $@
 
 # To bulid the kernel
 %.bin: %.elf
-	$(TOOLCHAIN)objcopy -O binary $< $@
+	$(OBJCOPY) -O binary $< $@
 %.elf:
-	$(TOOLCHAIN)ld -T $(patsubst %.elf,%.ld,$@) $^ -o $@
-	$(TOOLCHAIN)ld -T pre_mmu.ld $^ -o pre_mmu.elf
+	$(LD) -T $(patsubst %.elf,%.ld,$@) $^ -o $@
+	$(LD) -T pre_mmu.ld $^ -o pre_mmu.elf
 
 #
 # Unit tests
 #
 lib/%.to: lib/%.c
-	gcc $(TEST_CFLAGS) -g -c $< -o $@ -Ilib/
+	$(HOSTCC) $(TEST_CFLAGS) -g -c $< -o $@ -Ilib/
 tests/%.to: tests/%.c
-	gcc $(TEST_CFLAGS) -g -c $< -o $@ -Ilib/
+	$(HOSTCC) $(TEST_CFLAGS) -g -c $< -o $@ -Ilib/
 
 tests/list.test: tests/test_list.to lib/list.to lib/unittest.to
-	gcc $(TEST_CFLAGS) -o $@ $^
+	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
 tests/alloc.test: tests/test_alloc.to lib/alloc.to lib/unittest.to
-	gcc $(TEST_CFLAGS) -o $@ $^
+	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
 tests/slab.test: tests/test_slab.to lib/slab.to lib/unittest.to lib/list.to
-	gcc $(TEST_CFLAGS) -o $@ $^
+	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
 
 test: tests/list.test tests/alloc.test tests/slab.test
 	rm -f cov*.html *.gcda lib/*.gcda tests/*.gcda
