@@ -33,6 +33,13 @@ struct list_head {
 };
 
 /**
+ * struct hlist_head: Embed this into structs for a singly linked list
+ */
+struct hlist_head {
+	struct hlist_head *next;
+};
+
+/**
  * Initialize a "header" for a list by making it point to itself (i.e. empty).
  * This should be used dynamically. You need not use this before adding an
  * element to an existing list.
@@ -43,17 +50,24 @@ struct list_head {
 		name.prev = &name;                                             \
 	} while (0);
 
+#define INIT_HLIST_HEAD(name)                                                  \
+	do {                                                                   \
+		name.next = &name;                                             \
+	} while (0);
+
 /**
  * Declare a "header" for a list which points to itself. Use this for static
  * allocations.
  */
-#define DECLARE_LIST_HEAD(name) struct list_head name = { &name, &name }
+#define DECLARE_LIST_HEAD(name)  struct list_head name = { &name, &name }
+#define DECLARE_HLIST_HEAD(name) struct hlist_head name = { &name }
 
 /**
  * Insert `item` (presumably embedded into a struct) into a list which is
  * referred to via `head`. Inserts at the beginning of the list.
  */
 void list_insert(struct list_head *head, struct list_head *item);
+void hlist_insert(struct hlist_head *head, struct hlist_head *item);
 
 /**
  * Insert `item` at the end of the list.
@@ -64,6 +78,7 @@ void list_insert_end(struct list_head *head, struct list_head *item);
  * Remove `item` from the list it is contained in.
  */
 void list_remove(struct list_head *item);
+void hlist_remove(struct hlist_head *parent_or_head, struct hlist_head *item);
 
 /**
  * Iterate through list_head structures. This usually is not a very helpful

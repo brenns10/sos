@@ -6,6 +6,19 @@
 
 #include "list.h"
 
+void hlist_insert(struct hlist_head *head, struct hlist_head *item)
+{
+	item->next = head->next;
+	head->next = item;
+}
+
+void hlist_remove(struct hlist_head *parent_or_head, struct hlist_head *item)
+{
+	while (parent_or_head->next != item)
+		parent_or_head = parent_or_head->next;
+	parent_or_head->next = item->next;
+}
+
 void list_insert(struct list_head *head, struct list_head *item)
 {
 	item->next = head->next;
