@@ -24,8 +24,10 @@ SECTIONS {
 	}
 	.data . : {
 		*(.data)
-	}
-	.bss . : {
+		/* Include the bss into the .data section because otherwise, it
+		 * will be left out of the .bin image. If that happens, we can
+		 * incorrectly allocate space for the stack and image, which
+		 * will be bad news */
 		*(.bss)
 	}
 	data_end = .;
