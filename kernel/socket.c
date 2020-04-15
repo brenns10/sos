@@ -56,6 +56,17 @@ void socket_destroy(struct socket *sock)
 	slab_free(socket_slab, sock);
 }
 
+struct socket *socket_get_by_fd(struct process *proc, int fd)
+{
+	struct socket *sk;
+	list_for_each_entry(sk, &proc->sockets, sockets, struct socket)
+	{
+		if (sk->fildes == fd)
+			return sk;
+	}
+	return NULL;
+}
+
 void socket_init(void)
 {
 	socket_slab = slab_new("socket", sizeof(struct socket), kmem_get_page);

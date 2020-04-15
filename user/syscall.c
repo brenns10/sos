@@ -2,6 +2,7 @@
  * syscall.c: code related to system calls
  */
 #include "syscall.h"
+#include "sys/socket.h"
 
 void puts(char *string)
 {
@@ -53,6 +54,17 @@ int socket(int domain, int type, int protocol)
 {
 	int retval;
 	__asm__ __volatile__("svc #6\n"
+	                     "mov %[rv], a1"
+	                     : /* output operands */[ rv ] "=r"(retval)
+	                     : /* input operands */
+	                     : /* clobbers */ "a1", "a2", "a3", "a4");
+	return retval;
+}
+
+int bind(int sockfd, const struct sockaddr *address, socklen_t address_len)
+{
+	int retval;
+	__asm__ __volatile__("svc #7\n"
 	                     "mov %[rv], a1"
 	                     : /* output operands */[ rv ] "=r"(retval)
 	                     : /* input operands */

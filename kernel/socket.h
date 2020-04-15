@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include "kernel.h"
 #include "list.h"
 #include "net.h"
 #include "packets.h"
@@ -41,4 +42,5 @@ struct socket {
 int socket_socket(int domain, int type, int protocol);
 void socket_register_proto(struct sockops *ops);
 void socket_destroy(struct socket *sock);
+struct socket *socket_get_by_fd(struct process *proc, int fd);
 void socket_init(void);

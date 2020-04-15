@@ -49,6 +49,18 @@ int sys_socket(int domain, int type, int protocol)
 	return socket_socket(domain, type, protocol);
 }
 
+int sys_bind(int sockfd, const struct sockaddr *address, socklen_t address_len)
+{
+	struct socket *sk = socket_get_by_fd(current, sockfd);
+	if (!sk)
+		return -EBADF;
+
+	if (!sk->ops->bind)
+		return -EOPNOTSUPP;
+
+	return sk->ops->bind(sk, address, address_len);
+}
+
 void sys_unknown(uint32_t svc_num)
 {
 	printf("ERROR: unknown syscall number %u!\n", svc_num);

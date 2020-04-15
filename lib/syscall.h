@@ -35,8 +35,8 @@
 #define SYS_GETCHAR    3
 #define SYS_RUNPROC    4
 #define SYS_GETPID     5
-#define SYS_SOCKET     6
-#define MAX_SYS        6
+#define SYS_SOCKET     7
+#define MAX_SYS        7
 
 /*
  * System call syntax sugars

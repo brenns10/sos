@@ -66,6 +66,7 @@ kernel.elf: kernel/netutils.o
 kernel.elf: kernel/dhcp.o
 kernel.elf: kernel/kmalloc.o
 kernel.elf: kernel/socket.o
+kernel.elf: kernel/user.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o
