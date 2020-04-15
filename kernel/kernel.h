@@ -404,3 +404,5 @@ extern struct netif nif;
 
 void packet_init(void);
 struct packet *udp_wait(uint16_t port);
+
+int copy_from_user(void *kerndst, void *usersrc, size_t n);

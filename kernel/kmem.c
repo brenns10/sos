@@ -83,8 +83,12 @@ static void init_second_level(uint32_t *second)
 static uint32_t *get_second(struct mem *mem, uint32_t first_idx)
 {
 	if (mem->strategy == STRAT_KERNEL) {
-		return second_level_table + (first_idx * 1024);
+		if ((mem->base[first_idx] & FLD_MASK) != FLD_COARSE)
+			return NULL;
+		else
+			return second_level_table + (first_idx * 1024);
 	} else {
+		/* contains null if unmapped */
 		return (uint32_t *)mem->shadow[first_idx];
 	}
 }
@@ -183,6 +187,13 @@ static uint32_t lookup_phys(struct mem *mem, void *virt_ptr)
 	uint32_t first_idx = virt >> 20;
 	uint32_t second_idx = (virt >> 12) & 0xFF;
 	uint32_t *second = get_second(mem, first_idx);
+
+	if (!second)
+		return 0;
+
+	if (second[second_idx] & SLD_MASK == SLD_UNMAPPED)
+		return 0;
+
 	return ((second[second_idx] & top_n_bits(20)) |
 	        (virt & bot_n_bits(12)));
 }
