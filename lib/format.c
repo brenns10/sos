@@ -9,7 +9,16 @@
  * Stephen Brennan
  */
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
+
+#ifdef TEST_PREFIX
+#define vsnprintf test_vsnprintf
+#define snprintf  test_snprintf
+#define printf    test_printf
+#define atoi      test_atoi
+#define puts      test_puts
+#endif
 
 /* Your puts() should fit this signature (roughly) */
 extern void puts(char *string);
@@ -70,13 +79,19 @@ static inline uint32_t _format_mac(char *buf, uint32_t size, uint32_t out,
 }
 
 /**
- * Implements the %u format specifier.
+ * Implements the %u and %d format specifiers.
  */
-static inline uint32_t _format_uint(char *buf, uint32_t size, uint32_t out,
-                                    uint32_t val)
+static inline uint32_t _format_int(char *buf, uint32_t size, uint32_t out,
+                                   uint32_t val, bool is_signed)
 {
 	uint8_t tmp[10]; // max base 10 digits for 32-bit int
 	uint32_t tmpIdx = 0, rem;
+
+	if (is_signed && (val & 0x80000000)) {
+		val = ~(val) + 1;
+		SET(buf, size, out, '-');
+	}
+
 	do {
 		rem = val % 10; // should do uidivmod, only one call
 		val = val / 10;
@@ -96,13 +111,13 @@ static inline uint32_t _format_uint(char *buf, uint32_t size, uint32_t out,
 static inline uint32_t _format_ipv4(char *buf, uint32_t size, uint32_t out,
                                     uint32_t val)
 {
-	out = _format_uint(buf, size, out, (val >> 0) & 0xFF);
+	out = _format_int(buf, size, out, (val >> 0) & 0xFF, false);
 	SET(buf, size, out, '.');
-	out = _format_uint(buf, size, out, (val >> 8) & 0xFF);
+	out = _format_int(buf, size, out, (val >> 8) & 0xFF, false);
 	SET(buf, size, out, '.');
-	out = _format_uint(buf, size, out, (val >> 16) & 0xFF);
+	out = _format_int(buf, size, out, (val >> 16) & 0xFF, false);
 	SET(buf, size, out, '.');
-	out = _format_uint(buf, size, out, (val >> 24) & 0xFF);
+	out = _format_int(buf, size, out, (val >> 24) & 0xFF, false);
 	return out;
 }
 
@@ -163,8 +178,10 @@ uint32_t vsnprintf(char *buf, uint32_t size, const char *format, va_list vl)
 				out = _format_str(buf, size, out, strval);
 				break;
 			case 'u':
+			case 'd':
 				uintval = va_arg(vl, uint32_t);
-				out = _format_uint(buf, size, out, uintval);
+				out = _format_int(buf, size, out, uintval,
+				                  format[in] == 'd');
 				break;
 			case 'I':
 				uintval = va_arg(vl, uint32_t);
@@ -241,3 +258,11 @@ int atoi(const char *str)
 		val = val * 10 + (str[i] - '0');
 	return val;
 }
+
+#ifdef TEST_PREFIX
+#undef vsnprintf
+#undef snprintf
+#undef printf
+#undef atoi
+#undef puts
+#endif

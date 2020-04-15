@@ -16,10 +16,10 @@ HOSTCC = gcc
 
 ARCH := armv7-a
 ASFLAGS = -g -march=$(ARCH)
-CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=$(ARCH) -Ilib -Iinclude -marm
+CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=$(ARCH) -iquote lib -iquote include -marm
 LDFLAGS = -nostdlib
 
-TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g
+TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g -DTEST_PREFIX
 
 # Include here to allow overriding settings via a more permanent conf.mk
 -include conf.mk
@@ -111,12 +111,15 @@ tests/alloc.test: tests/test_alloc.to lib/alloc.to lib/unittest.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
 tests/slab.test: tests/test_slab.to lib/slab.to lib/unittest.to lib/list.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
+tests/format.test: tests/test_format.to lib/format.to lib/unittest.to
+	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
 
-test: tests/list.test tests/alloc.test tests/slab.test
+test: tests/list.test tests/alloc.test tests/slab.test tests/format.test
 	rm -f cov*.html *.gcda lib/*.gcda tests/*.gcda
 	@tests/list.test
 	@tests/alloc.test
 	@tests/slab.test
+	@tests/format.test
 	gcovr -r . --html --html-details -o cov.html lib/ tests/
 
 clean:
