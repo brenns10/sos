@@ -10,7 +10,7 @@ AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc
 LD = $(TOOLCHAIN)ld
 OBJCOPY = $(TOOLCHAIN)objcopy
-GDB = $(TOOLCHAIN)gcc
+GDB = $(TOOLCHAIN)gdb
 
 HOSTCC = gcc
 
