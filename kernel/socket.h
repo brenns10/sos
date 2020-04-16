@@ -11,7 +11,7 @@
 struct socket;
 
 struct sockops {
-	int (*connect)(struct socket *socket, struct sockaddr *address,
+	int (*connect)(struct socket *socket, const struct sockaddr *address,
 	               socklen_t address_len);
 	int (*bind)(struct socket *socket, const struct sockaddr *address,
 	            socklen_t address_len);

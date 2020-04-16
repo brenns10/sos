@@ -161,9 +161,31 @@ int udp_bind(struct socket *sock, const struct sockaddr *address,
 	return 0;
 }
 
+int udp_connect(struct socket *sock, const struct sockaddr *address,
+                socklen_t address_len)
+{
+	int rv;
+	struct sockaddr_in addr;
+
+	/* UDP is connectionless. Calling connect() many times is just fine with
+	 * us. */
+
+	if (address_len != sizeof(struct sockaddr_in))
+		return -EINVAL;
+
+	rv = copy_from_user(&addr, address, address_len);
+	if (rv < 0)
+		return rv;
+
+	sock->dst = addr;
+	sock->flags.sk_connected = 1;
+	return 0;
+}
+
 struct sockops udp_ops = {
 	.proto = IPPROTO_UDP,
 	.bind = udp_bind,
+	.connect = udp_connect,
 };
 
 void udp_init(void)
