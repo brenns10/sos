@@ -187,7 +187,6 @@ struct virtio_net_hdr {
 	uint16_t num_buffers;
 	struct packet *packet;
 } __attribute__((packed));
-#define MAX_ETH_PKT_SIZE 1514
 
 #define VIRTIO_NET_HDRLEN 10
 

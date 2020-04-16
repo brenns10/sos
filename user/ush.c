@@ -89,6 +89,21 @@ static int cmd_connect(int argc, char **argv)
 	return rv;
 }
 
+static int cmd_send(int argc, char **argv)
+{
+	int rv, sockfd;
+
+	if (argc != 3) {
+		puts("usage: send FD STRING\n");
+		return -1;
+	}
+
+	sockfd = atoi(argv[1]);
+	rv = send(sockfd, argv[2], strlen(argv[2]) + 1, 0);
+	printf("send() = %d\n", rv);
+	return rv;
+}
+
 static int cmd_demo(int argc, char **argv)
 {
 	int i;
@@ -108,6 +123,7 @@ struct cmd cmds[] = {
 	{ .name = "socket", .func = cmd_socket, .help = "create socket" },
 	{ .name = "bind", .func = cmd_bind, .help = "bind socket" },
 	{ .name = "connect", .func = cmd_connect, .help = "connect socket" },
+	{ .name = "send", .func = cmd_send, .help = "send data on socket" },
 	{ .name = "exit", .func = cmd_exit, .help = "exit this process" },
 };
 

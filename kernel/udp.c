@@ -134,6 +134,33 @@ void udp_do_bind(struct socket *sock, const struct sockaddr_in *addr)
 	sock->flags.sk_bound = 1;
 }
 
+static bool udp_bind_to_ephemeral(struct socket *sock)
+{
+	const uint16_t ephemeral_begin = 20000;
+	const uint16_t ephemeral_end = 65535;
+
+	struct sockaddr_in addr;
+	static uint16_t i = ephemeral_begin;
+	uint16_t prev;
+	uint16_t tries = 100;
+
+	while (tries--) {
+		prev = i;
+		if (i == ephemeral_end)
+			i = ephemeral_begin;
+		else
+			i = i + 1;
+
+		if (!lookup_entry(htons(prev))) {
+			addr.sin_addr.s_addr = 0;
+			addr.sin_port = htons(prev);
+			udp_do_bind(sock, &addr);
+			return true;
+		}
+	}
+	return false;
+}
+
 int udp_bind(struct socket *sock, const struct sockaddr *address,
              socklen_t address_len)
 {
@@ -182,10 +209,57 @@ int udp_connect(struct socket *sock, const struct sockaddr *address,
 	return 0;
 }
 
+int udp_sys_send(struct socket *sock, void *data, size_t len, int flags)
+{
+	int rv, space;
+	struct packet *pkt;
+	uint32_t src, dst;
+
+	space = udp_reserve();
+	if (space + len > MAX_ETH_PKT_SIZE)
+		return -EMSGSIZE;
+
+	if (!sock->flags.sk_connected) {
+		/* Although UDP sockets do support sending via sockets without
+		 * connecting, it is through the sendto() or sendmsg() syscalls.
+		 * We require that the socket be connected first. */
+		return -EDESTADDRREQ;
+	}
+
+	if (!sock->flags.sk_bound) {
+		/* Unbound sockets can be sent from -- we just select an unused
+		 * ephemeral port and bind to that. */
+		if (!udp_bind_to_ephemeral(sock)) {
+			return -EADDRINUSE;
+		}
+	}
+
+	pkt = packet_alloc();
+	pkt->app = (void *)&pkt->data + space;
+	rv = copy_from_user(pkt->app, data, len);
+	if (rv < 0)
+		goto error;
+
+	pkt->end = pkt->app + len;
+
+	if (sock->src.sin_addr.s_addr)
+		src = sock->src.sin_addr.s_addr;
+	else
+		src = nif.ip;
+
+	udp_send(&nif, pkt, src, sock->dst.sin_addr.s_addr, sock->src.sin_port,
+	         sock->dst.sin_port);
+	return len;
+error:
+	packet_free(pkt);
+	return rv;
+}
+
 struct sockops udp_ops = {
 	.proto = IPPROTO_UDP,
 	.bind = udp_bind,
 	.connect = udp_connect,
+	.send = udp_sys_send,
 };
 
 void udp_init(void)

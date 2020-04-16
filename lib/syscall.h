@@ -3,6 +3,8 @@
  */
 #pragma once
 
+#include <stddef.h>
+
 #include "sys/socket.h"
 
 /* macro quoting utilities */
@@ -40,7 +42,8 @@
 #define SYS_SOCKET     6
 #define SYS_BIND       7
 #define SYS_CONNECT    8
-#define MAX_SYS        8
+#define SYS_SEND       9
+#define MAX_SYS        9
 
 /*
  * System call syntax sugars
@@ -54,7 +57,7 @@ int runproc(char *imagename);
 int getpid(void);
 int socket(int domain, int type, int protocol);
 int bind(int sockfd, const struct sockaddr *address, socklen_t address_len);
-int connect(int sockfd, const struct sockaddr *address, socklen_t address_len);
+int send(int sockfd, const void *buffer, size_t length, int flags);
 
 /*
  * Declare a puts() which wraps the display() system call, necessary for printf

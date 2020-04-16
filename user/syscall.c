@@ -82,3 +82,14 @@ int connect(int sockfd, const struct sockaddr *address, socklen_t address_len)
 	                     : /* clobbers */ "a1", "a2", "a3", "a4");
 	return retval;
 }
+
+int send(int sockfd, const void *buffer, size_t length, int flags)
+{
+	int retval;
+	__asm__ __volatile__("svc #9\n"
+	                     "mov %[rv], a1"
+	                     : /* output operands */[ rv ] "=r"(retval)
+	                     : /* input operands */
+	                     : /* clobbers */ "a1", "a2", "a3", "a4");
+	return retval;
+}

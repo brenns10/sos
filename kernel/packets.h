@@ -162,3 +162,5 @@ struct packet *packet_alloc(void);
 void packet_free(struct packet *pkt);
 #define PACKET_SIZE     2048
 #define PACKET_CAPACITY (PACKET_SIZE - sizeof(struct packet))
+
+#define MAX_ETH_PKT_SIZE 1514

@@ -61,17 +61,29 @@ int sys_bind(int sockfd, const struct sockaddr *address, socklen_t address_len)
 	return sk->ops->bind(sk, address, address_len);
 }
 
-void sys_connect(int sockfd, const struct sockaddr *address,
-                 socklen_t address_len)
+int sys_connect(int sockfd, const struct sockaddr *address,
+                socklen_t address_len)
 {
 	struct socket *sk = socket_get_by_fd(current, sockfd);
 	if (!sk)
 		return -EBADF;
 
-	if (!sk->ops->bind)
+	if (!sk->ops->connect)
 		return -EOPNOTSUPP;
 
 	return sk->ops->connect(sk, address, address_len);
+}
+
+int sys_send(int sockfd, const void *buffer, size_t length, int flags)
+{
+	struct socket *sk = socket_get_by_fd(current, sockfd);
+	if (!sk)
+		return -EBADF;
+
+	if (!sk->ops->send)
+		return -EOPNOTSUPP;
+
+	return sk->ops->send(sk, buffer, length, flags);
 }
 
 void sys_unknown(uint32_t svc_num)
