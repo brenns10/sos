@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "format.h"
 #include "unittest.h"
 
 char buffer[4096];

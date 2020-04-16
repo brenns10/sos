@@ -102,9 +102,9 @@ user/%.bin: user/%.elf
 # Unit tests
 #
 lib/%.to: lib/%.c
-	$(HOSTCC) $(TEST_CFLAGS) -g -c $< -o $@ -Ilib/
+	$(HOSTCC) $(TEST_CFLAGS) -g -c $< -o $@ -iquote lib/
 tests/%.to: tests/%.c
-	$(HOSTCC) $(TEST_CFLAGS) -g -c $< -o $@ -Ilib/
+	$(HOSTCC) $(TEST_CFLAGS) -g -c $< -o $@ -iquote lib/
 
 tests/list.test: tests/test_list.to lib/list.to lib/unittest.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
