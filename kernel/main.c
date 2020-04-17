@@ -28,6 +28,7 @@ void main(uint32_t phys)
 
 	socket_init();
 	udp_init();
+	dhcp_kthread_start();
 
 	start_ush();
 }

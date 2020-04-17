@@ -127,8 +127,10 @@ struct packet *dhcp_handle_offer(struct netif *netif, struct packet *pkt)
 		       dhcp->options[2]);
 		return NULL;
 	}
+	/*
 	printf("receive offer from %I: %I\n", pkt->ip->dst,
 	       *(uint32_t *)&dhcp->yiaddr);
+	*/
 
 	dhcplen = ntohs(pkt->udp->len) - sizeof(struct udphdr);
 	rv = dhcp_parse_offer(dhcp, dhcplen, &offer);
@@ -186,8 +188,10 @@ int dhcp_handle_ack(struct netif *netif, struct packet *pkt)
 		       DHCPMTYPE_DHCPACK, dhcp->options[2]);
 		return -1;
 	}
+	/*
 	printf("receive ack from %I: %I\n", pkt->ip->dst,
 	       *(uint32_t *)&dhcp->yiaddr);
+	*/
 
 	dhcplen = ntohs(pkt->udp->len) - sizeof(struct udphdr);
 	rv = dhcp_parse_offer(dhcp, dhcplen, &offer);
@@ -205,22 +209,18 @@ int dhcp_handle_ack(struct netif *netif, struct packet *pkt)
 	return 0;
 }
 
-int dhcp_cmd_discover(int argc, char **argv)
+void dhcp(void)
 {
 	struct packet *offer, *reply, *ack;
 
-	puts("Send DHCP discover packet and wait for response...\n");
 	interrupt_disable();
 	dhcp_discover(&nif);
 	offer = udp_wait(UDPPORT_DHCP_CLIENT); /* interrupts re-enabled */
 
-	puts("Received response, handling it...\n");
 	reply = dhcp_handle_offer(&nif, offer);
 	packet_free(offer);
 	if (!reply)
 		return -1;
-
-	puts("Send DHCP request and wait for response...\n");
 
 	interrupt_disable();
 	udp_send(&nif, reply, 0, 0xFFFFFFFF, UDPPORT_DHCP_CLIENT,
@@ -229,4 +229,21 @@ int dhcp_cmd_discover(int argc, char **argv)
 
 	dhcp_handle_ack(&nif, ack);
 	packet_free(ack);
+}
+
+static void dhcp_kthread(void *arg)
+{
+	dhcp();
+	destroy_current_process();
+}
+
+void dhcp_kthread_start(void)
+{
+	struct process *proc = create_kthread(dhcp_kthread, NULL);
+	list_insert(&process_list, &proc->list);
+}
+
+int dhcp_cmd_discover(int argc, char **argv)
+{
+	dhcp();
 }
