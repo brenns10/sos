@@ -8,8 +8,8 @@ uint8_t broadcast_mac[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 void eth_recv(struct netif *netif, struct packet *pkt)
 {
-	printf("eth_recv src=%M dst=%M ethertype=0x%x\n", &pkt->eth->src_mac,
-	       &pkt->eth->dst_mac, ntohs(pkt->eth->ethertype));
+	/*printf("eth_recv src=%M dst=%M ethertype=0x%x\n", &pkt->eth->src_mac,
+	       &pkt->eth->dst_mac, ntohs(pkt->eth->ethertype));*/
 	pkt->nl = pkt->ll + sizeof(struct etherframe);
 	if (memcmp(pkt->eth->dst_mac, broadcast_mac, MAC_SIZE) == 0 ||
 	    memcmp(pkt->eth->dst_mac, netif->mac, MAC_SIZE) == 0) {

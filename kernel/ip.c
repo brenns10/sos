@@ -49,7 +49,7 @@ int ip_cmd_show_arptable(int argc, char **argv)
 
 void ip_recv(struct netif *netif, struct packet *pkt)
 {
-	printf("ip_recv src=%I dst=%I\n", pkt->ip->src, pkt->ip->dst);
+	/*printf("ip_recv src=%I dst=%I\n", pkt->ip->src, pkt->ip->dst);*/
 	if (pkt->ip->dst != netif->ip && pkt->ip->dst != 0xFFFFFFFF) {
 		puts("received IP packet not destined for us, dropping\n");
 		goto cleanup;

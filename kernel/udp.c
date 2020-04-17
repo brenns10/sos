@@ -65,8 +65,8 @@ void udp_recv(struct netif *netif, struct packet *pkt)
 {
 	struct udp_wait_entry *entry;
 	uint32_t hash = udp_hash(ntohs(pkt->udp->dst_port));
-	printf("udp_recv src=%u dst=%u\n", ntohs(pkt->udp->src_port),
-	       ntohs(pkt->udp->dst_port));
+	/*printf("udp_recv src=%u dst=%u\n", ntohs(pkt->udp->src_port),
+	       ntohs(pkt->udp->dst_port));*/
 	pkt->al = pkt->tl + sizeof(struct udphdr);
 	list_for_each_entry(entry, &udp_hlist[hash], list,
 	                    struct udp_wait_entry)
