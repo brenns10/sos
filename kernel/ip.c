@@ -83,7 +83,7 @@ uint32_t ip_route(struct netif *netif, uint32_t dst_ip)
 
 uint8_t *ip_get_mac(struct netif *netif, uint32_t nexthop)
 {
-	return netif->mac;
+	return get_mapping(nexthop);
 }
 
 int ip_send(struct netif *netif, struct packet *pkt, uint8_t proto,
