@@ -52,8 +52,10 @@
 #define relinquish()    sys0(SYS_RELINQUISH)
 #define exit(code)      sys1(SYS_EXIT, code)
 
+#define RUNPROC_F_WAIT 1
+
 int getchar(void);
-int runproc(char *imagename);
+int runproc(char *imagename, int flags);
 int getpid(void);
 int socket(int domain, int type, int protocol);
 int bind(int sockfd, const struct sockaddr *address, socklen_t address_len);

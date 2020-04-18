@@ -5,6 +5,7 @@
 #include "slab.h"
 #include "socket.h"
 #include "string.h"
+#include "wait.h"
 
 struct list_head process_list;
 struct process *current = NULL;
@@ -128,6 +129,8 @@ struct process *create_process(uint32_t binary)
 	INIT_LIST_HEAD(p->sockets);
 	p->max_fildes = 0;
 
+	wait_list_init(&p->endlist);
+
 	return p;
 }
 
@@ -161,6 +164,8 @@ struct process *create_kthread(void (*func)(void *), void *arg)
 	p->context[PROC_CTX_A1] = (uint32_t)arg;
 	p->context[PROC_CTX_RET] = (uint32_t)func;
 	p->context[PROC_CTX_SP] = (uint32_t)(p->kstack);
+
+	wait_list_init(&p->endlist);
 	return p;
 }
 
@@ -205,6 +210,9 @@ void destroy_current_process()
 	{
 		socket_destroy(sock);
 	}
+
+	wait_list_awaken(&current->endlist);
+	wait_list_destroy(&current->endlist);
 
 	/*
 	 * Free the kernel stack, which we stored the other end of for

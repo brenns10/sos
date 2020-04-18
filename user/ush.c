@@ -40,7 +40,19 @@ static int cmd_run(int argc, char **argv)
 		return -1;
 	}
 
-	if ((rv = runproc(argv[1])) != 0)
+	if ((rv = runproc(argv[1], RUNPROC_F_WAIT)) != 0)
+		printf("failed: rv=0x%x\n", rv);
+}
+
+static int cmd_runp(int argc, char **argv)
+{
+	int rv;
+	if (argc != 2) {
+		puts("usage: run& PROCNAME\n");
+		return -1;
+	}
+
+	if ((rv = runproc(argv[1], 0)) != 0)
 		printf("failed: rv=0x%x\n", rv);
 }
 
@@ -108,7 +120,7 @@ static int cmd_demo(int argc, char **argv)
 {
 	int i;
 	for (i = 0; i < 10; i++)
-		runproc("hello");
+		runproc("hello", 0);
 	puts("Launched all processes!\n");
 }
 
@@ -119,6 +131,9 @@ struct cmd cmds[] = {
 	  .help = "print each arg, useful for debugging" },
 	{ .name = "help", .func = help, .help = "show this help message" },
 	{ .name = "run", .func = cmd_run, .help = "run a process" },
+	{ .name = "run&",
+	  .func = cmd_runp,
+	  .help = "run a process without waiting for it to finish" },
 	{ .name = "demo", .func = cmd_demo, .help = "run many processes" },
 	{ .name = "socket", .func = cmd_socket, .help = "create socket" },
 	{ .name = "bind", .func = cmd_bind, .help = "bind socket" },
@@ -126,7 +141,6 @@ struct cmd cmds[] = {
 	{ .name = "send", .func = cmd_send, .help = "send data on socket" },
 	{ .name = "exit", .func = cmd_exit, .help = "exit this process" },
 };
-
 /*
  * help() goes after the cmds array so it can print out a listing
  */

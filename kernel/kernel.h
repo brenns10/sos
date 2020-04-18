@@ -10,6 +10,7 @@
 #include "alloc.h"
 #include "format.h"
 #include "list.h"
+#include "wait.h"
 
 /* Useful macros for the kernel to use */
 #define nelem(x) (sizeof(x) / sizeof(x[0]))
@@ -285,6 +286,9 @@ struct process {
 	uint32_t ttbr1;
 	uint32_t *first;
 	uint32_t **shadow;
+
+	/** Waitlist for when the process ends */
+	struct waitlist endlist;
 };
 
 /**

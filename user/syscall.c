@@ -28,7 +28,7 @@ int getchar(void)
 	return retval;
 }
 
-int runproc(char *imagename)
+int runproc(char *imagename, int flags)
 {
 	int retval;
 	__asm__ __volatile__("svc #4\n"

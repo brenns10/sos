@@ -4,6 +4,7 @@
  * These aren't declared in a header since they are only linked against by
  * entry.s. They shouldn't be called by external code anyway.
  */
+#include "syscall.h"
 #include "kernel.h"
 #include "socket.h"
 
@@ -30,12 +31,18 @@ int sys_getchar(void)
 	return getc_blocking();
 }
 
-int sys_runproc(char *imagename)
+int sys_runproc(char *imagename, int flags)
 {
 	int32_t img = process_image_lookup(imagename);
+	struct process *proc;
 	if (img < 0)
 		return -1;
-	create_process(img);
+	proc = create_process(img);
+
+	if (flags & RUNPROC_F_WAIT) {
+		wait_for(&proc->endlist);
+	}
+
 	return 0;
 }
 
