@@ -2,6 +2,7 @@
  * User Shell
  */
 #include "format.h"
+#include "inet.h"
 #include "string.h"
 #include "sys/socket.h"
 #include "syscall.h"
@@ -76,7 +77,11 @@ static int cmd_bind(int argc, char **argv)
 	}
 
 	sockfd = atoi(argv[1]);
-	addr.sin_addr.s_addr = atoi(argv[2]);
+	rv = inet_aton(argv[2], &addr.sin_addr.s_addr);
+	if (rv != 1) {
+		puts("error: bad IP\n");
+		return;
+	}
 	addr.sin_port = atoi(argv[3]);
 	rv = bind(sockfd, &addr, sizeof(struct sockaddr_in));
 	printf("bind() = %d\n", rv);
@@ -94,7 +99,11 @@ static int cmd_connect(int argc, char **argv)
 	}
 
 	sockfd = atoi(argv[1]);
-	addr.sin_addr.s_addr = atoi(argv[2]);
+	rv = inet_aton(argv[2], &addr.sin_addr.s_addr);
+	if (rv != 1) {
+		puts("error: bad IP\n");
+		return;
+	}
 	addr.sin_port = atoi(argv[3]);
 	rv = connect(sockfd, &addr, sizeof(struct sockaddr_in));
 	printf("connect() = %d\n", rv);
