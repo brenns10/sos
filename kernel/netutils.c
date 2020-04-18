@@ -8,27 +8,6 @@
 struct slab *pktslab = NULL;
 #define PACKET_SIZE 2048
 
-uint32_t ntohl(uint32_t orig)
-{
-	return ((orig & 0xFF) << 24) | ((orig & 0xFF00) << 8) |
-	       ((orig & 0xFF0000) >> 8) | ((orig & 0xFF000000) >> 24);
-}
-
-uint16_t ntohs(uint16_t orig)
-{
-	return ((orig & 0xFF) << 8 | (orig & 0xFF00) >> 8);
-}
-
-uint32_t htonl(uint32_t orig)
-{
-	return ntohl(orig);
-}
-
-uint32_t htons(uint16_t orig)
-{
-	return ntohs(orig);
-}
-
 void csum_init(uint32_t *csum)
 {
 	*csum = 0;

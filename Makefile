@@ -76,6 +76,7 @@ kernel.elf: lib/string.o
 kernel.elf: lib/util.o
 kernel.elf: lib/slab.o
 kernel.elf: lib/math.o
+kernel.elf: lib/inet.o
 
 # Object files going into each userspace program:
 USER_BASIC = user/syscall.o user/startup.o
@@ -115,13 +116,16 @@ tests/slab.test: tests/test_slab.to lib/slab.to lib/unittest.to lib/list.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
 tests/format.test: tests/test_format.to lib/format.to lib/unittest.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
+tests/inet.test: tests/test_inet.to lib/inet.to lib/unittest.to
+	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
 
-test: tests/list.test tests/alloc.test tests/slab.test tests/format.test
+test: tests/list.test tests/alloc.test tests/slab.test tests/format.test tests/inet.test
 	rm -f cov*.html *.gcda lib/*.gcda tests/*.gcda
 	@tests/list.test
 	@tests/alloc.test
 	@tests/slab.test
 	@tests/format.test
+	@tests/inet.test
 	gcovr -r . --html --html-details -o cov.html lib/ tests/
 
 clean:

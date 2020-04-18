@@ -1,5 +1,6 @@
 #pragma once
 
+#include "inet.h"
 #include "packets.h"
 
 struct netif {
@@ -28,10 +29,6 @@ int udp_send(struct netif *netif, struct packet *pkt, uint32_t src_ip,
 int udp_reserve(void);
 void udp_init(void);
 
-uint32_t ntohl(uint32_t orig);
-uint16_t ntohs(uint16_t orig);
-uint32_t htonl(uint32_t orig);
-uint32_t htons(uint16_t orig);
 void csum_init(uint32_t *csum);
 void csum_add(uint32_t *csum, uint16_t *data, uint32_t n);
 void csum_add_value(uint32_t *csum, uint16_t data);
