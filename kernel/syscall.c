@@ -4,7 +4,6 @@
  * These aren't declared in a header since they are only linked against by
  * entry.s. They shouldn't be called by external code anyway.
  */
-#include "syscall.h"
 #include "kernel.h"
 #include "socket.h"
 
@@ -31,6 +30,7 @@ int sys_getchar(void)
 	return getc_blocking();
 }
 
+#define RUNPROC_F_WAIT 1
 int sys_runproc(char *imagename, int flags)
 {
 	int32_t img = process_image_lookup(imagename);
