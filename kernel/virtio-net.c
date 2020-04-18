@@ -148,7 +148,7 @@ void virtio_handle_rxused(struct virtio_net *dev, uint32_t idx)
 	 * will point at. */
 	struct packet *pkt = hdr->packet;
 	pkt->ll = dev->rx->desc_virt[d2];
-	pkt->end = (void *)&pkt->ll + (len - VIRTIO_NET_HDRLEN);
+	pkt->end = pkt->ll + (len - VIRTIO_NET_HDRLEN);
 	eth_recv(&nif, pkt);
 
 	/* eth_recv takes ownership of pkt, we will put a new packet in there
