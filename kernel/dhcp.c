@@ -45,7 +45,7 @@ static int dhcp_discover(struct netif *netif)
 	dtype->tag = DHCPOPT_MSG_TYPE;
 	dtype->len = 1;
 	dtype->data[0] = DHCPMTYPE_DHCPDISCOVER;
-	dhcp->options[3] = 255; /* END option */
+	dhcp->options[3] = DHCPOPT_END;
 	pkt->end = (void *)&dhcp->options[4];
 
 	udp_send(netif, pkt, 0, 0xFFFFFFFF, UDPPORT_DHCP_CLIENT,
@@ -161,6 +161,11 @@ struct packet *dhcp_handle_offer(struct netif *netif, struct packet *pkt)
 	opt->len = 4;
 	*(uint32_t *)&opt->data = offer.server_identifier;
 	optidx += opt->len + sizeof(struct dhcp_option);
+
+	opt = (struct dhcp_option *)&dhcpr->options[optidx];
+	opt->tag = DHCPOPT_END;
+	optidx += 1;
+
 	pktr->end = (void *)&dhcpr->options[optidx];
 	return pktr;
 }
