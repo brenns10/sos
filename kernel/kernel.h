@@ -409,6 +409,7 @@ extern struct netif nif;
 void packet_init(void);
 struct packet *udp_wait(uint16_t port);
 
-int copy_from_user(void *kerndst, void *usersrc, size_t n);
+int copy_from_user(void *kerndst, const void *usersrc, size_t n);
+int copy_to_user(void *userdst, const void *kernsrc, size_t n);
 
 void dhcp_kthread_start(void);

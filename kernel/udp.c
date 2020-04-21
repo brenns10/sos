@@ -200,7 +200,7 @@ int udp_connect(struct socket *sock, const struct sockaddr *address,
 	if (address_len != sizeof(struct sockaddr_in))
 		return -EINVAL;
 
-	rv = copy_from_user(&addr, address, address_len);
+	rv = copy_from_user(&addr, (const void *)address, address_len);
 	if (rv < 0)
 		return rv;
 

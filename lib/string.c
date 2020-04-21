@@ -69,7 +69,7 @@ unsigned int strlcpy(char *dst, const char *src, unsigned int size)
 }
 
 /* wow this is bad */
-void *memcpy(void *dest, void *src, size_t n)
+void *memcpy(void *dest, const void *src, size_t n)
 {
 	size_t i;
 	char *destc, *srcc;
