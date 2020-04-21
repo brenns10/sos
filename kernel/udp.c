@@ -72,8 +72,11 @@ void udp_recv(struct netif *netif, struct packet *pkt)
 	                    struct udp_wait_entry)
 	{
 		if (entry->sock) {
-			/* TODO: check if this packet matches a bound UDP
-			 * socket */
+			/* TODO: socket may not be connected to this endpoint,
+			 * need to better check here */
+			list_insert_end(&entry->sock->recvq, &pkt->list);
+			wait_list_awaken(&entry->sock->recvwait);
+			return;
 		} else {
 			if (entry->port == ntohs(pkt->udp->dst_port)) {
 				entry->rcv = pkt;
@@ -255,11 +258,56 @@ error:
 	return rv;
 }
 
+struct packet *socket_recvq_get(struct socket *socket)
+{
+	struct packet *pkt;
+	list_for_each_entry(pkt, &socket->recvq, list, struct packet)
+	{
+		return pkt;
+	}
+	return NULL;
+}
+
+int udp_sys_recv(struct socket *sock, void *data, size_t len, int flags)
+{
+	struct packet *pkt;
+	size_t pktlen;
+	int rv;
+
+	if (!sock->flags.sk_bound) {
+		/* If the socket is not bound, then recv() is somewhat
+		 * meaningless. I'm not sure if this is how a real socket
+		 * implementation would behave, but we'll raise an error. */
+		return -EINVAL;
+	}
+
+	/* Get packet or wait for one to come */
+	pkt = socket_recvq_get(sock);
+	while (!pkt) {
+		wait_for(&sock->recvwait);
+		pkt = socket_recvq_get(sock);
+	}
+
+	/* This may not be standard, but we only allow recv()ing entire packets,
+	 * no less. */
+	pktlen = (uint32_t)(pkt->end - pkt->al);
+	if (pktlen > len)
+		return -EMSGSIZE;
+
+	if ((rv = copy_to_user(data, pkt->al, pktlen)) < 0)
+		return rv;
+
+	list_remove(&pkt->list);
+	packet_free(pkt);
+	return pktlen;
+}
+
 struct sockops udp_ops = {
 	.proto = IPPROTO_UDP,
 	.bind = udp_bind,
 	.connect = udp_connect,
 	.send = udp_sys_send,
+	.recv = udp_sys_recv,
 };
 
 void udp_init(void)

@@ -43,6 +43,8 @@ int socket_socket(int domain, int type, int protocol)
 	sock->proc = current;
 	sock->ops = ops;
 	list_insert_end(&current->sockets, &sock->sockets);
+	INIT_LIST_HEAD(sock->recvq);
+	wait_list_init(&sock->recvwait);
 	return sock->fildes;
 }
 
@@ -53,6 +55,12 @@ void socket_register_proto(struct sockops *ops)
 
 void socket_destroy(struct socket *sock)
 {
+	struct packet *pkt;
+	wait_list_destroy(&sock->recvwait);
+	list_for_each_entry(pkt, &sock->recvq, list, struct packet)
+	{
+		packet_free(pkt);
+	}
 	slab_free(socket_slab, sock);
 }
 

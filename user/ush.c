@@ -10,6 +10,7 @@
 static char input[256];
 static char *tokens[16];
 static int argc;
+static char data[2048]; /* socket data, should get dynamically alloced */
 
 /*
  * Shell commands section. Each command is represented by a struct cmd, and
@@ -80,7 +81,7 @@ static int cmd_bind(int argc, char **argv)
 	rv = inet_aton(argv[2], &addr.sin_addr.s_addr);
 	if (rv != 1) {
 		puts("error: bad IP\n");
-		return;
+		return -1;
 	}
 	addr.sin_port = atoi(argv[3]);
 	rv = bind(sockfd, &addr, sizeof(struct sockaddr_in));
@@ -125,6 +126,23 @@ static int cmd_send(int argc, char **argv)
 	return rv;
 }
 
+static int cmd_recv(int argc, char **argv)
+{
+	int rv, sockfd;
+
+	if (argc != 2) {
+		puts("usage: recv FD\n");
+		return -1;
+	}
+
+	sockfd = atoi(argv[1]);
+	rv = recv(sockfd, data, sizeof(data), 0);
+	printf("recv() = %d\n", rv);
+	data[rv] = '\0'; /* just in case */
+	printf(" -> \"%s\"\n", data);
+	return rv;
+}
+
 static int cmd_demo(int argc, char **argv)
 {
 	int i;
@@ -148,6 +166,7 @@ struct cmd cmds[] = {
 	{ .name = "bind", .func = cmd_bind, .help = "bind socket" },
 	{ .name = "connect", .func = cmd_connect, .help = "connect socket" },
 	{ .name = "send", .func = cmd_send, .help = "send data on socket" },
+	{ .name = "recv", .func = cmd_recv, .help = "recv data from socket" },
 	{ .name = "exit", .func = cmd_exit, .help = "exit this process" },
 };
 /*

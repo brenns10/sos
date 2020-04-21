@@ -53,23 +53,24 @@ swi_impl:
 	bic v1, v1, #0xFF000000
 
 	adr lr, _swi_ret           /* set our return address */
-	cmp v1, #9                 /* compare to max syscall number */
+	cmp v1, #10                /* compare to max syscall number */
 	movhi a1, v1               /* if higher, go to generic swi() with */
 	bhi sys_unknown            /* syscall number as arg */
 	add pc, pc, v1, lsl #2     /* branch to pc + interrupt number * 4 */
 	nop
 
 	/* SYSTEM CALL TABLE */
-	/* 0 */ b sys_relinquish
-	/* 1 */ b sys_display
-	/* 2 */ b sys_exit
-	/* 3 */ b sys_getchar
-	/* 4 */ b sys_runproc
-	/* 5 */ b sys_getpid
-	/* 6 */ b sys_socket
-	/* 7 */ b sys_bind
-	/* 8 */ b sys_connect
-	/* 9 */ b sys_send
+	/*  0 */ b sys_relinquish
+	/*  1 */ b sys_display
+	/*  2 */ b sys_exit
+	/*  3 */ b sys_getchar
+	/*  4 */ b sys_runproc
+	/*  5 */ b sys_getpid
+	/*  6 */ b sys_socket
+	/*  7 */ b sys_bind
+	/*  8 */ b sys_connect
+	/*  9 */ b sys_send
+	/* 10 */ b sys_recv
 	/* END. Please update max syscall number above. */
 
 _swi_ret:

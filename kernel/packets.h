@@ -154,6 +154,9 @@ struct packet {
 	};
 
 	void *end;
+
+	/* Packets need to be queued in various places, we use this list */
+	struct list_head list;
 	uint32_t capacity;
 	uint8_t data[0];
 };

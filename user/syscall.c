@@ -93,3 +93,14 @@ int send(int sockfd, const void *buffer, size_t length, int flags)
 	                     : /* clobbers */ "a1", "a2", "a3", "a4");
 	return retval;
 }
+
+int recv(int sockfd, void *buffer, size_t length, int flags)
+{
+	int retval;
+	__asm__ __volatile__("svc #10\n"
+	                     "mov %[rv], a1"
+	                     : /* output operands */[ rv ] "=r"(retval)
+	                     : /* input operands */
+	                     : /* clobbers */ "a1", "a2", "a3", "a4");
+	return retval;
+}

@@ -7,6 +7,7 @@
 #include "net.h"
 #include "packets.h"
 #include "sys/socket.h"
+#include "wait.h"
 
 struct socket;
 
@@ -37,6 +38,8 @@ struct socket {
 	} flags;
 	struct sockaddr_in src;
 	struct sockaddr_in dst;
+	struct list_head recvq;
+	struct waitlist recvwait;
 };
 
 int socket_socket(int domain, int type, int protocol);

@@ -93,6 +93,18 @@ int sys_send(int sockfd, const void *buffer, size_t length, int flags)
 	return sk->ops->send(sk, buffer, length, flags);
 }
 
+int sys_recv(int sockfd, void *buffer, size_t length, int flags)
+{
+	struct socket *sk = socket_get_by_fd(current, sockfd);
+	if (!sk)
+		return -EBADF;
+
+	if (!sk->ops->recv)
+		return -EOPNOTSUPP;
+
+	return sk->ops->recv(sk, buffer, length, flags);
+}
+
 void sys_unknown(uint32_t svc_num)
 {
 	printf("ERROR: unknown syscall number %u!\n", svc_num);
