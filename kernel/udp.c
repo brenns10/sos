@@ -93,8 +93,8 @@ int udp_send(struct netif *netif, struct packet *pkt, uint32_t src_ip,
 	uint32_t len_rounded;
 	pkt->tl = pkt->al - sizeof(struct udphdr);
 
-	pkt->udp->src_port = htons(src_port);
-	pkt->udp->dst_port = htons(dst_port);
+	pkt->udp->src_port = src_port;
+	pkt->udp->dst_port = dst_port;
 	pkt->udp->len = htons(pkt->end - pkt->tl);
 	len_rounded = pkt->end - pkt->tl;
 	len_rounded = (len_rounded / 2) + (len_rounded % 2);

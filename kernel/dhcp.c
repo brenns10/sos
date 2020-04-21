@@ -48,8 +48,8 @@ static int dhcp_discover(struct netif *netif)
 	dhcp->options[3] = DHCPOPT_END;
 	pkt->end = (void *)&dhcp->options[4];
 
-	udp_send(netif, pkt, 0, 0xFFFFFFFF, UDPPORT_DHCP_CLIENT,
-	         UDPPORT_DHCP_SERVER);
+	udp_send(netif, pkt, 0, 0xFFFFFFFF, htons(UDPPORT_DHCP_CLIENT),
+	         htons(UDPPORT_DHCP_SERVER));
 }
 
 static int dhcp_parse_offer(struct dhcp *dhcp, uint32_t len,
@@ -228,8 +228,8 @@ void dhcp(void)
 		return -1;
 
 	interrupt_disable();
-	udp_send(&nif, reply, 0, 0xFFFFFFFF, UDPPORT_DHCP_CLIENT,
-	         UDPPORT_DHCP_SERVER);
+	udp_send(&nif, reply, 0, 0xFFFFFFFF, htons(UDPPORT_DHCP_CLIENT),
+	         htons(UDPPORT_DHCP_SERVER));
 	ack = udp_wait(UDPPORT_DHCP_CLIENT); /* interrupts re-enabled */
 
 	dhcp_handle_ack(&nif, ack);

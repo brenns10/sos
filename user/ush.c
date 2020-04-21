@@ -102,9 +102,9 @@ static int cmd_connect(int argc, char **argv)
 	rv = inet_aton(argv[2], &addr.sin_addr.s_addr);
 	if (rv != 1) {
 		puts("error: bad IP\n");
-		return;
+		return -1;
 	}
-	addr.sin_port = atoi(argv[3]);
+	addr.sin_port = htons(atoi(argv[3]));
 	rv = connect(sockfd, &addr, sizeof(struct sockaddr_in));
 	printf("connect() = %d\n", rv);
 	return rv;
