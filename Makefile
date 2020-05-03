@@ -134,3 +134,5 @@ clean:
 	rm -f lib/*.o test/*.to lib/*.to
 	rm -f user/*.o user/*.elf user/*.bin
 	rm -f tests/*.gcda tests/*.gcno tests/*.to tests/*.test
+	rm -f cov.*.html
+	rm -f dump.pcap
