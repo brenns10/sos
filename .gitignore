@@ -6,6 +6,7 @@
 *.gcda
 *.gcno
 cov*.html
+*.map
 
 unittests/*.test
 mydisk

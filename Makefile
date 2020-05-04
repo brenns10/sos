@@ -98,7 +98,7 @@ user/%.bin: user/%.elf
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 %.elf:
-	$(LD) -T $(patsubst %.elf,%.ld,$@) $^ -o $@
+	$(LD) -T $(patsubst %.elf,%.ld,$@) $^ -o $@ -M > $(patsubst %.elf,%.map,$@)
 	$(LD) -T pre_mmu.ld $^ -o pre_mmu.elf
 
 #
