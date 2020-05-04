@@ -1,5 +1,3 @@
-.PHONY: clean debug run gdb test
-
 QEMU = qemu-system-arm
 QEMU_CMD = $(QEMU) -M virt -global virtio-mmio.force-legacy=false \
        -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd \
@@ -24,22 +22,25 @@ TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g -DTEST_PREFIX
 # Include here to allow overriding settings via a more permanent conf.mk
 -include conf.mk
 
-mydisk:
-	dd if=/dev/zero of=mydisk bs=1m count=1
-
+.PHONY: run
 run: kernel.bin mydisk
 	@echo Running. Exit with Ctrl-A X
 	@echo
 	$(QEMU_CMD) -kernel kernel.bin -nographic
 
+.PHONY: debug
 debug: kernel.bin mydisk
 	@echo Entering debug mode. Go run \"make gdb\" in another terminal.
 	@echo You can terminate the qemu process with Ctrl-A X
 	@echo
 	$(QEMU_CMD) -kernel kernel.bin -nographic -gdb tcp::9000 -S
 
+.PHONY: gdb
 gdb:
 	$(GDB) -x gdbscript
+
+mydisk:
+	dd if=/dev/zero of=mydisk bs=1m count=1
 
 # Object files going into the kernel:
 kernel.elf: kernel/uart.o
@@ -119,7 +120,8 @@ unittests/format.test: unittests/test_format.to lib/format.to lib/unittest.to
 unittests/inet.test: unittests/test_inet.to lib/inet.to lib/unittest.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
 
-test: unittests/list.test unittests/alloc.test unittests/slab.test unittests/format.test unittests/inet.test
+.PHONY: unittest
+unittest: unittests/list.test unittests/alloc.test unittests/slab.test unittests/format.test unittests/inet.test
 	rm -f cov*.html *.gcda lib/*.gcda unittests/*.gcda
 	@unittests/list.test
 	@unittests/alloc.test
@@ -128,6 +130,10 @@ test: unittests/list.test unittests/alloc.test unittests/slab.test unittests/for
 	@unittests/inet.test
 	gcovr -r . --html --html-details -o cov.html lib/ unittests/
 
+.PHONY: test
+test: unittest
+
+.PHONY: clean
 clean:
 	rm -f *.elf *.bin
 	rm -f kernel/*.o
