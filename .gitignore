@@ -7,7 +7,7 @@
 *.gcno
 cov*.html
 
-tests/*.test
+unittests/*.test
 mydisk
 dump.pcap
 tags

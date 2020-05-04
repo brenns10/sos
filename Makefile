@@ -105,34 +105,34 @@ user/%.bin: user/%.elf
 #
 lib/%.to: lib/%.c
 	$(HOSTCC) $(TEST_CFLAGS) -g -c $< -o $@ -iquote lib/
-tests/%.to: tests/%.c
+unittests/%.to: unittests/%.c
 	$(HOSTCC) $(TEST_CFLAGS) -g -c $< -o $@ -iquote lib/
 
-tests/list.test: tests/test_list.to lib/list.to lib/unittest.to
+unittests/list.test: unittests/test_list.to lib/list.to lib/unittest.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
-tests/alloc.test: tests/test_alloc.to lib/alloc.to lib/unittest.to
+unittests/alloc.test: unittests/test_alloc.to lib/alloc.to lib/unittest.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
-tests/slab.test: tests/test_slab.to lib/slab.to lib/unittest.to lib/list.to
+unittests/slab.test: unittests/test_slab.to lib/slab.to lib/unittest.to lib/list.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
-tests/format.test: tests/test_format.to lib/format.to lib/unittest.to
+unittests/format.test: unittests/test_format.to lib/format.to lib/unittest.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
-tests/inet.test: tests/test_inet.to lib/inet.to lib/unittest.to
+unittests/inet.test: unittests/test_inet.to lib/inet.to lib/unittest.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
 
-test: tests/list.test tests/alloc.test tests/slab.test tests/format.test tests/inet.test
-	rm -f cov*.html *.gcda lib/*.gcda tests/*.gcda
-	@tests/list.test
-	@tests/alloc.test
-	@tests/slab.test
-	@tests/format.test
-	@tests/inet.test
-	gcovr -r . --html --html-details -o cov.html lib/ tests/
+test: unittests/list.test unittests/alloc.test unittests/slab.test unittests/format.test unittests/inet.test
+	rm -f cov*.html *.gcda lib/*.gcda unittests/*.gcda
+	@unittests/list.test
+	@unittests/alloc.test
+	@unittests/slab.test
+	@unittests/format.test
+	@unittests/inet.test
+	gcovr -r . --html --html-details -o cov.html lib/ unittests/
 
 clean:
 	rm -f *.elf *.bin
 	rm -f kernel/*.o
-	rm -f lib/*.o test/*.to lib/*.to
+	rm -f lib/*.o unittests/*.to lib/*.to
 	rm -f user/*.o user/*.elf user/*.bin
-	rm -f tests/*.gcda tests/*.gcno tests/*.to tests/*.test
+	rm -f unittests/*.gcda unittests/*.gcno unittests/*.to unittests/*.test
 	rm -f cov.*.html
 	rm -f dump.pcap
