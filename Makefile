@@ -1,5 +1,5 @@
 QEMU = qemu-system-arm
-QEMU_CMD = $(QEMU) -M virt -global virtio-mmio.force-legacy=false \
+QEMU_CMD = $(QEMU) -M virt -global virtio-mmio.force-legacy=false -nographic \
        -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd \
        -netdev user,id=u1 -device virtio-net-device,netdev=u1 -object filter-dump,id=f1,netdev=u1,file=dump.pcap \
        -d guest_errors
@@ -26,14 +26,14 @@ TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g -DTEST_PREFIX
 run: kernel.bin mydisk
 	@echo Running. Exit with Ctrl-A X
 	@echo
-	$(QEMU_CMD) -kernel kernel.bin -nographic
+	$(QEMU_CMD) -kernel kernel.bin
 
 .PHONY: debug
 debug: kernel.bin mydisk
 	@echo Entering debug mode. Go run \"make gdb\" in another terminal.
 	@echo You can terminate the qemu process with Ctrl-A X
 	@echo
-	$(QEMU_CMD) -kernel kernel.bin -nographic -gdb tcp::9000 -S
+	$(QEMU_CMD) -kernel kernel.bin -gdb tcp::9000 -S
 
 .PHONY: gdb
 gdb:
@@ -130,8 +130,12 @@ unittest: unittests/list.test unittests/alloc.test unittests/slab.test unittests
 	@unittests/inet.test
 	gcovr -r . --html --html-details -o cov.html lib/ unittests/
 
+.PHONY: integrationtest
+integrationtest: kernel.bin mydisk
+	@QEMU_CMD="$(QEMU_CMD)" pytest integrationtests
+
 .PHONY: test
-test: unittest
+test: unittest integrationtest
 
 .PHONY: clean
 clean:
