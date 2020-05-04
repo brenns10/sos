@@ -23,20 +23,22 @@
 /* Your puts() should fit this signature (roughly) */
 extern void puts(char *string);
 
+static inline void set(char *buf, uint32_t size, uint32_t *out, char val)
+{
+	if (*out < size - 1)
+		buf[*out] = val;
+	else if (*out == size - 1)
+		buf[*out] = '\0';
+	*out = *out + 1;
+}
+
 /**
  * This macro assigns a value to the buffer at the given index. It increments
  * the index after assigning the value. However, it takes care of bounds checks
  * so that we don't have to constantly think about them. It also "automatically"
  * nul-terminates the string if we hit the end of the buffer.
  */
-#define SET(buf, size, out, value)                                             \
-	do {                                                                   \
-		if (out < size - 1)                                            \
-			buf[out] = value;                                      \
-		else if (out == size - 1)                                      \
-			buf[out] = '\0';                                       \
-		out++;                                                         \
-	} while (0);
+#define SET(buf, size, out, val) set(buf, size, &out, val)
 
 /**
  * This function implements the %x format specifier.
