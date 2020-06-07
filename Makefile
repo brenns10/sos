@@ -3,6 +3,7 @@ QEMU_CMD = $(QEMU) -M virt -global virtio-mmio.force-legacy=false -nographic \
        -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd \
        -netdev user,id=u1 -device virtio-net-device,netdev=u1 -object filter-dump,id=f1,netdev=u1,file=dump.pcap \
        -d guest_errors
+QEMU_DBG = -gdb tcp::9000 -S
 TOOLCHAIN ?= arm-none-eabi-
 AS = $(TOOLCHAIN)as
 CC = $(TOOLCHAIN)gcc
@@ -33,7 +34,7 @@ debug: kernel.bin mydisk
 	@echo Entering debug mode. Go run \"make gdb\" in another terminal.
 	@echo You can terminate the qemu process with Ctrl-A X
 	@echo
-	$(QEMU_CMD) -kernel kernel.bin -gdb tcp::9000 -S
+	$(QEMU_CMD) $(QEMU_DBG) -kernel kernel.bin
 
 .PHONY: gdb
 gdb:
@@ -133,6 +134,10 @@ unittest: unittests/list.test unittests/alloc.test unittests/slab.test unittests
 .PHONY: integrationtest
 integrationtest: kernel.bin mydisk
 	@QEMU_CMD="$(QEMU_CMD)" pytest integrationtests
+
+.PHONY: testdebug
+testdebug:
+	@SOS_DEBUG=true QEMU_CMD="$(QEMU_CMD) $(QEMU_DBG)" pytest integrationtests -k $(TEST) -s
 
 .PHONY: test
 test: unittest integrationtest

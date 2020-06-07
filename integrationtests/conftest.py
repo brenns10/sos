@@ -8,13 +8,14 @@ import re
 import select
 import shlex
 import subprocess
+import sys
 import threading
 import time
 
 import pytest
 
 
-def read_thread(f, q, proc):
+def read_thread(f, q, proc, debug=True):
     """
     Thread which constantly waits on stdout of a process, placing everything it
     reads into a queue for processing by another thread. This is because pipes
@@ -22,6 +23,9 @@ def read_thread(f, q, proc):
     """
     while proc.poll() is None:
         val = os.read(f.fileno(), 4096)
+        if debug:
+            print(val.decode(), end='')
+            sys.stdout.flush()
         if val:
             q.put(val)
 
@@ -33,11 +37,17 @@ class SosVirtualMachine(object):
     """
 
     timeout = 1
+    abort = re.compile(r'Uh-oh\.\.\. (prefetch|data) abort!.*$.*$.*$')
 
     def start(self):
         thisdir = os.path.dirname(__file__)
         kernel = os.path.join(thisdir, '../kernel.bin')
         qemu_cmd = os.environ['QEMU_CMD']
+        self.debug = os.environ.get('SOS_DEBUG') == 'true'
+        if self.debug:
+            print('\n[sos test] DEBUGGING MODE ACTIVE')
+            print('[sos test] Use `make gdb` in separate terminal to debug test')
+            self.timeout = 120
         cmd = f'{qemu_cmd} -kernel {kernel}'
         self.qemu = subprocess.Popen(
             shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -46,7 +56,7 @@ class SosVirtualMachine(object):
         self.stdout_queue = queue.SimpleQueue()
         self.stdout_thread = threading.Thread(
             target=read_thread,
-            args=(self.qemu.stdout, self.stdout_queue, self.qemu)
+            args=(self.qemu.stdout, self.stdout_queue, self.qemu, self.debug)
         )
         self.stdout_thread.start()
 
@@ -69,8 +79,17 @@ class SosVirtualMachine(object):
                 pass
 
             found = pattern.search(result)
-            if pattern.search(result):
+            if found:
                 return result
+
+            found = self.abort.search(result)
+            if found and self.debug:
+                time.sleep(0.1)  # bad sleep sync to let stdout thread print
+                print('\n[sos test] Fault detected! Hit enter when done')
+                print('[sos test] debugging to exit the test.')
+                input()
+            if found:
+                raise Exception('Fault', result)
         raise TimeoutError(f'Timed out waiting for QEMU response:\n{result}')
 
     def cmd(self, command, pattern='[uk]sh>', timeout=None):
