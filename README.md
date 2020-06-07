@@ -17,8 +17,7 @@ Ubuntu users should see more detailed setup instructions in
 
     # Arch Linux
     $ sudo pacman -Sy arm-none-eabi-gcc arm-none-eabi-binutils arm-none-eabi-gdb \
-          qemu qemu-arch-extra
-
+          qemu qemu-arch-extra python-pytest
 
 With these dependencies satisfied, you can do the following:
 

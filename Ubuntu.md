@@ -10,14 +10,17 @@ a file `conf.mk` and overriding some tool selections.
 But first, install required packages like so:
 
     sudo apt install qemu-system-arm build-essential gcc-arm-none-eabi \
-        binutil-arm-none-eabi gdb-multiarch libpixman-1-dev
+        binutil-arm-none-eabi gdb-multiarch libpixman-1-dev gcovr python3
+
+Also install pytest:
+
+    pip3 install --user pytest
 
 QEMU Setup
 ----------
 
-First, install your default QEMU so we can check the version.
+First, check your installed Qemu version.
 
-    sudo apt install qemu-system-arm
     qemu-system-arm --version
 
 If the version is >=4.2, then you're good! Proceed to the next section.
