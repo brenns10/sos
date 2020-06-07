@@ -40,7 +40,7 @@ gdb:
 	$(GDB) -x gdbscript
 
 mydisk:
-	dd if=/dev/zero of=mydisk bs=1m count=1
+	dd if=/dev/zero of=mydisk bs=1M count=1
 
 # Object files going into the kernel:
 kernel.elf: kernel/uart.o
