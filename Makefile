@@ -29,6 +29,9 @@ run: kernel.bin mydisk
 	@echo
 	$(QEMU_CMD) -kernel kernel.bin
 
+.PHONY: all
+all: kernel.bin compile_unittests
+
 .PHONY: debug
 debug: kernel.bin mydisk
 	@echo Entering debug mode. Go run \"make gdb\" in another terminal.
@@ -95,7 +98,7 @@ user/%.elf:
 user/%.bin: user/%.elf
 	$(OBJCOPY) -O binary $< $@
 
-# To bulid the kernel
+# To build the kernel
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 %.elf:
@@ -121,8 +124,11 @@ unittests/format.test: unittests/test_format.to lib/format.to lib/unittest.to
 unittests/inet.test: unittests/test_inet.to lib/inet.to lib/unittest.to
 	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
 
+.PHONY: compile_unittests
+compile_unittests: unittests/list.test unittests/alloc.test unittests/slab.test unittests/format.test unittests/inet.test
+
 .PHONY: unittest
-unittest: unittests/list.test unittests/alloc.test unittests/slab.test unittests/format.test unittests/inet.test
+unittest: compile_unittests
 	rm -f cov*.html *.gcda lib/*.gcda unittests/*.gcda
 	@unittests/list.test
 	@unittests/alloc.test

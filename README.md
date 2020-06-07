@@ -144,6 +144,19 @@ Here are a bunch of things to add support for, or improve:
 * Implement UDP sockets
 * Implement TCP?
 
+Editor config
+-------------
+
+For editing code, I would recommend running the following periodically to
+generate a `compile_commands.json` file:
+
+    pip install --user compiledb  # do this just once
+    compiledb -n make all
+
+With this done, you should be able to use a C language server (e.g. clangd,
+which I've verified to work) and client (e.g. vim-lsp, emacs, vscode). This will
+enable things like jump-to-definition, code completion, and renaming.
+
 Resources
 ---------
 
