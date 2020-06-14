@@ -6,6 +6,7 @@
  * access kernel memory space. This is  S C A R Y  everyone, but we'll get used
  * to it.
  */
+#include "cxtk.h"
 #include "kernel.h"
 #include "string.h"
 #include "sync.h"
@@ -45,6 +46,12 @@ static int cmd_release(int argc, char **argv)
 static int cmd_slab_report(int argc, char **argv)
 {
 	slab_report_all();
+}
+
+static int cmd_cxtk_report(int argc, char **argv)
+{
+	cxtk_report();
+	return 0;
 }
 
 static int help(int argc, char **argv);
@@ -99,6 +106,9 @@ struct cmd cmds[] = {
 	{ .name = "slab-report",
 	  .func = cmd_slab_report,
 	  .help = "print all slab stats" },
+	{ .name = "cxtk",
+	  .func = cmd_cxtk_report,
+	  .help = "print context switch report" },
 };
 
 /*

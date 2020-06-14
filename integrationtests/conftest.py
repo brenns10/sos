@@ -5,7 +5,6 @@ Provides fixtures for integration testing SOS
 import os
 import queue
 import re
-import select
 import shlex
 import subprocess
 import sys
@@ -37,7 +36,7 @@ class SosVirtualMachine(object):
     """
 
     timeout = 1
-    abort = re.compile(r'Uh-oh\.\.\. (prefetch|data) abort!.*$.*$.*$')
+    abort = re.compile(r'END OF FAULT REPORT')
 
     def start(self):
         thisdir = os.path.dirname(__file__)
@@ -56,7 +55,7 @@ class SosVirtualMachine(object):
         self.stdout_queue = queue.SimpleQueue()
         self.stdout_thread = threading.Thread(
             target=read_thread,
-            args=(self.qemu.stdout, self.stdout_queue, self.qemu, self.debug)
+            args=(self.qemu.stdout, self.stdout_queue, self.qemu, True)
         )
         self.stdout_thread.start()
 
@@ -89,7 +88,7 @@ class SosVirtualMachine(object):
                 print('[sos test] debugging to exit the test.')
                 input()
             if found:
-                raise Exception('Fault', result)
+                raise Exception(f'Fault encountered waiting:\n{result}')
         raise TimeoutError(f'Timed out waiting for QEMU response:\n{result}')
 
     def cmd(self, command, pattern='[uk]sh>', timeout=None):

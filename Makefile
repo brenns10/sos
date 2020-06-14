@@ -73,6 +73,7 @@ kernel.elf: kernel/kmalloc.o
 kernel.elf: kernel/socket.o
 kernel.elf: kernel/user.o
 kernel.elf: kernel/wait.o
+kernel.elf: kernel/cxtk.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o

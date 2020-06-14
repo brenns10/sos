@@ -1,6 +1,7 @@
 /*
  * Routines for dealing with processes.
  */
+#include "cxtk.h"
 #include "kernel.h"
 #include "slab.h"
 #include "socket.h"
@@ -242,6 +243,7 @@ void start_process(struct process *p)
 	set_cpreg(p->ttbr1, c2, 0, c0, 1);
 
 	current = p;
+	cxtk_track_proc();
 	// printf("[kernel]\t\tstart process %u (ttbr1=0x%x)\n", p->id,
 	// p->ttbr1);
 	start_process_asm((void *)p->context[PROC_CTX_RET]);
@@ -264,6 +266,7 @@ void context_switch(struct process *new_process)
 	set_cpreg(new_process->ttbr1, c2, 0, c0, 1);
 
 	current = new_process;
+	cxtk_track_proc();
 
 	/* TODO: It is possible for ASIDs to overlap. Need to check for this and
 	 * invalidate caches. */

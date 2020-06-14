@@ -1,3 +1,4 @@
+#include "cxtk.h"
 #include "kernel.h"
 
 void print_fault(uint32_t fsr, uint32_t far)
@@ -32,6 +33,8 @@ void print_fault(uint32_t fsr, uint32_t far)
 		printf("Some other fault\n");
 		break;
 	}
+	cxtk_report();
+	puts("END OF FAULT REPORT\n");
 }
 
 void data_abort(uint32_t lr)
@@ -55,6 +58,7 @@ void prefetch_abort(uint32_t lr)
 void irq(void)
 {
 	uint8_t intid = (uint8_t)gic_interrupt_acknowledge();
+	cxtk_track_irq(intid);
 	isr_t isr = gic_get_isr(intid);
 	if (isr)
 		isr(intid);
