@@ -35,7 +35,7 @@ class SosVirtualMachine(object):
     and stdout.
     """
 
-    timeout = 1
+    timeout = 2
     abort = re.compile(r'END OF FAULT REPORT')
 
     def start(self):
@@ -55,7 +55,7 @@ class SosVirtualMachine(object):
         self.stdout_queue = queue.SimpleQueue()
         self.stdout_thread = threading.Thread(
             target=read_thread,
-            args=(self.qemu.stdout, self.stdout_queue, self.qemu, True)
+            args=(self.qemu.stdout, self.stdout_queue, self.qemu, self.debug)
         )
         self.stdout_thread.start()
 
