@@ -10,6 +10,7 @@ CC = $(TOOLCHAIN)gcc
 LD = $(TOOLCHAIN)ld
 OBJCOPY = $(TOOLCHAIN)objcopy
 GDB = $(TOOLCHAIN)gdb
+PYTEST = python3 -m pytest
 
 HOSTCC = gcc
 
@@ -142,11 +143,11 @@ unittest: compile_unittests
 
 .PHONY: integrationtest
 integrationtest: kernel.bin mydisk
-	@QEMU_CMD="$(QEMU_CMD)" pytest integrationtests
+	@QEMU_CMD="$(QEMU_CMD)" $(PYTEST) integrationtests
 
 .PHONY: testdebug
 testdebug:
-	@SOS_DEBUG=true QEMU_CMD="$(QEMU_CMD) $(QEMU_DBG)" pytest integrationtests -k $(TEST) -s
+	@SOS_DEBUG=true QEMU_CMD="$(QEMU_CMD) $(QEMU_DBG)" $(PYTEST) integrationtests -k $(TEST) -s
 
 .PHONY: test
 test: unittest integrationtest
