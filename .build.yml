@@ -6,8 +6,12 @@ packages:
  - gcovr
  - python3
  - python3-pytest
+sources:
+  - https://github.com/brenns10/sos
 tasks:
  - build: |
+     cd sos
      make all
  - test: |
+     cd sos
      make test

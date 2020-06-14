@@ -139,11 +139,12 @@ void udp_do_bind(struct socket *sock, const struct sockaddr_in *addr)
 
 static bool udp_bind_to_ephemeral(struct socket *sock)
 {
-	const uint16_t ephemeral_begin = 20000;
+#define EPH_BEGIN 20000
+	const uint16_t ephemeral_begin = EPH_BEGIN;
 	const uint16_t ephemeral_end = 65535;
 
 	struct sockaddr_in addr;
-	static uint16_t i = ephemeral_begin;
+	static uint16_t i = EPH_BEGIN;
 	uint16_t prev;
 	uint16_t tries = 100;
 
