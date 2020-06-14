@@ -2,7 +2,7 @@
 
 void backtrace(void)
 {
-	uint32_t *sp, *fp, *stackmax, *stackmin, val;
+	uint32_t *sp, *fp, *stackmax, *stackmin;
 	int max = 32;
 	get_sp(sp);
 	get_fp(fp);

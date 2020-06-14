@@ -72,7 +72,8 @@ unsigned int strlcpy(char *dst, const char *src, unsigned int size)
 void *memcpy(void *dest, const void *src, size_t n)
 {
 	size_t i;
-	char *destc, *srcc;
+	char *destc;
+	const char *srcc;
 	destc = dest;
 	srcc = src;
 
@@ -116,4 +117,5 @@ int buf_trim(struct buffer *buf, unsigned int newlen)
 
 	buf->len = newlen;
 	buf->buf[newlen] = '\0';
+	return 0;
 }

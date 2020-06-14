@@ -221,7 +221,7 @@ void destroy_current_process()
 	 * a bit of a fudge, but we can simply reset the stack pointer to the
 	 * initial kernel stack to enable our final call into schedule.
 	 */
-	asm volatile("ldr sp, =stack_end" ::: "sp");
+	asm volatile("ldr sp, =stack_end" :::);
 	kmem_free_pages((void *)current->kstack - 4096, 4096);
 	slab_free(proc_slab, current);
 
@@ -251,8 +251,6 @@ void start_process(struct process *p)
 
 void context_switch(struct process *new_process)
 {
-	uint32_t i, use_retval, mode;
-
 	/*printf("[kernel]\t\tswap current process %u for new process %u\n",
 	                current ? current->id : 0, new_process->id);*/
 

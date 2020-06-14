@@ -77,7 +77,6 @@ static void shift_zones_down(struct zonehdr *hdr, int dst, int to_shift)
 static bool change_status(struct zonehdr *hdr, uint32_t exact, uint32_t count,
                           uint32_t region, uint32_t index, int status)
 {
-	int to_insert = 0;
 	uint32_t next = 0;
 
 	bool have_left_zone = (index > 0);

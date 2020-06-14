@@ -79,7 +79,6 @@ int getc_blocking(void)
 void uart_isr(uint32_t intid)
 {
 	uint32_t reg;
-	int result;
 
 	reg = base->UARTMIS;
 	if (reg != UARTIMSC_UART_RXIM) {

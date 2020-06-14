@@ -49,7 +49,6 @@ static void virtio_blk_handle_used(struct virtio_blk *dev, uint32_t usedidx)
 	struct virtqueue *virtq = dev->virtq;
 	uint32_t desc1, desc2, desc3;
 	struct virtio_blk_req *req;
-	uint8_t *data;
 
 	desc1 = virtq->used->ring[usedidx].id;
 	if (!(virtq->desc[desc1].flags & VIRTQ_DESC_F_NEXT))
@@ -64,7 +63,6 @@ static void virtio_blk_handle_used(struct virtio_blk *dev, uint32_t usedidx)
 		goto bad_desc;
 
 	req = virtq->desc_virt[desc1];
-	data = virtq->desc_virt[desc2];
 
 	virtq_free_desc(virtq, desc1);
 	virtq_free_desc(virtq, desc2);
@@ -170,6 +168,7 @@ int virtio_blk_cmd_status(int argc, char **argv)
 	WRITE32(blkdev.regs->QueueSel, 0);
 	mb();
 	printf("    ready = 0x%x\n", READ32(blkdev.regs->QueueReady));
+	return 0;
 }
 
 int virtio_blk_cmd_read(int argc, char **argv)
@@ -199,7 +198,7 @@ int virtio_blk_cmd_read(int argc, char **argv)
 cleanup:
 	slab_free(blkreq_slab, req);
 	kfree(buffer, 512);
-	return 0;
+	return rv;
 }
 
 int virtio_blk_cmd_write(int argc, char **argv)
@@ -237,10 +236,7 @@ cleanup:
 
 int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 {
-	volatile struct virtio_blk_config *conf =
-	        (struct virtio_blk_config *)regs->Config;
 	struct virtqueue *virtq;
-	uint32_t i;
 
 	virtio_check_capabilities(regs, blk_caps, nelem(blk_caps),
 	                          "virtio-blk");
@@ -268,4 +264,5 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	maybe_init_blkreq_slab();
 	printf("virtio-blk 0x%x (intid %u): ready!\n",
 	       kmem_lookup_phys((void *)regs), intid);
+	return 0;
 }

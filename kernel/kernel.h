@@ -304,6 +304,7 @@ struct process {
 
 /* Create a process */
 struct process *create_process(uint32_t binary);
+struct process *create_kthread(void (*func)(void *), void *arg);
 #define BIN_SALUTATIONS 0
 #define BIN_HELLO       1
 #define BIN_USH         2

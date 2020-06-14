@@ -32,6 +32,7 @@ static int echo(int argc, char **argv)
 static int cmd_exit(int argc, char **argv)
 {
 	exit(0);
+	return 0;
 }
 
 static int cmd_run(int argc, char **argv)
@@ -44,6 +45,7 @@ static int cmd_run(int argc, char **argv)
 
 	if ((rv = runproc(argv[1], RUNPROC_F_WAIT)) != 0)
 		printf("failed: rv=0x%x\n", rv);
+	return rv;
 }
 
 static int cmd_runp(int argc, char **argv)
@@ -56,6 +58,7 @@ static int cmd_runp(int argc, char **argv)
 
 	if ((rv = runproc(argv[1], 0)) != 0)
 		printf("failed: rv=0x%x\n", rv);
+	return rv;
 }
 
 static int cmd_socket(int argc, char **argv)
@@ -149,6 +152,7 @@ static int cmd_demo(int argc, char **argv)
 	for (i = 0; i < 10; i++)
 		runproc("hello", 0);
 	puts("Launched all processes!\n");
+	return 0;
 }
 
 static int help(int argc, char **argv);

@@ -25,7 +25,7 @@ struct dhcp_data {
 	uint32_t dns;
 };
 
-static int dhcp_discover(struct netif *netif)
+static void dhcp_discover(struct netif *netif)
 {
 	struct dhcp *dhcp;
 	struct dhcp_option *dtype;
@@ -201,7 +201,7 @@ int dhcp_handle_ack(struct netif *netif, struct packet *pkt)
 	dhcplen = ntohs(pkt->udp->len) - sizeof(struct udphdr);
 	rv = dhcp_parse_offer(dhcp, dhcplen, &offer);
 	if (rv < 0)
-		return NULL;
+		return -1;
 
 	netif->ip = *(uint32_t *)&dhcp->yiaddr;
 	netif->gateway_ip = offer.router;
@@ -225,7 +225,7 @@ void dhcp(void)
 	reply = dhcp_handle_offer(&nif, offer);
 	packet_free(offer);
 	if (!reply)
-		return -1;
+		return;
 
 	interrupt_disable();
 	udp_send(&nif, reply, 0, 0xFFFFFFFF, htons(UDPPORT_DHCP_CLIENT),
@@ -251,4 +251,5 @@ void dhcp_kthread_start(void)
 int dhcp_cmd_discover(int argc, char **argv)
 {
 	dhcp();
+	return 0;
 }

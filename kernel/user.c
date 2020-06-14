@@ -10,8 +10,8 @@
 static int check_bounds(const void *user, size_t n)
 {
 	void *page;
-	void *first = user;
-	void *last = user + n - 1;
+	void *first = (void *)user;
+	void *last = (void *)user + n - 1;
 
 	if (umem_lookup_phys(current, first) == 0)
 		return -EACCES;

@@ -191,7 +191,7 @@ static uint32_t lookup_phys(struct mem *mem, void *virt_ptr)
 	if (!second)
 		return 0;
 
-	if (second[second_idx] & SLD_MASK == SLD_UNMAPPED)
+	if ((second[second_idx] & SLD_MASK) == SLD_UNMAPPED)
 		return 0;
 
 	return ((second[second_idx] & top_n_bits(20)) |
@@ -217,7 +217,6 @@ uint32_t kmem_lookup_phys(void *virt_ptr)
 
 void kmem_map_pages(uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs)
 {
-	uint32_t *base = first_level_table;
 	uint32_t i;
 	for (i = 0; i < len; i += 4096)
 		kmem_map_page(virt + i, phys + i, attrs);
@@ -226,7 +225,6 @@ void kmem_map_pages(uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs)
 void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys,
                     uint32_t len, uint32_t attrs)
 {
-	uint32_t *base = first_level_table;
 	uint32_t i;
 	for (i = 0; i < len; i += 4096)
 		umem_map_page(p, virt + i, phys + i, attrs);

@@ -40,7 +40,6 @@ static struct slab *find_slab(uint32_t size)
 void *kmalloc(uint32_t size)
 {
 	struct slab *slab;
-	void *ptr;
 
 	slab = find_slab(size);
 	if (!slab) {

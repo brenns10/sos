@@ -21,6 +21,7 @@ static uint8_t *get_mapping(uint32_t ip)
 	for (i = 0; i < nmap; i++)
 		if (mappings[i].ip == ip)
 			return mappings[i].mac;
+	return NULL;
 }
 
 static void upsert_mapping(uint32_t ip, uint8_t *mac)
@@ -45,6 +46,7 @@ int ip_cmd_show_arptable(int argc, char **argv)
 	puts("IP <--> MAC\n");
 	for (i = 0; i < nmap; i++)
 		printf("%I: %M\n", mappings[i].ip, mappings[i].mac);
+	return 0;
 }
 
 void ip_recv(struct netif *netif, struct packet *pkt)

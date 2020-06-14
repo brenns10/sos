@@ -399,7 +399,7 @@ static void print_attr_propenc(const struct dtb_iter *iter,
 
 	for (i = 0; i < fcnt; i++) {
 		entry_size += 4 * fields[i].cells;
-		if (fields[i].phandle & fields[i].cells != 1)
+		if (fields[i].phandle && fields[i].cells != 1)
 			puts("malformed prop-encoded array, has phandle with "
 			     "len != 1\n");
 	}
@@ -608,6 +608,7 @@ int cmd_dtb_ls(int argc, char **argv)
 	}
 
 	dtb_iter(DT_ITER_BEGIN_NODE, dtb_ls_cb, &path);
+	return 0;
 }
 
 static bool dtb_prop_cb(const struct dtb_iter *iter, void *data)
@@ -765,7 +766,6 @@ bool dtb_init_interrupt_cb(const struct dtb_iter *iter, void *data)
  */
 void dtb_init(uint32_t phys)
 {
-	uint32_t i;
 	uint32_t virt = alloc_pages(kern_virt_allocator, 0x4000, 0);
 	kmem_map_pages((uint32_t)virt, phys, 0x4000, PRW_UNA);
 

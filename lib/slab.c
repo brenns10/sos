@@ -35,7 +35,6 @@ struct slab *slab_new(char *name, unsigned int size, void *(*getter)(void))
 {
 	void *void_page = getter();
 	struct slab *slab = void_page;
-	unsigned int i;
 
 	if (size < sizeof(struct list_head)) {
 		printf("slab: invalid slab size %u smaller than llnode %u\n",
@@ -73,6 +72,8 @@ void *slab_alloc(struct slab *slab)
 		list_remove(entry);
 		return (void *)entry;
 	}
+
+	return NULL;
 }
 
 void slab_free(struct slab *slab, void *ptr)

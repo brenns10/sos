@@ -134,6 +134,7 @@ int virtio_net_cmd_status(int argc, char **argv)
 	WRITE32(netdev.regs->QueueSel, VIRTIO_NET_Q_RX);
 	mb();
 	printf("    ready = 0x%x\n", READ32(netdev.regs->QueueReady));
+	return 0;
 }
 
 void virtio_handle_rxused(struct virtio_net *dev, uint32_t idx)
@@ -167,8 +168,6 @@ void virtio_handle_rxused(struct virtio_net *dev, uint32_t idx)
 void virtio_handle_txused(struct virtio_net *dev, uint32_t idx)
 {
 	uint32_t d1 = dev->tx->used->ring[idx].id;
-	uint32_t d2 = dev->tx->desc[d1].next;
-	uint32_t len = dev->tx->used->ring[idx].len;
 
 	struct virtio_net_hdr *hdr =
 	        (struct virtio_net_hdr *)dev->tx->desc_virt[d1];
@@ -200,7 +199,6 @@ void virtio_net_isr(uint32_t intid)
 
 int virtio_net_init(virtio_regs *regs, uint32_t intid)
 {
-	void *pages;
 	volatile struct virtio_net_config *cfg =
 	        (struct virtio_net_config *)regs->Config;
 	virtio_check_capabilities(regs, net_caps, nelem(net_caps),
@@ -237,4 +235,5 @@ int virtio_net_init(virtio_regs *regs, uint32_t intid)
 
 	printf("virtio-net 0x%x (intid %u, MAC %M): ready!\n",
 	       kmem_lookup_phys((void *)regs), intid, &cfg->mac);
+	return 0;
 }

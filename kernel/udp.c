@@ -89,8 +89,8 @@ void udp_recv(struct netif *netif, struct packet *pkt)
 	packet_free(pkt);
 }
 
-int udp_send(struct netif *netif, struct packet *pkt, uint32_t src_ip,
-             uint32_t dst_ip, uint16_t src_port, uint16_t dst_port)
+void udp_send(struct netif *netif, struct packet *pkt, uint32_t src_ip,
+              uint32_t dst_ip, uint16_t src_port, uint16_t dst_port)
 {
 	uint32_t csum;
 	uint32_t len_rounded;
@@ -168,7 +168,6 @@ int udp_bind(struct socket *sock, const struct sockaddr *address,
              socklen_t address_len)
 {
 	int rv;
-	int hash;
 	struct sockaddr_in addr;
 
 	if (sock->flags.sk_bound)
@@ -216,7 +215,7 @@ int udp_sys_send(struct socket *sock, void *data, size_t len, int flags)
 {
 	int rv, space;
 	struct packet *pkt;
-	uint32_t src, dst;
+	uint32_t src;
 
 	space = udp_reserve();
 	if (space + len > MAX_ETH_PKT_SIZE)

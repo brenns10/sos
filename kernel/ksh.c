@@ -8,6 +8,7 @@
  */
 #include "cxtk.h"
 #include "kernel.h"
+#include "slab.h"
 #include "string.h"
 #include "sync.h"
 
@@ -36,16 +37,19 @@ static int echo(int argc, char **argv)
 static int cmd_acquire(int argc, char **argv)
 {
 	spin_acquire(&sem);
+	return 0;
 }
 
 static int cmd_release(int argc, char **argv)
 {
 	spin_release(&sem);
+	return 0;
 }
 
 static int cmd_slab_report(int argc, char **argv)
 {
 	slab_report_all();
+	return 0;
 }
 
 static int cmd_cxtk_report(int argc, char **argv)

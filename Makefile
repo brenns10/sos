@@ -15,7 +15,8 @@ HOSTCC = gcc
 
 ARCH := armv7-a
 ASFLAGS = -g -march=$(ARCH)
-CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=$(ARCH) -iquote lib -iquote include -marm
+CFLAGS = -g -ffreestanding -nostdlib -fPIC -march=$(ARCH) -iquote lib \
+         -iquote include -marm -Wall -Wno-address-of-packed-member
 LDFLAGS = -nostdlib
 
 TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g -DTEST_PREFIX

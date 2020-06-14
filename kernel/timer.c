@@ -27,6 +27,7 @@ int cmd_timer_get_freq(int argc, char **argv)
 	uint32_t dst;
 	GET_CNTFRQ(dst);
 	printf("CNTFRQ: %u\n", dst);
+	return 0;
 }
 
 int cmd_timer_get_count(int argc, char **argv)
@@ -34,6 +35,7 @@ int cmd_timer_get_count(int argc, char **argv)
 	uint32_t dst_hi, dst_lo;
 	GET_CNTPCT(dst_hi, dst_lo);
 	printf("CNTPCT: hi 0x%x lo 0x%x\n", dst_hi, dst_lo);
+	return 0;
 }
 
 int cmd_timer_get_ctl(int argc, char **argv)
@@ -41,6 +43,7 @@ int cmd_timer_get_ctl(int argc, char **argv)
 	uint32_t dst;
 	GET_CNTP_CTL(dst);
 	printf("CNTP_CTL: 0x%x\n", dst);
+	return 0;
 }
 
 void timer_init(void)

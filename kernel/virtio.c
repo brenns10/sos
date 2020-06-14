@@ -107,7 +107,6 @@ void virtio_check_capabilities(virtio_regs *regs, struct virtio_cap *caps,
 {
 	uint32_t i;
 	uint32_t bank = 0;
-	uint32_t bit = 0;
 	uint32_t driver = 0;
 	uint32_t device;
 
@@ -132,7 +131,6 @@ void virtio_check_capabilities(virtio_regs *regs, struct virtio_cap *caps,
 			mb();
 			device = READ32(regs->DeviceFeatures);
 		}
-		bit = caps[i].bit % 32;
 		if (device & (1 << caps[i].bit)) {
 			if (caps[i].support) {
 				driver |= (1 << caps[i].bit);
@@ -199,6 +197,7 @@ static int virtio_dev_init(uint32_t virt, uint32_t intid)
 		printf("unsupported virtio device ID 0x%x\n",
 		       READ32(regs->DeviceID));
 	}
+	return 0;
 }
 
 void virtio_init(void)
