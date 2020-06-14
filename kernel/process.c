@@ -94,7 +94,7 @@ struct process *create_process(uint32_t binary)
 	 */
 	dst = (uint32_t *)virt;
 	src = (uint32_t *)binaries[binary].start;
-	for (i = 0; i<size>> 2; i++)
+	for (i = 0; i<size> > 2; i++)
 		dst[i] = src[i];
 
 	/*
@@ -122,7 +122,6 @@ struct process *create_process(uint32_t binary)
 	list_insert(&process_list, &p->list);
 	p->flags.pr_ready = 1;
 	p->flags.pr_kernel = 0;
-	p->flags.pr_syscall = 0;
 
 	/*umem_print(p, 0x40000000, 0xFFFFFFFF);*/
 
@@ -146,7 +145,6 @@ struct process *create_kthread(void (*func)(void *), void *arg)
 	p->phys = 0;
 	p->flags.pr_ready = 1;
 	p->flags.pr_kernel = 1;
-	p->flags.pr_syscall = 0;
 	p->kstack = (void *)kmem_get_pages(4096, 0) + 4096;
 
 	/* kthread is in kernel memory space, no user memory region */

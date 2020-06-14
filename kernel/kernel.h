@@ -257,9 +257,8 @@ struct process {
 	uint32_t context[17];
 
 	struct {
-		int pr_ready : 1;   /* ready to be scheduled? */
-		int pr_syscall : 1; /* is the process suspended by syscall? */
-		int pr_kernel : 1;  /* is a kernel thread? */
+		int pr_ready : 1;  /* ready to be scheduled? */
+		int pr_kernel : 1; /* is a kernel thread? */
 	} flags;
 
 	/** Global process list entry. */
