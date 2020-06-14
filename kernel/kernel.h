@@ -380,8 +380,10 @@ void gic_init(void);
 void gic_enable_interrupt(uint8_t int_id);
 uint32_t gic_interrupt_acknowledge(void);
 void gic_end_interrupt(uint32_t int_id);
-void gic_register_isr(uint32_t intid_start, uint32_t intid_count, isr_t isr);
+void gic_register_isr(uint32_t intid_start, uint32_t intid_count, isr_t isr,
+                      char *name);
 isr_t gic_get_isr(uint32_t intid);
+char *gic_get_name(uint32_t intid);
 
 /* timer */
 void timer_init(void);

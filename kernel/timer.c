@@ -59,7 +59,7 @@ void timer_init(void)
 	dst = 1;
 	SET_CNTP_CTL(dst); /* enable timer */
 
-	gic_register_isr(TIMER_INTID, 1, timer_isr);
+	gic_register_isr(TIMER_INTID, 1, timer_isr, "timer");
 	gic_enable_interrupt(TIMER_INTID);
 }
 

@@ -325,8 +325,8 @@ return_to_same_mode:
  * a1: pointer to current->context, where we will store enough return state to
  *     continue execution when restored by "return_from_exception"
  */
-.global block
-block:
+.global block_asm
+block_asm:
 
 	/* Put SPSR and return address into first two bytes */
 	add a1, a1, #60

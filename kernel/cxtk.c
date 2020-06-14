@@ -20,6 +20,7 @@ struct ctx {
 #define CTX_SYSC  3
 #define CTX_SYSCR 4
 #define CTX_IRQ   5
+#define CTX_BLK   6
 
 struct ctx *ctxarr = NULL;
 size_t ctxidx = 0;
@@ -67,9 +68,15 @@ void cxtk_track_proc(void)
 	cxtk_track(CTX_PROC, (uint16_t)current->id);
 }
 
+void cxtk_track_block(void)
+{
+	cxtk_track(CTX_BLK, 0);
+}
+
 void cxtk_report(void)
 {
 	bool began = false;
+	char *irqname;
 	size_t i;
 	if (!ctxarr) {
 		puts("context tracking not initialized\n");
@@ -99,8 +106,13 @@ void cxtk_report(void)
 			printf("  syscall return (x%u)\n", ctxarr[i].count);
 			break;
 		case CTX_IRQ:
-			printf("   IRQ %u (x%u)\n", ctxarr[i].arg,
-			       ctxarr[i].count);
+			irqname = gic_get_name(ctxarr[i].arg);
+			irqname = irqname ? irqname : "unknown";
+			printf("   IRQ %u \"%s\" (x%u)\n", ctxarr[i].arg,
+			       irqname, ctxarr[i].count);
+			break;
+		case CTX_BLK:
+			printf("   block (x%u)\n", ctxarr[i].count);
 			break;
 		default:
 			puts("error: unknown entry type\n");

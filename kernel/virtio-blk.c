@@ -259,7 +259,7 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	blkdev.virtq = virtq;
 	blkdev.intid = intid;
 
-	gic_register_isr(intid, 1, virtio_blk_isr);
+	gic_register_isr(intid, 1, virtio_blk_isr, "virtio-blk");
 	gic_enable_interrupt(intid);
 
 	WRITE32(regs->Status, READ32(regs->Status) | VIRTIO_STATUS_DRIVER_OK);

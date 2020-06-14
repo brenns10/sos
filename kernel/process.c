@@ -266,7 +266,6 @@ void context_switch(struct process *new_process)
 	set_cpreg(new_process->ttbr1, c2, 0, c0, 1);
 
 	current = new_process;
-	cxtk_track_proc();
 
 	/* TODO: It is possible for ASIDs to overlap. Need to check for this and
 	 * invalidate caches. */
@@ -281,6 +280,7 @@ void context_switch(struct process *new_process)
 	 * that the process is no longer waiting for a syscall.
 	 */
 out:
+	cxtk_track_proc();
 	return_from_exception(0, 0, &current->context);
 }
 
@@ -424,4 +424,11 @@ void process_init(void)
 	proc_slab = slab_new("process", sizeof(struct process), kmem_get_page);
 	idle_process = create_kthread(idle, NULL);
 	idle_process->flags.pr_ready = 0; /* idle process is never ready */
+}
+
+void block_asm(uint32_t *ctx);
+void block(uint32_t *ctx)
+{
+	cxtk_track_block();
+	block_asm(ctx);
 }

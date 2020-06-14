@@ -11,13 +11,16 @@
 static gic_distributor_registers *gic_dregs;
 static gic_cpu_interface_registers *gic_ifregs;
 static isr_t gic_handlers[GIC_INTERRUPT_COUNT];
+static char *gic_names[GIC_INTERRUPT_COUNT];
 
 void gic_init(void)
 {
 	uint32_t i;
 
-	for (i = 0; i < GIC_INTERRUPT_COUNT; i++)
+	for (i = 0; i < GIC_INTERRUPT_COUNT; i++) {
 		gic_handlers[i] = NULL;
+		gic_names[i] = NULL;
+	}
 
 	gic_dregs = (gic_distributor_registers *)alloc_pages(
 	        kern_virt_allocator, 0x1000, 0);
@@ -61,14 +64,22 @@ void gic_end_interrupt(uint32_t int_id)
 	WRITE32(gic_ifregs->CEOIR, int_id);
 }
 
-void gic_register_isr(uint32_t intid_start, uint32_t intid_count, isr_t isr)
+void gic_register_isr(uint32_t intid_start, uint32_t intid_count, isr_t isr,
+                      char *name)
 {
 	uint8_t i;
-	for (i = 0; i < intid_count; i++)
+	for (i = 0; i < intid_count; i++) {
 		gic_handlers[intid_start + i] = isr;
+		gic_names[intid_start + i] = name;
+	}
 }
 
 isr_t gic_get_isr(uint32_t intid)
 {
 	return gic_handlers[intid];
+}
+
+char *gic_get_name(uint32_t intid)
+{
+	return gic_names[intid];
 }

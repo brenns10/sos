@@ -230,7 +230,7 @@ int virtio_net_init(virtio_regs *regs, uint32_t intid)
 	virtq_add_to_device(regs, netdev.rx, VIRTIO_NET_Q_RX);
 	virtq_add_to_device(regs, netdev.tx, VIRTIO_NET_Q_TX);
 
-	gic_register_isr(intid, 1, virtio_net_isr);
+	gic_register_isr(intid, 1, virtio_net_isr, "virtio-net");
 	gic_enable_interrupt(intid);
 	WRITE32(regs->Status, READ32(regs->Status) | VIRTIO_STATUS_DRIVER_OK);
 	mb();

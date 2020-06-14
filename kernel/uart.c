@@ -122,6 +122,6 @@ void uart_init(void)
 	reg = UARTIMSC_UART_RXIM;
 	WRITE32(base->UARTIMSC, reg);
 
-	gic_register_isr(UART_INTID, 1, uart_isr);
+	gic_register_isr(UART_INTID, 1, uart_isr, "uart");
 	gic_enable_interrupt(UART_INTID);
 }
