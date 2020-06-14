@@ -106,12 +106,12 @@ class SosVirtualMachine(object):
 
 @pytest.fixture
 def raw_vm():
-     sos = SosVirtualMachine()
-     try:
-         sos.start()
-         yield sos
-     finally:
-         sos.stop()
+    sos = SosVirtualMachine()
+    try:
+        sos.start()
+        yield sos
+    finally:
+        sos.stop()
 
 
 @pytest.fixture
