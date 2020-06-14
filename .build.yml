@@ -1,4 +1,4 @@
-image: debian/stable
+image: debian/bullseye
 packages:
  - build-essential
  - qemu-system-arm
