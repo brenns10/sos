@@ -94,7 +94,7 @@ struct process *create_process(uint32_t binary)
 	 */
 	dst = (uint32_t *)virt;
 	src = (uint32_t *)binaries[binary].start;
-	for (i = 0; i<size> > 2; i++)
+	for (i = 0; i < (size / 4); i++)
 		dst[i] = src[i];
 
 	/*
