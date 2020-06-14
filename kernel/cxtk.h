@@ -12,7 +12,7 @@
 void cxtk_init(void);
 void cxtk_track_syscall(void);
 void cxtk_track_syscall_return(void);
-void cxtk_track_irq(uint8_t id);
+void cxtk_track_irq(uint8_t id, uint32_t instr);
 void cxtk_track_proc(void);
 void cxtk_track_block(void);
 #else
@@ -25,7 +25,7 @@ void cxtk_track_block(void);
 #define cxtk_track_syscall_return()                                            \
 	do {                                                                   \
 	} while (0);
-#define cxtk_track_irq(id)                                                     \
+#define cxtk_track_irq(id, instr)                                              \
 	do {                                                                   \
 	} while (0);
 #define cxtk_track_proc()                                                      \

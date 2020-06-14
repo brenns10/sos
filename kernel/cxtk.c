@@ -9,9 +9,9 @@
 
 struct ctx {
 	uint8_t type;
-	uint8_t _pad1;
-	uint16_t arg;
-	uint32_t count;
+	uint8_t smallarg;
+	uint16_t count;
+	uint32_t arg;
 };
 
 #define CTX_NONE  0
@@ -28,14 +28,16 @@ size_t ctxidx = 0;
 #define CTX_PAGES 1
 #define CTX_CAP   ((CTX_PAGES * 4096) / sizeof(struct ctx))
 
-static inline void cxtk_track(uint8_t type, uint16_t arg)
+static inline void cxtk_track(uint8_t type, uint32_t arg, uint8_t smallarg)
 {
-	if (ctxarr[ctxidx].type == type && ctxarr[ctxidx].arg == arg) {
+	if (ctxarr[ctxidx].type == type && ctxarr[ctxidx].arg == arg &&
+	    ctxarr[ctxidx].smallarg == smallarg) {
 		ctxarr[ctxidx].count += 1;
 	} else {
 		ctxidx = (ctxidx + 1) % CTX_CAP;
 		ctxarr[ctxidx].type = type;
 		ctxarr[ctxidx].arg = arg;
+		ctxarr[ctxidx].smallarg = smallarg;
 		ctxarr[ctxidx].count = 1;
 	}
 }
@@ -45,32 +47,32 @@ void cxtk_init(void)
 	ctxidx = 0;
 	ctxarr = (struct ctx *)kmem_get_pages(PAGE_SIZE * CTX_PAGES, 0);
 	memset(ctxarr, 0, PAGE_SIZE * CTX_PAGES);
-	cxtk_track(CTX_KINIT, 0);
+	cxtk_track(CTX_KINIT, 0, 0);
 }
 
 void cxtk_track_syscall(void)
 {
-	cxtk_track(CTX_SYSC, (uint16_t)current->id);
+	cxtk_track(CTX_SYSC, current->id, 0);
 }
 
 void cxtk_track_syscall_return(void)
 {
-	cxtk_track(CTX_SYSCR, 0);
+	cxtk_track(CTX_SYSCR, 0, 0);
 }
 
-void cxtk_track_irq(uint8_t id)
+void cxtk_track_irq(uint8_t id, uint32_t instr)
 {
-	cxtk_track(CTX_IRQ, id);
+	cxtk_track(CTX_IRQ, instr, id);
 }
 
 void cxtk_track_proc(void)
 {
-	cxtk_track(CTX_PROC, (uint16_t)current->id);
+	cxtk_track(CTX_PROC, current->id, 0);
 }
 
 void cxtk_track_block(void)
 {
-	cxtk_track(CTX_BLK, 0);
+	cxtk_track(CTX_BLK, 0, 0);
 }
 
 void cxtk_report(void)
@@ -106,10 +108,11 @@ void cxtk_report(void)
 			printf("  syscall return (x%u)\n", ctxarr[i].count);
 			break;
 		case CTX_IRQ:
-			irqname = gic_get_name(ctxarr[i].arg);
+			irqname = gic_get_name(ctxarr[i].smallarg);
 			irqname = irqname ? irqname : "unknown";
-			printf("   IRQ %u \"%s\" (x%u)\n", ctxarr[i].arg,
-			       irqname, ctxarr[i].count);
+			printf("   IRQ %u \"%s\" interrupted 0x%x (x%u)\n",
+			       ctxarr[i].smallarg, irqname, ctxarr[i].arg,
+			       ctxarr[i].count);
 			break;
 		case CTX_BLK:
 			printf("   block (x%u)\n", ctxarr[i].count);

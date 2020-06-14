@@ -55,10 +55,10 @@ void prefetch_abort(uint32_t lr)
 	print_fault(fsr, far);
 }
 
-void irq(void)
+void irq(uint32_t instr)
 {
 	uint8_t intid = (uint8_t)gic_interrupt_acknowledge();
-	cxtk_track_irq(intid);
+	cxtk_track_irq(intid, instr);
 	isr_t isr = gic_get_isr(intid);
 	if (isr)
 		isr(intid);

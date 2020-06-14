@@ -145,6 +145,7 @@ irq_impl:
 	ldr sp, [sp]
 
 	/* Branch into the C IRQ handler. */
+	mov a1, lr
 	bl irq
 	mov a2, #0  /* please don't use return value */
 	/* On return, we again restore current->context */
