@@ -279,15 +279,23 @@ return_from_exception:
 	mov sp, SPRESTO
 	mov lr, LRRESTO
 
-	cmp CURMODE, #0x13
-	bne 1f
-	/* if we started in SVC, return to SVC */
-	cps 0x13
-	b 2f
-	1: /* otherwise return to IRQ */
-	cps 0x12
+	cmp CURMODE, #0x1F  /* SYS */
+	beq restore_SYS
+	cmp CURMODE, #0x12  /* IRQ */
+	beq restore_IRQ
+	/* otherwise, SVC mode, fall through */
+	restore_SVC:
+		cps 0x13 /* SVC */
+		b continue
 
-	2:
+	restore_SYS:
+		cps 0x1F /* SYS */
+		b continue
+
+	restore_IRQ:
+		cps 0x12 /* IRQ */
+
+	continue:
 	cmp a2, #0
 	popeq {a1}  /* when a2==0, restore the stored value of a1 */
 	popne {a3}  /* when a2!=0, use current value of a1 */
