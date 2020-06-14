@@ -232,6 +232,7 @@ void data_abort(uint32_t lr);
  * Load stack pointer
  */
 #define get_sp(dst) __asm__ __volatile__("mov %[rd], sp" : [ rd ] "=r"(dst) : :)
+#define get_fp(dst) __asm__ __volatile__("mov %[rd], fp" : [ rd ] "=r"(dst) : :)
 
 /**
  * This "process" is hardly a process. It runs in user mode, but shares its
@@ -412,3 +413,6 @@ int copy_from_user(void *kerndst, const void *usersrc, size_t n);
 int copy_to_user(void *userdst, const void *kernsrc, size_t n);
 
 void dhcp_kthread_start(void);
+
+// debug
+void backtrace(void);
