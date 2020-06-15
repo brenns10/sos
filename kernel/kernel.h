@@ -66,7 +66,6 @@ extern void *svc_stack;
  */
 void puts(char *string);
 void putc(char c);
-char getc(void);
 int getc_blocking(void);
 void uart_init(void);
 void uart_wait(struct process *p);
@@ -421,3 +420,4 @@ void dhcp_kthread_start(void);
 // debug
 void backtrace(void);
 void backtrace_ctx(struct ctx *ctx);
+void panic(struct ctx *ctx);

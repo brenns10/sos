@@ -1,3 +1,4 @@
+#include "cxtk.h"
 #include "kernel.h"
 
 /*
@@ -59,4 +60,18 @@ void printregs(struct ctx *ctx)
 	printf("v3: 0x%x\tv2: 0x%x\n", ctx->v3, ctx->v2);
 	printf("v1: 0x%x\tret: 0x%x\n", ctx->v1, ctx->ret);
 	printf("spsr: 0x%x\n", ctx->spsr);
+}
+
+void panic(struct ctx *ctx)
+{
+	puts("PANIC\n");
+	backtrace();
+	if (ctx) {
+		puts("stored context info:\n");
+		printregs(ctx);
+		backtrace_ctx(ctx);
+	}
+	cxtk_report();
+	for (;;) {
+	}
 }

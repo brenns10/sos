@@ -7,6 +7,12 @@
 
 typedef volatile struct __attribute__((packed)) {
 	uint32_t UARTDR;
+#define UARTDR_OE    (1 << 11)
+#define UARTDR_BE    (1 << 10)
+#define UARTDR_PE    (1 << 9)
+#define UARTDR_FE    (1 << 8)
+#define UARTDR_FLAGS 0xF00
+#define UARTDR_DATA  0xFF
 	uint32_t UARTRSR;
 	uint32_t _reserved0[4];
 	const uint32_t UARTFR;
@@ -56,39 +62,70 @@ void puts(char *string)
 		putc(*(string++));
 }
 
-char getc(void)
+uint8_t saved;
+uint8_t has_saved;
+
+int try_getc(void)
 {
-	while (base->UARTFR & UARTFR_RXFE) {
+	if (has_saved) {
+		has_saved = 0;
+		return saved;
 	}
-	return (char)base->UARTDR;
+	if (base->UARTFR & UARTFR_RXFE)
+		return -1;
+	return READ32(base->UARTDR) & UARTDR_DATA;
 }
 
 int getc_blocking(void)
 {
+	int rv;
 	if (waiting)
 		return -EBUSY;
 
-	while (READ32(base->UARTFR) & UARTFR_RXFE) {
+	rv = try_getc();
+	while (rv == -1) {
 		current->flags.pr_ready = 0;
 		waiting = current;
 		schedule();
+		rv = try_getc();
 	}
-	return READ32(base->UARTDR) & 0xFF;
+	return rv;
 }
 
 void uart_isr(uint32_t intid, struct ctx *ctx)
 {
 	uint32_t reg;
 
-	reg = base->UARTMIS;
+	/* Make sure that this is an RX interrupt */
+	reg = READ32(base->UARTMIS);
+
 	if (reg != UARTIMSC_UART_RXIM) {
 		puts("BAD UART INTERRUPT\n");
-	} else if (waiting) {
+		goto out;
+	}
+
+	if (!has_saved) {
+		/* Peek and see what we got to check for errors */
+		reg = READ32(base->UARTDR);
+		if (reg & UARTDR_BE) {
+			/* Break error means we should panic */
+			panic(ctx);
+		} else if (reg & UARTDR_FLAGS) {
+			/* Report other errors */
+			printf("uart: got error in rx, UARTDR=0x%x\n", reg);
+			goto out;
+		}
+		saved = reg & UARTDR_DATA;
+		has_saved = true;
+	}
+
+	if (waiting) {
 		/* get the getc return value and mark process for return */
 		waiting->flags.pr_ready = 1;
 		waiting = NULL;
 	}
 
+out:
 	/* clear the interrupt */
 	reg = UARTIMSC_UART_RXIM;
 	WRITE32(base->UARTICR, reg);
