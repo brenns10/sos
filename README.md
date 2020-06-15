@@ -1,6 +1,8 @@
 SOS (Stephen's OS)
 ==================
 
+[![builds.sr.ht status](https://builds.sr.ht/~brenns10/sos.svg)](https://builds.sr.ht/~brenns10/sos?)
+
 This is my personal operating system project. It targets the 32-bit ARMv7-A
 architecture, with the only currently supported machine being QEMU (a VM). It is
 easy to compile, run, modify, and debug. Despite being very limited, this
