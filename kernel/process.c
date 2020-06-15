@@ -263,29 +263,19 @@ void destroy_current_process()
 	schedule();
 }
 
-/* should be called only once */
-void start_process(struct process *p)
-{
-	/* Set the current ASID */
-	set_cpreg(p->id, c13, 0, c0, 1);
-
-	/* Set TTBR1 to user tables! */
-	set_cpreg(p->ttbr1, c2, 0, c0, 1);
-
-	current = p;
-	cxtk_track_proc();
-	// printf("[kernel]\t\tstart process %u (ttbr1=0x%x)\n", p->id,
-	// p->ttbr1);
-	start_process_asm((void *)p->context.ret);
-}
-
 void context_switch(struct process *new_process)
 {
-	/*printf("[kernel]\t\tswap current process %u for new process %u\n",
-	                current ? current->id : 0, new_process->id);*/
-
 	if (new_process == current)
 		goto out;
+
+	/* current could be NULL in two cases:
+	 * 1. Starting the first process after initialization.
+	 * 2. After destroying a process.
+	 * In either case, we don't care to store the context, so don't.
+	 */
+	if (current)
+		if (setctx(&current->context))
+			return; /* This is where we get scheduled back in */
 
 	/* Set the current ASID */
 	set_cpreg(new_process->id, c13, 0, c0, 1);
@@ -302,14 +292,9 @@ void context_switch(struct process *new_process)
 	 * changed and TTBR is changed (non-atomically). See B3.10.4 in ARMv7a
 	 * reference for solution. */
 
-	/*
-	 * In case that a process had been waiting for a system call and now can
-	 * return, we can pretend to return from a syscall. Just be sure to mark
-	 * that the process is no longer waiting for a syscall.
-	 */
-out:
 	cxtk_track_proc();
-	return_from_exception(0, 0, &current->context);
+out:
+	resctx(0, &current->context);
 }
 
 struct process *choose_new_process(void)
@@ -369,7 +354,7 @@ void irq_schedule(struct ctx *ctx)
 	struct process *new = choose_new_process();
 
 	if (current == new)
-		goto out;
+		return;
 
 	/* Set the current ASID */
 	set_cpreg(new->id, c13, 0, c0, 1);
@@ -382,14 +367,13 @@ void irq_schedule(struct ctx *ctx)
 	current = new;
 	*ctx = current->context;
 
-out:
 	cxtk_track_proc();
 	/* returning from IRQ is mandatory, swapping ctx will cause us to return
 	 * to the new context */
 }
 
 /**
- * Choose and context switch into a different active process. Does not return.
+ * Choose and context switch into a different active process.
  */
 void schedule(void)
 {
@@ -460,8 +444,8 @@ int cmd_execproc(int argc, char **argv)
 		return 2;
 	}
 
-	start_process(p);
-	return 0; /* never happens :O */
+	context_switch(p);
+	return 0;
 }
 
 static void idle(void *arg)
@@ -480,11 +464,4 @@ void process_init(void)
 	proc_slab = slab_new("process", sizeof(struct process), kmem_get_page);
 	idle_process = create_kthread(idle, NULL);
 	idle_process->flags.pr_ready = 0; /* idle process is never ready */
-}
-
-void block_asm(uint32_t *ctx);
-void block(uint32_t *ctx)
-{
-	cxtk_track_block();
-	block_asm(ctx);
 }

@@ -1,7 +1,7 @@
 #include "cxtk.h"
 #include "kernel.h"
 
-void print_fault(uint32_t fsr, uint32_t far)
+void print_fault(uint32_t fsr, uint32_t far, struct ctx *ctx)
 {
 	uint32_t mode;
 	get_spsr(mode);
@@ -34,25 +34,28 @@ void print_fault(uint32_t fsr, uint32_t far)
 		break;
 	}
 	cxtk_report();
+	backtrace_ctx(ctx);
 	puts("END OF FAULT REPORT\n");
 }
 
-void data_abort(uint32_t lr)
+void data_abort(struct ctx *ctx)
 {
 	uint32_t dfsr, dfar;
 	get_cpreg(dfsr, c5, 0, c0, 0);
 	get_cpreg(dfar, c6, 0, c0, 0);
-	printf("Uh-oh... data abort! DFSR=%x DFAR=%x LR=%x\n", dfsr, dfar, lr);
-	print_fault(dfsr, dfar);
+	printf("Uh-oh... data abort! DFSR=%x DFAR=%x LR=%x\n", dfsr, dfar,
+	       ctx->ret);
+	print_fault(dfsr, dfar, ctx);
 }
 
-void prefetch_abort(uint32_t lr)
+void prefetch_abort(struct ctx *ctx)
 {
 	uint32_t fsr, far;
 	get_cpreg(fsr, c5, 0, c0, 1);
 	get_cpreg(far, c6, 0, c0, 2);
-	printf("Uh-oh... prefetch abort! FSR=%x IFAR=%x LR=%x\n", fsr, far, lr);
-	print_fault(fsr, far);
+	printf("Uh-oh... prefetch abort! FSR=%x IFAR=%x LR=%x\n", fsr, far,
+	       ctx->ret);
+	print_fault(fsr, far, ctx);
 }
 
 void irq(struct ctx *ctx)
@@ -66,7 +69,15 @@ void irq(struct ctx *ctx)
 		printf("Unhandled IRQ: ID=%u, not ending\n", intid);
 }
 
-void fiq(void)
+void fiq(struct ctx *ctx)
 {
 	puts("FIQ!\n");
+}
+
+void undefined(struct ctx *ctx)
+{
+	printf("Undefined instruction at 0x%x\n", ctx->ret);
+	cxtk_report();
+	backtrace_ctx(ctx);
+	puts("END OF FAULT REPORT\n");
 }

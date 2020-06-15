@@ -8,8 +8,122 @@
 .equ MODE_MASK, 0x1F
 .text
 
-.global undefined_impl
-undefined_impl: sub pc, pc, #8
+/*
+ * setctx(): store CPU context into memory. Return (in a1) 0 on the first call,
+ * some non-zero value of a1 when returning via a call to resctx().
+ *
+ * As in any function call, callee-save registers are not saved in any
+ * meaningful way.
+ *
+ * This function CAN ONLY store the context of SVC or SYS mode (kernel)
+ * execution contexts. This means that kthreads can use it, and so can system
+ * calls operating on behalf of userspace threads. Interrupts may not use it,
+ * nor may they use the opposite function resctx() to restore a context.
+ */
+.global setctx
+setctx:
+	add a1, #68
+	/* Put CPSR and return address into first two words */
+	mrs a2, cpsr
+	stmfd a1!, {a2}
+	adr a2, 1f
+	stmfd a1!, {a2}
+
+	/* Store remaining items as if we were dumping to stack */
+	stmfd a1!, {v1-v8}
+	stmfd a1!, {a2-a4,r12}
+	mov a2, #1 /* a dummy value for a1 */
+	stmfd a1!, {a2}
+	stmfd a1!, {sp, lr}
+
+	/* And return 0 back */
+	mov a1, #0
+	mov pc, lr
+
+	1:
+		mov pc, lr
+
+/*
+ * resctx(): restore CPU context and resume executing wherever we left off.
+ * a1: an argument to return from the second return of setctx(). When a1 is 0,
+ * this signals that we should use the value of a1 stored in a1 (i.e. a complete
+ * context restore) since using 0 would confuse any caller of setctx().
+ * a2: a pointer to the context we return to
+ *
+ * We may resume from SVC or SYS mode, and we may resume to SVC, SYS, or USR
+ * mode. WE MAY NOT RESUME FROM IRQ, please simply return from the IRQ handler.
+ */
+.global resctx
+resctx:
+	/* Use the second argument (context) as "stack" to pop items out */
+	mov sp, a2
+
+	/*
+	 * We must disable interrupts here because "system mode" is reserved for
+	 * kernel threads. If we are interrupted while in system mode, the IRQ
+	 * handler might assume we're in kthread process context, and decide
+	 * that it's safe to attempt to context switch us out - which is not a
+	 * good idea!
+	 */
+	cpsid i
+
+	CURMODE .req v1
+	DSTMODE .req v2
+	SPRESTO .req v3
+	LRRESTO .req v4
+	mrs CURMODE, cpsr
+	and CURMODE, CURMODE, #MODE_MASK
+	ldr DSTMODE, [sp, #64]
+	and DSTMODE, DSTMODE, #MODE_MASK
+	pop {SPRESTO, LRRESTO}
+
+	/* If currently in SYS mode, move into SVC mode so we know we can safely
+	 * return without touching a user-mode stack. */
+	cmp CURMODE, #MODE_SYS
+	bne 1f
+		mov a2, sp
+		cps #MODE_SVC
+		mov sp, a2
+
+	1:
+	/* If we are returning from SVC->SVC, we'll need to do a special-case
+	 * form where we transfer the context onto the existing stack and then
+	 * restore it from there. */
+	cmp DSTMODE, #MODE_SVC
+	beq return_to_svc
+
+	/* At this point we know we are in SVC returning to SYS/USR */
+	cps #MODE_SYS
+	mov sp, SPRESTO
+	mov lr, LRRESTO
+	cps #MODE_SVC
+	cmp a1, #0
+	popeq {a1}  /* when a1==0, restore the stored value of a1 */
+	popne {a3}  /* when a1!=0, use current value of a1 */
+	pop {a2-a4,r12}
+	pop {v1-v8}
+	rfefd sp!
+
+return_to_svc:
+	mov lr, LRRESTO
+	mov sp, SPRESTO
+
+	/* transfer everything from given context in a3 to stack */
+	add a3, a2, #60
+	1:
+	add a3, a3, #-4
+	ldr v1, [a3]
+	push {v1}
+	cmp a3, a2
+	bne 1b
+
+	cmp a1, #0
+	popeq {a1}  /* when a1==0, restore the stored value of a1 */
+	popne {a3}  /* when a1!=0, use current value of a1 */
+	pop {a2-a4,r12}
+	pop {v1-v8}
+	rfefd sp!
+
 
 /*
  * Handle SWI. To do this we must store the process context and then dispatch
@@ -27,16 +141,16 @@ swi_impl:
 	/*
 	 * Dump LR and SPSR to the kernel-mode stack.
 	 */
-	srsfd sp!, #0x13
+	srsfd sp!, #MODE_SVC
 	push {v1-v8}
 	push {a2-a4,r12} /* not guaranteed to be saved but we do */
 	push {a1} /* will be clobbered by retval but stored anyway */
 
 	/* Save SP_usr and LR_usr */
-	cps #0x1F  /* system */
+	cps #MODE_SYS
 	mov v1, sp
 	mov v2, lr
-	cps #0x13  /* svc */
+	cps #MODE_SVC
 	push {v1, v2}
 
 	/*
@@ -80,19 +194,75 @@ swi_impl:
 	/*  9 */ b sys_send
 	/* 10 */ b sys_recv
 	/* END. Please update max syscall number above. */
-
 _swi_ret:
-	mov a2, #1 /* please use return value */
-	mov a3, sp
-	b return_from_exception
+	pop {v1, v2}
+	cps #MODE_SYS
+	mov sp, v1
+	mov lr, v2
+	cps #MODE_SVC
+	pop {a2} /* discard a1 since we're returning */
+	pop {a2-a4,r12}
+	pop {v1-v8}
+	rfefd sp!
+
+.global undefined_impl
+undefined_impl:
+	srsfd sp!, #MODE_UNDF
+	push {v1-v8}
+	push {a2-a4,r12}
+	push {a1}
+	/* Push dummy values for SP and LR of interrupted mode. */
+	mov a1, #0
+	mov a2, #0
+	push {a1, a2}
+	mov a1, sp
+	bl undefined
+	nop
+	sub pc, pc, #8
 
 .global prefetch_abort_impl
 prefetch_abort_impl:
-	srsfd sp!, #0x17 /* abort */
-	push {r0-r12}
-	mov a1, lr
+	srsfd sp!, #MODE_ABRT
+	push {v1-v8}
+	push {a2-a4,r12}
+	push {a1}
+	/* Push dummy values for SP and LR of interrupted mode. */
+	mov a1, #0
+	mov a2, #0
+	push {a1, a2}
+	mov a1, sp
 	bl prefetch_abort
-	nop  /* infinite loop since it broke */
+	nop
+	sub pc, pc, #8
+
+.global fiq_impl
+fiq_impl:
+	srsfd sp!, #MODE_FIQ
+	push {v1-v8}
+	push {a2-a4,r12}
+	push {a1}
+	/* Push dummy values for SP and LR of interrupted mode. */
+	mov a1, #0
+	mov a2, #0
+	push {a1, a2}
+	mov a1, sp
+	bl fiq
+	nop
+	sub pc, pc, #8
+
+.global data_abort_impl
+data_abort_impl:
+	srsfd sp!, #MODE_ABRT
+	push {v1-v8}
+	push {a2-a4,r12}
+	push {a1}
+	/* Push dummy values for SP and LR of interrupted mode. */
+	mov a1, #0
+	mov a2, #0
+	push {a1, a2}
+	mov a1, sp
+	bl data_abort
+	nop
 	sub pc, pc, #8
 
 /**
@@ -116,8 +286,8 @@ irq_impl:
 	 */
 	add lr, lr, #-4
 
-        /* Dump LR and SPSR to current->context. */
-	srsfd sp!, #0x12 /* irq */
+        /* Dump LR and SPSR to IRQ stack */
+	srsfd sp!, #MODE_IRQ
 
 	/* Save registers in standard order */
 	push {v1-v8}
@@ -170,23 +340,6 @@ irq_impl:
 	pop {v1-v8}
 	rfefd sp!
 
-.global fiq_impl
-fiq_impl:
-	srsfd sp!, #0x11
-	push {r0-r12} /* lol these are probably not the right registers */
-	bl fiq
-	nop  /* infinite loop since it what even is fiq */
-	sub pc, pc, #8
-
-.global data_abort_impl
-data_abort_impl:
-	srsfd sp!, #0x17 /* abort */
-	push {r0-r12}
-	mov a1, lr
-	bl data_abort
-	nop  /* infinite loop since it broke */
-	sub pc, pc, #8
-
 /*
  * Change into each mode, and set stack to be 1024 bytes of the page pointed by
  * a1.
@@ -207,160 +360,4 @@ setup_stacks:
 	add a1, a1, #4096
 	mov sp, a1
 	cps #0x13  /* MODE_SVC */
-	mov pc, lr
-
-/*
- * Start a process running, assembly helper.
- * a1: place to branch
- */
-.global start_process_asm
-start_process_asm:
-	/* reset the stack pointer cause we don't need it any more */
-	ldr sp, =stack_end
-	cps #0x10
-	mov pc, a1
-
-/*
- * Return from syscall or IRQ.
- *
- * This routine is a general-purpose return mechanism. It allows us to return
- * from IRQ, SVC, or SYS mode into SVC, SYS, or USR, depending on whatever
- * context was handed to us in a3. a1 and a2 are used to optionally return a
- * value (in the case of a syscall).
- *
- * This may be called as a function by C code to return early from an exception,
- * but in both SWI and IRQ, it will naturally be executed in the return path.
- *
- * a1: Return value placed in register a1 on return, whenever a2 is truthy
- * a2: Do we use the return value? If not, we replace the context value of a1
- * a3: Pointer to the context we are restoring
- */
-.global return_from_exception
-return_from_exception:
-	/* Use a3 as our new stack, for popping items out of the context */
-	mov sp, a3
-
-	/*
-	 * We must disable interrupts here because "system mode" is reserved for
-	 * kernel threads. If we are interrupted while in system mode, the IRQ
-	 * handler might assume we're in kthread process context, and decide
-	 * that it's safe to attempt to context switch us out - which is not a
-	 * good idea!
-	 */
-	cpsid i
-
-	/*
-	 * We need to restore the SP and LR to the mode we'll return to. This is
-	 * a bit tricky for two reasons:
-	 * (1) We could return to SVC, SYS, or USR modes, depending on what we
-	 *     interrupted.
-	 * (2) We may currently be in SVC, SYS, or IRQ mode.
-	 *
-	 * As a result, we can't assume that the destination mode's registers
-	 * are banked. When we need to do SVC->SVC or SYS->SYS, we do a
-	 * different approach in return_to_same_mode.
-	 *
-	 * Otherwise, we'll switch to the appropriate mode, stick the SP / LR
-	 * into the banked register, and continue onward.
-	 */
-	CURMODE .req v1
-	DSTMODE .req v2
-	SPRESTO .req v3
-	LRRESTO .req v4
-	mrs CURMODE, cpsr
-	and CURMODE, CURMODE, #0x1F
-	ldr DSTMODE, [sp, #64]
-	and DSTMODE, DSTMODE, #0x1F
-	pop {SPRESTO, LRRESTO}
-
-	cmp CURMODE, DSTMODE
-	beq return_to_same_mode
-
-	cmp DSTMODE, #0x13 /* SVC */
-	bne 1f
-	cps 0x13 /* SVC */
-	b 2f
-	1: /* if destination is not SVC, then we should restore to SYS */
-	cps 0x1F /* SYS */
-
-	2: /* do the restore */
-	mov sp, SPRESTO
-	mov lr, LRRESTO
-
-	cmp CURMODE, #0x1F  /* SYS */
-	beq restore_SYS
-	cmp CURMODE, #0x12  /* IRQ */
-	beq restore_IRQ
-	/* otherwise, SVC mode, fall through */
-	restore_SVC:
-		cps 0x13 /* SVC */
-		b continue
-
-	restore_SYS:
-		cps 0x1F /* SYS */
-		b continue
-
-	restore_IRQ:
-		cps 0x12 /* IRQ */
-
-	continue:
-	cmp a2, #0
-	popeq {a1}  /* when a2==0, restore the stored value of a1 */
-	popne {a3}  /* when a2!=0, use current value of a1 */
-	pop {a2-a4,r12}
-	pop {v1-v8}
-	rfefd sp!
-
-return_to_same_mode:
-	mov lr, LRRESTO
-	mov a3, sp
-	mov sp, SPRESTO
-
-	/* transfer everything from given context in a3 to stack */
-	add a4, a3, #60
-	1:
-	add a4, a4, #-4
-	ldr v1, [a4]
-	push {v1}
-	cmp a4, a3
-	bne 1b
-
-	cmp a2, #0
-	popeq {a1}  /* when a2==0, restore the stored value of a1 */
-	popne {a3}  /* when a2!=0, use current value of a1 */
-	pop {a2-a4,r12}
-	pop {v1-v8}
-	rfefd sp!
-
-/*
- * Block the current process (executing in SVC mode) until something marks it as
- * ready again. Only do this if you have made arrangements to be awoken by
- * something... otherwise it's a great way to find yourself in a permanent
- * sleep.
- *
- * a1: pointer to current->context, where we will store enough return state to
- *     continue execution when restored by "return_from_exception"
- */
-.global block_asm
-block_asm:
-
-	/* Put SPSR and return address into first two bytes */
-	add a1, a1, #60
-	mrs a2, cpsr
-	str a2, [a1, #4]
-	adr a2, _block_awaken
-	str a2, [a1]
-
-	/* Store remaining items as if we were dumping to stack */
-	stmfd a1!, {v1-v8}
-	stmfd a1!, {a2-a4,r12}
-	mov a2, #0 /* a dummy value for a1 */
-	stmfd a1!, {a2}
-	stmfd a1!, {sp, lr}
-
-	b schedule /* never returns */
-
-_block_awaken:
-	/* Oh hello, we have been awoken! All af that context we stored above is
-	 * now replaced, so we can just return! */
 	mov pc, lr

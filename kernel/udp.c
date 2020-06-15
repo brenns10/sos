@@ -38,7 +38,7 @@ static struct udp_wait_entry *lookup_entry(uint16_t port)
  *
  * Why? We are about to go into a sleep which we can only wake from by the
  * receipt of a packet. Presumably, you have already sent out the packet which
- * will trigger this receipt. If intrerupts are enabled, the packet could be
+ * will trigger this receipt. If interrupts are enabled, the packet could be
  * received and handled BEFORE we have entered our sleep.
  */
 struct packet *udp_wait(uint16_t port)
@@ -55,7 +55,7 @@ struct packet *udp_wait(uint16_t port)
 	current->flags.pr_ready = 0;
 
 	interrupt_enable();
-	block((uint32_t *)&current->context);
+	schedule();
 
 	hlist_remove(&udp_hlist[hash], &entry.list);
 	return entry.rcv;

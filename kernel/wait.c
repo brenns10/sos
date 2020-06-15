@@ -26,7 +26,7 @@ void wait_for(struct waitlist *wl)
 	wl->waitcount++;
 	hlist_insert(&wl->waiting, &waiter.list);
 	current->flags.pr_ready = 0;
-	block((uint32_t *)&current->context);
+	schedule();
 }
 
 void wait_list_awaken(struct waitlist *wl)

@@ -168,11 +168,6 @@ void sysinfo(void);
  */
 void setup_stacks(void *location);
 
-/*
- * C Entry Points
- */
-void data_abort(uint32_t lr);
-
 /**
  * Load coprocessor register into dst.
  */
@@ -239,18 +234,18 @@ struct ctx {
 	uint32_t sp;
 	uint32_t lr;
 	uint32_t a1;
-	uint32_t r12;
-	uint32_t a4;
-	uint32_t a3;
 	uint32_t a2;
-	uint32_t v8;
-	uint32_t v7;
-	uint32_t v6;
-	uint32_t v5;
-	uint32_t v4;
-	uint32_t v3;
-	uint32_t v2;
+	uint32_t a3;
+	uint32_t a4;
+	uint32_t r12;
 	uint32_t v1;
+	uint32_t v2;
+	uint32_t v3;
+	uint32_t v4;
+	uint32_t v5;
+	uint32_t v6;
+	uint32_t v7;
+	uint32_t v8;
 	uint32_t ret;
 	uint32_t spsr;
 };
@@ -320,15 +315,12 @@ struct process *create_kthread(void (*func)(void *), void *arg);
 #define BIN_USH         2
 int32_t process_image_lookup(char *name);
 
-/* Start a process running, never return. */
-void start_process(struct process *p);
-void start_process_asm(void *startup);
-
 /* Destroy the current process and reschedule. Does not return. */
 void destroy_current_process(void);
 
 /* Schedule (i.e. choose and contextswitch a new process) */
 void schedule(void);
+void context_switch(struct process *new_process);
 bool timer_can_reschedule(struct ctx *ctx);
 void irq_schedule(struct ctx *ctx);
 
@@ -400,8 +392,8 @@ void timer_init(void);
 void timer_isr(uint32_t intid, struct ctx *ctx);
 
 /* special exectuion functions, see entry.s */
-void return_from_exception(uint32_t retval, uint32_t use_ret, void *return_to);
-void block(uint32_t *ctx);
+int setctx(struct ctx *ctx);
+void resctx(uint32_t rv, struct ctx *ctx);
 
 /* Virtio */
 void virtio_init(void);
@@ -428,3 +420,4 @@ void dhcp_kthread_start(void);
 
 // debug
 void backtrace(void);
+void backtrace_ctx(struct ctx *ctx);

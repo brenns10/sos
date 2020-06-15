@@ -71,7 +71,7 @@ int getc_blocking(void)
 	while (READ32(base->UARTFR) & UARTFR_RXFE) {
 		current->flags.pr_ready = 0;
 		waiting = current;
-		block((uint32_t *)&current->context);
+		schedule();
 	}
 	return READ32(base->UARTDR) & 0xFF;
 }

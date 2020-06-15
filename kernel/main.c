@@ -11,7 +11,7 @@ void start_ush(void)
 {
 	struct process *proc;
 	proc = create_process(BIN_USH);
-	start_process(proc);
+	context_switch(proc);
 }
 
 void main(uint32_t phys)

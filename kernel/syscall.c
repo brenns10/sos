@@ -12,7 +12,7 @@ void sys_relinquish(void)
 {
 	cxtk_track_syscall();
 	puts("[kernel] tRelinquish()\n");
-	block((uint32_t *)&current->context);
+	schedule();
 	cxtk_track_syscall_return();
 }
 

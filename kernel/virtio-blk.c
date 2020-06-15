@@ -188,7 +188,7 @@ int virtio_blk_cmd_read(int argc, char **argv)
 	req->waiting = current;
 	current->flags.pr_ready = 0;
 	virtio_blk_send(&blkdev, req);
-	block((uint32_t *)&current->context);
+	schedule();
 	if (req->status != VIRTIO_BLK_S_OK) {
 		puts("ERROR\n");
 		rv = 1;
@@ -220,7 +220,7 @@ int virtio_blk_cmd_write(int argc, char **argv)
 	req->waiting = current;
 	current->flags.pr_ready = 0;
 	virtio_blk_send(&blkdev, req);
-	block((uint32_t *)&current->context);
+	schedule();
 	if (req->status != VIRTIO_BLK_S_OK) {
 		puts("ERROR\n");
 		rv = 1;
