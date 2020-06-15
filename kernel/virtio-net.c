@@ -177,7 +177,7 @@ void virtio_handle_txused(struct virtio_net *dev, uint32_t idx)
 	packet_free(pkt);
 }
 
-void virtio_net_isr(uint32_t intid)
+void virtio_net_isr(uint32_t intid, struct ctx *ctx)
 {
 	uint32_t i;
 	struct virtio_net *dev = &netdev;

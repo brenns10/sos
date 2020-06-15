@@ -14,6 +14,10 @@ struct slab *proc_slab;
 static uint32_t pid = 1;
 struct process *idle_process = NULL;
 
+bool preempt_enabled = true;
+const char nopreempt_begin;
+const char nopreempt_end;
+
 #define stack_size 4096
 
 struct static_binary {
@@ -31,6 +35,33 @@ struct static_binary binaries[] = {
 	  .name = "hello" },
 	{ .start = process_ush_start, .end = process_ush_end, .name = "ush" },
 };
+
+bool timer_can_reschedule(struct ctx *ctx)
+{
+	uint32_t cpsr;
+	get_cpsr(cpsr);
+
+	/* Can only reschedule if we are in a timer interrupt */
+	if ((cpsr & ARM_MODE_MASK) != ARM_MODE_IRQ) {
+		return false;
+	}
+
+	/* Some functions are in the .nopreempt section, and should never be
+	 * preempted */
+	if (ctx->ret >= (uint32_t)&nopreempt_begin &&
+	    ctx->ret < (uint32_t)&nopreempt_end) {
+		return false;
+	}
+
+	/* TODO: currently SVC mode is not preemptive. However, there's not much
+	 * preventing it from being so. For now, don't preempt SVC mode, but in
+	 * the future we will get rid of this. */
+	if ((ctx->spsr & ARM_MODE_MASK) == ARM_MODE_SVC) {
+		return false;
+	}
+
+	return preempt_enabled;
+}
 
 /**
  * Create a process.
@@ -115,8 +146,8 @@ struct process *create_process(uint32_t binary)
 	/*
 	 * Set up some process variables
 	 */
-	p->context[PROC_CTX_SPSR] = ARM_MODE_USER;
-	p->context[PROC_CTX_RET] = 0x40000000; /* jump to process img */
+	p->context.spsr = ARM_MODE_USER;
+	p->context.ret = 0x40000000; /* jump to process img */
 	p->id = pid++;
 	p->size = size;
 	p->phys = phys;
@@ -157,12 +188,11 @@ struct process *create_kthread(void (*func)(void *), void *arg)
 	INIT_LIST_HEAD(p->sockets);
 	p->max_fildes = 0;
 
-	for (int i = 0; i < nelem(p->context); i++)
-		p->context[i] = 0;
-	p->context[PROC_CTX_SPSR] = (uint32_t)ARM_MODE_SYS;
-	p->context[PROC_CTX_A1] = (uint32_t)arg;
-	p->context[PROC_CTX_RET] = (uint32_t)func;
-	p->context[PROC_CTX_SP] = (uint32_t)(p->kstack);
+	memset(&p->context, 0, sizeof(struct ctx));
+	p->context.spsr = (uint32_t)ARM_MODE_SYS;
+	p->context.a1 = (uint32_t)arg;
+	p->context.ret = (uint32_t)func;
+	p->context.sp = (uint32_t)(p->kstack);
 
 	wait_list_init(&p->endlist);
 	return p;
@@ -246,7 +276,7 @@ void start_process(struct process *p)
 	cxtk_track_proc();
 	// printf("[kernel]\t\tstart process %u (ttbr1=0x%x)\n", p->id,
 	// p->ttbr1);
-	start_process_asm((void *)p->context[PROC_CTX_RET]);
+	start_process_asm((void *)p->context.ret);
 }
 
 void context_switch(struct process *new_process)
@@ -282,10 +312,7 @@ out:
 	return_from_exception(0, 0, &current->context);
 }
 
-/**
- * Choose and context switch into a different active process. Does not return.
- */
-void schedule(void)
+struct process *choose_new_process(void)
 {
 	struct process *iter, *chosen = NULL;
 	int count_seen = 0, count_ready = 0;
@@ -310,13 +337,13 @@ void schedule(void)
 		list_remove(&chosen->list);
 		list_insert_end(&process_list, &chosen->list);
 
-		context_switch(chosen);
+		return chosen;
 	} else if (current && current->flags.pr_ready) {
 		/*
 		 * There are no other options, but the current process still
 		 * exists and is still runnable. Just keep running it.
 		 */
-		context_switch(current);
+		return current;
 	} else {
 		/*
 		 * At this point, either there is no process available at all,
@@ -329,14 +356,45 @@ void schedule(void)
 			puts("[kernel] WARNING: no more processes remain, "
 			     "dropping into kernel shell\n");
 			warned = true;
-			/* Create a kthread to run ksh. Next time we schedule
-			 * (on the next timer tick), it should get chosen and
-			 * we'll have our backup. */
 			chosen = create_kthread(ksh, NULL);
 			list_insert(&process_list, &chosen->list);
+			return chosen;
 		}
-		context_switch(idle_process);
+		return idle_process;
 	}
+}
+
+void irq_schedule(struct ctx *ctx)
+{
+	struct process *new = choose_new_process();
+
+	if (current == new)
+		goto out;
+
+	/* Set the current ASID */
+	set_cpreg(new->id, c13, 0, c0, 1);
+
+	/* Set ttbr */
+	set_cpreg(new->ttbr1, c2, 0, c0, 1);
+
+	/* Swap contexts! */
+	current->context = *ctx;
+	current = new;
+	*ctx = current->context;
+
+out:
+	cxtk_track_proc();
+	/* returning from IRQ is mandatory, swapping ctx will cause us to return
+	 * to the new context */
+}
+
+/**
+ * Choose and context switch into a different active process. Does not return.
+ */
+void schedule(void)
+{
+	struct process *proc = choose_new_process();
+	context_switch(proc);
 }
 
 int32_t process_image_lookup(char *name)

@@ -17,6 +17,11 @@ SECTIONS {
 		kernel/entry.o(*)
 	}
 	ASSERT(. < code_start + 0x1000, "more than one page of memory for startup + ISR")
+	nopreempt_begin = .;
+	.nopreempt . : {
+		*(.nopreempt)
+	}
+	nopreempt_end = .;
 	.text . : {
 		*(.text)
 	}

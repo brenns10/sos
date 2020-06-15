@@ -71,12 +71,12 @@ int getc_blocking(void)
 	while (READ32(base->UARTFR) & UARTFR_RXFE) {
 		current->flags.pr_ready = 0;
 		waiting = current;
-		block(current->context);
+		block((uint32_t *)&current->context);
 	}
 	return READ32(base->UARTDR) & 0xFF;
 }
 
-void uart_isr(uint32_t intid)
+void uart_isr(uint32_t intid, struct ctx *ctx)
 {
 	uint32_t reg;
 

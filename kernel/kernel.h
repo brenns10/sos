@@ -25,6 +25,7 @@
 	} while (0)
 #define READ32(_reg) (*(volatile uint32_t *)&(_reg))
 
+struct ctx;
 struct process;
 
 #define SOS_VERSION "0.1"
@@ -69,7 +70,7 @@ char getc(void);
 int getc_blocking(void);
 void uart_init(void);
 void uart_wait(struct process *p);
-void uart_isr(uint32_t intid);
+void uart_isr(uint32_t intid, struct ctx *ctx);
 uint32_t snprintf(char *buf, uint32_t size, const char *format, ...);
 uint32_t printf(const char *format, ...);
 
@@ -234,6 +235,26 @@ void data_abort(uint32_t lr);
 #define get_sp(dst) __asm__ __volatile__("mov %[rd], sp" : [ rd ] "=r"(dst) : :)
 #define get_fp(dst) __asm__ __volatile__("mov %[rd], fp" : [ rd ] "=r"(dst) : :)
 
+struct ctx {
+	uint32_t sp;
+	uint32_t lr;
+	uint32_t a1;
+	uint32_t r12;
+	uint32_t a4;
+	uint32_t a3;
+	uint32_t a2;
+	uint32_t v8;
+	uint32_t v7;
+	uint32_t v6;
+	uint32_t v5;
+	uint32_t v4;
+	uint32_t v3;
+	uint32_t v2;
+	uint32_t v1;
+	uint32_t ret;
+	uint32_t spsr;
+};
+
 /**
  * This "process" is hardly a process. It runs in user mode, but shares its
  * memory space with the kernel. It has a separate stack and separate registers,
@@ -244,18 +265,7 @@ struct process {
 	/* For kernel thread, the stack */
 	void *kstack;
 
-	/**
-	 * Context kept for context switching:
-	 *
-	 * - Preferred return address, Saved program status register
-	 * - v1-v8
-	 * - a2-a4,r12
-	 * - a1
-	 * - SP_usr, LR_usr
-	 *
-	 * A total of 17 words.
-	 */
-	uint32_t context[17];
+	struct ctx context;
 
 	struct {
 		int pr_ready : 1;  /* ready to be scheduled? */
@@ -319,9 +329,8 @@ void destroy_current_process(void);
 
 /* Schedule (i.e. choose and contextswitch a new process) */
 void schedule(void);
-
-/* For processes, this is a system call to return back to the kernel. */
-void relinquish(void);
+bool timer_can_reschedule(struct ctx *ctx);
+void irq_schedule(struct ctx *ctx);
 
 /* The current process */
 extern struct process *current;
@@ -376,7 +385,7 @@ int dhcp_cmd_discover(int argc, char **argv);
 int ip_cmd_show_arptable(int argc, char **argv);
 
 /* GIC Driver */
-typedef void (*isr_t)(uint32_t);
+typedef void (*isr_t)(uint32_t, struct ctx *);
 void gic_init(void);
 void gic_enable_interrupt(uint8_t int_id);
 uint32_t gic_interrupt_acknowledge(void);
@@ -388,7 +397,7 @@ char *gic_get_name(uint32_t intid);
 
 /* timer */
 void timer_init(void);
-void timer_isr(uint32_t intid);
+void timer_isr(uint32_t intid, struct ctx *ctx);
 
 /* special exectuion functions, see entry.s */
 void return_from_exception(uint32_t retval, uint32_t use_ret, void *return_to);

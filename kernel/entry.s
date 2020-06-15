@@ -1,3 +1,11 @@
+.equ MODE_USER, 0x10
+.equ MODE_FIQ,  0x11
+.equ MODE_IRQ,  0x12
+.equ MODE_SVC,  0x13
+.equ MODE_ABRT, 0x17
+.equ MODE_UNDF, 0x1B
+.equ MODE_SYS,  0x1F
+.equ MODE_MASK, 0x1F
 .text
 
 .global undefined_impl
@@ -97,10 +105,9 @@ prefetch_abort_impl:
  */
 .global irq_impl
 irq_impl:
-	/* Dump context directly into current->context */
-	ldr sp, =current
+	/* Load IRQ-mode stack */
+	ldr sp, =irq_stack
 	ldr sp, [sp]
-	add sp, sp, #72
 
 	/*
 	 * The lr points at the interrupted instruction. To resume, reset it
@@ -118,41 +125,50 @@ irq_impl:
 	push {a1}
 
 	/*
-	 * Save SP and LR of interrupted mode. To do this most correctly, we
-	 * need to conditionally switch into a mode where we can grab those
-	 * registers, copy them, and then pop them. So we load spsr and check
-	 * the mode we interrupted, and do that.
+	 * Save SP and LR of interrupted mode.
+	 *
+	 * We may interrupt SVC, SYS, or USR mode. To retrieve the correct SP
+	 * and LR, we need to switch to SVC in the first case, or SYS for the
+	 * remaining two.
 	 */
 	mrs v1, spsr
-	and v1, v1, #0x1F
-	cmp v1, #0x13 /* SVC */
+	and v1, v1, #MODE_MASK
+	cmp v1, #MODE_SVC
 	bne 1f
-	cps #0x13 /* SVC */
-	b 2f
+		cps #MODE_SVC
+		b 2f
 	1:
-	cps #0x1F  /* system */
+		cps #MODE_SYS
 	2:
 	mov v1, sp
 	mov v2, lr
-
 	/* Now return to IRQ mode and push those registers to the stack */
-	cps #0x12  /* irq */
+	cps #MODE_IRQ
 	push {v1, v2}
 
-	/* Our context is fully saved, now let us load the real IRQ stack
-	 * pointer. */
-	ldr sp, =irq_stack
-	ldr sp, [sp]
-
-	/* Branch into the C IRQ handler. */
-	mov a1, lr
+	/* Call the C IRQ handler. */
+	mov a1, sp
 	bl irq
-	mov a2, #0  /* please don't use return value */
-	/* On return, we again restore current->context */
-	ldr a3, =current
-	ldr a3, [a3]
-	add a3, a3, #4
-	b return_from_exception
+
+	/* Now restore SP and LR of interrupted mode (may be different now). */
+	ldr v1, [sp, #64]  /* grab saved spsr */
+	pop {v2, v3}     /* pop saved sp / lr */
+	and v1, v1, #MODE_MASK
+	cmp v1, #MODE_SVC /* SVC */
+	bne 1f
+		cps #MODE_SVC
+		b 2f
+	1:
+		cps #MODE_SYS /* retrieve from SYS or USR modes */
+	2:
+	mov sp, v2
+	mov lr, v3
+	cps #MODE_IRQ
+
+	pop {a1}
+	pop {a2-a4,r12}
+	pop {v1-v8}
+	rfefd sp!
 
 .global fiq_impl
 fiq_impl:
@@ -191,15 +207,6 @@ setup_stacks:
 	add a1, a1, #4096
 	mov sp, a1
 	cps #0x13  /* MODE_SVC */
-	mov pc, lr
-
-/*
- * A "system call" whose sole purpose is to return control to the kernel, and
- * then resume once we're resumed again.
- */
-.global relinquish
-relinquish:
-	svc #0
 	mov pc, lr
 
 /*

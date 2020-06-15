@@ -55,13 +55,13 @@ void prefetch_abort(uint32_t lr)
 	print_fault(fsr, far);
 }
 
-void irq(uint32_t instr)
+void irq(struct ctx *ctx)
 {
 	uint8_t intid = (uint8_t)gic_interrupt_acknowledge();
-	cxtk_track_irq(intid, instr);
+	cxtk_track_irq(intid, ctx->ret);
 	isr_t isr = gic_get_isr(intid);
 	if (isr)
-		isr(intid);
+		isr(intid, ctx);
 	else
 		printf("Unhandled IRQ: ID=%u, not ending\n", intid);
 }

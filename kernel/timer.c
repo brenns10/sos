@@ -66,7 +66,7 @@ void timer_init(void)
 	gic_enable_interrupt(TIMER_INTID);
 }
 
-void timer_isr(uint32_t intid)
+void timer_isr(uint32_t intid, struct ctx *ctx)
 {
 	uint32_t reg;
 
@@ -82,11 +82,9 @@ void timer_isr(uint32_t intid)
 	/* Interrupt should now be safe to clear */
 	gic_end_interrupt(intid);
 
-	get_spsr(reg);
-	reg = reg & ARM_MODE_MASK;
-	if (reg == ARM_MODE_USER || reg == ARM_MODE_SYS) {
+	if (timer_can_reschedule(ctx)) {
 		/* We interrupted sys/user mode. This means we can go ahead and
 		 * reschedule safely. */
-		schedule();
+		irq_schedule(ctx);
 	}
 }

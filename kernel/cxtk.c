@@ -7,7 +7,7 @@
 #include "kernel.h"
 #include "string.h"
 
-struct ctx {
+struct ctxrec {
 	uint8_t type;
 	uint8_t smallarg;
 	uint16_t count;
@@ -22,7 +22,7 @@ struct ctx {
 #define CTX_IRQ   5
 #define CTX_BLK   6
 
-struct ctx *ctxarr = NULL;
+struct ctxrec *ctxarr = NULL;
 size_t ctxidx = 0;
 
 #define CTX_PAGES 1

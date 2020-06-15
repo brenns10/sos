@@ -55,7 +55,7 @@ struct packet *udp_wait(uint16_t port)
 	current->flags.pr_ready = 0;
 
 	interrupt_enable();
-	block(current->context);
+	block((uint32_t *)&current->context);
 
 	hlist_remove(&udp_hlist[hash], &entry.list);
 	return entry.rcv;
