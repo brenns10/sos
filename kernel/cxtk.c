@@ -78,51 +78,55 @@ void cxtk_track_schedule(void)
 	cxtk_track(CTX_SCHED, 0, 0);
 }
 
+static inline void cxtk_report_single(struct ctxrec rec, bool *began)
+{
+	char *irqname;
+	if (rec.type == CTX_NONE) {
+		if (*began)
+			puts("error: blank after tracking began\n");
+		return;
+	}
+	*began = true;
+	switch (rec.type) {
+	case CTX_KINIT:
+		puts("kernel initialized\n");
+		break;
+	case CTX_PROC:
+		printf("schedule process %u (x%u)\n", rec.arg, rec.count);
+		break;
+	case CTX_SYSC:
+		printf("  syscall (x%u)\n", rec.count);
+		break;
+	case CTX_SYSCR:
+		printf("  syscall return (x%u)\n", rec.count);
+		break;
+	case CTX_IRQ:
+		irqname = gic_get_name(rec.smallarg);
+		irqname = irqname ? irqname : "unknown";
+		printf("   IRQ %u \"%s\" interrupted 0x%x (x%u)\n",
+		       rec.smallarg, irqname, rec.arg, rec.count);
+		break;
+	case CTX_SCHED:
+		printf("   schedule() (x%u)\n", rec.count);
+		break;
+	default:
+		puts("error: unknown entry type\n");
+	}
+}
+
 void cxtk_report(void)
 {
 	bool began = false;
-	char *irqname;
-	size_t i;
+	size_t i, start;
 	if (!ctxarr) {
 		puts("context tracking not initialized\n");
 		return;
 	}
 
 	puts("Context history:\n");
-	for (i = (ctxidx + 1) % CTX_CAP; i != ctxidx; i = (i + 1) % CTX_CAP) {
-		if (ctxarr[i].type == CTX_NONE) {
-			if (began)
-				puts("error: blank after tracking began\n");
-			continue;
-		}
-		began = true;
-		switch (ctxarr[i].type) {
-		case CTX_KINIT:
-			puts("kernel initialized\n");
-			break;
-		case CTX_PROC:
-			printf("schedule process %u (x%u)\n", ctxarr[i].arg,
-			       ctxarr[i].count);
-			break;
-		case CTX_SYSC:
-			printf("  syscall (x%u)\n", ctxarr[i].count);
-			break;
-		case CTX_SYSCR:
-			printf("  syscall return (x%u)\n", ctxarr[i].count);
-			break;
-		case CTX_IRQ:
-			irqname = gic_get_name(ctxarr[i].smallarg);
-			irqname = irqname ? irqname : "unknown";
-			printf("   IRQ %u \"%s\" interrupted 0x%x (x%u)\n",
-			       ctxarr[i].smallarg, irqname, ctxarr[i].arg,
-			       ctxarr[i].count);
-			break;
-		case CTX_SCHED:
-			printf("   schedule() (x%u)\n", ctxarr[i].count);
-			break;
-		default:
-			puts("error: unknown entry type\n");
-		}
+	start = (ctxidx + 1) % CTX_CAP;
+	for (i = 0; i < CTX_CAP; i++) {
+		cxtk_report_single(ctxarr[(start + i) % CTX_CAP], &began);
 	}
 	puts("End of context history\n");
 	return;
