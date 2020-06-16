@@ -230,6 +230,15 @@ void schedule(void);
 void context_switch(struct process *new_process);
 bool timer_can_reschedule(struct ctx *ctx);
 void irq_schedule(struct ctx *ctx);
+extern bool preempt_enabled;
+static inline void preempt_disable(void)
+{
+	preempt_enabled = false;
+}
+static inline void preempt_enable(void)
+{
+	preempt_enabled = true;
+}
 
 /* The current process */
 extern struct process *current;

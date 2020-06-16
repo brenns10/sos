@@ -196,6 +196,7 @@ void destroy_current_process()
 	uint32_t i;
 	struct socket *sock;
 	// printf("[kernel]\t\tdestroy process %u (p=0x%x)\n", proc->id, proc);
+	preempt_disable();
 
 	/*
 	 * Remove from the global process list
@@ -258,7 +259,6 @@ void destroy_current_process()
 	 * store context into a null pointer. If you don't believe it, feel free
 	 * to uncomment the WFI instruction and play around.
 	 */
-	preempt_enabled = false;
 	current = NULL;
 	/*asm("wfi");*/
 	schedule();
@@ -266,12 +266,10 @@ void destroy_current_process()
 
 void __nopreempt context_switch(struct process *new_process)
 {
-	/* Still can't preempt __nopreempt function, this takes effect only once
-	 * we have left the function. */
-	preempt_enabled = true;
-
-	if (new_process == current)
+	if (new_process == current) {
+		preempt_enable();
 		return;
+	}
 
 	/* current could be NULL in two cases:
 	 * 1. Starting the first process after initialization.
@@ -298,6 +296,7 @@ void __nopreempt context_switch(struct process *new_process)
 	 * reference for solution. */
 
 	cxtk_track_proc();
+	preempt_enable();
 	resctx(0, &current->context);
 }
 
@@ -382,7 +381,7 @@ void irq_schedule(struct ctx *ctx)
 void __nopreempt schedule(void)
 {
 	struct process *proc;
-	preempt_enabled = false; /* gets reenabled on context switch */
+	preempt_disable();
 	cxtk_track_schedule();
 	proc = choose_new_process();
 	context_switch(proc);
