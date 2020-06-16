@@ -256,10 +256,18 @@ void destroy_current_process()
 	slab_free(proc_slab, current);
 
 	/*
-	 * Mark current AS null for schedule(), to inform it that we can't
-	 * continue running this even if there are no other options.
+	 * Mark current as null for schedule(), to inform it that we can't
+	 * continue running this process even if there are no other options.
+	 *
+	 * However first we must disable preemption (which will get re-enabled
+	 * once the context switch is complete). This is because if we
+	 * rescheduled after setting current to NULL, then we would attempt to
+	 * store context into a null pointer. If you don't believe it, feel free
+	 * to uncomment the WFI instruction and play around.
 	 */
+	preempt_enabled = false;
 	current = NULL;
+	/*asm("wfi");*/
 	schedule();
 }
 
