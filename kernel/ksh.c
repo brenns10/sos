@@ -16,6 +16,7 @@ static char input[256];
 static char *tokens[16];
 static int argc;
 DECLARE_SPINSEM(sem, 2);
+struct ctx kshctx;
 
 /*
  * Shell commands section. Each command is represented by a struct cmd, and
@@ -55,6 +56,18 @@ static int cmd_slab_report(int argc, char **argv)
 static int cmd_cxtk_report(int argc, char **argv)
 {
 	cxtk_report();
+	return 0;
+}
+
+static int cmd_resctx(int argc, char **argv)
+{
+	uint32_t val;
+	if (argc != 2) {
+		puts("usage: resctx VALUE_INTEGER\n");
+		return 1;
+	}
+	val = (uint32_t)atoi(argv[1]);
+	resctx(val, &kshctx);
 	return 0;
 }
 
@@ -113,6 +126,9 @@ struct cmd cmds[] = {
 	{ .name = "cxtk",
 	  .func = cmd_cxtk_report,
 	  .help = "print context switch report" },
+	{ .name = "resctx",
+	  .func = cmd_resctx,
+	  .help = "demo for setctx/resctx" },
 };
 
 /*
@@ -176,7 +192,11 @@ static void execute(void)
 
 void ksh(void *arg)
 {
+	int rv;
 	(void)arg; /* unused */
+	if ((rv = setctx(&kshctx)) != 0) {
+		printf("I have been bamboozled!\nYou sent %d\n", rv);
+	}
 	puts("Stephen's OS, (kernel shell)\n");
 	while (true) {
 		getline();
