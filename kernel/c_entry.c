@@ -46,6 +46,8 @@ void data_abort(struct ctx *ctx)
 	printf("Uh-oh... data abort! DFSR=%x DFAR=%x LR=%x\n", dfsr, dfar,
 	       ctx->ret);
 	print_fault(dfsr, dfar, ctx);
+	for (;;) {
+	}
 }
 
 void prefetch_abort(struct ctx *ctx)
@@ -56,6 +58,8 @@ void prefetch_abort(struct ctx *ctx)
 	printf("Uh-oh... prefetch abort! FSR=%x IFAR=%x LR=%x\n", fsr, far,
 	       ctx->ret);
 	print_fault(fsr, far, ctx);
+	for (;;) {
+	}
 }
 
 void irq(struct ctx *ctx)
@@ -80,4 +84,6 @@ void undefined(struct ctx *ctx)
 	cxtk_report();
 	backtrace_ctx(ctx);
 	puts("END OF FAULT REPORT\n");
+	for (;;) {
+	}
 }
