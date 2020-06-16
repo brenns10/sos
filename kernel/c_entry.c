@@ -67,6 +67,22 @@ void irq(struct ctx *ctx)
 	uint8_t intid = (uint8_t)gic_interrupt_acknowledge();
 	cxtk_track_irq(intid, ctx->ret);
 	isr_t isr = gic_get_isr(intid);
+	/*
+	 * You might think that during IRQ mode, interrupts are disabled. But
+	 * that's not really true. The GIC is what serializes interrupts... as
+	 * soon as you tell the GIC the interrupt is over, it will happily
+	 * interrupt you again, while you are still in IRQ mode.
+	 *
+	 * In our case, this means that the context saved on the IRQ stack is
+	 * corrupted, and returning from the second (or Nth) interrupt is
+	 * unsafe.
+	 *
+	 * The best way to avoid this silliness is to just disable interrupts.
+	 * Once our handler fully returns (using rfefd), interrupts will be
+	 * restored, and any pending interrupts will be triggered immediately
+	 * without corruption.
+	 */
+	interrupt_disable();
 	if (isr)
 		isr(intid, ctx);
 	else
