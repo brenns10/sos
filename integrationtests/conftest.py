@@ -59,6 +59,20 @@ class SosVirtualMachine(object):
         )
         self.stdout_thread.start()
         self.full_output = ''
+        self.pending_output = None
+
+    def _add_output(self, data, processed_until=None):
+        if not processed_until:
+            processed_until = len(data)
+        self.full_output += data[:processed_until]
+        self.pending_output = data[processed_until:].encode('utf-8')
+
+    def _get(self, timeout):
+        if self.pending_output:
+            tmp = self.pending_output
+            self.pending_output = None
+            return tmp
+        return self.stdout_queue.get(timeout=timeout)
 
     def read_until(self, pattern, timeout=None):
         """
@@ -76,14 +90,14 @@ class SosVirtualMachine(object):
             if time_left <= 0:
                 break
             try:
-                data = self.stdout_queue.get(timeout=time_left)
+                data = self._get(time_left)
                 result += data.decode('utf-8')
             except queue.Empty:
                 pass
 
             found = pattern.search(result)
             if found:
-                self.full_output += result
+                self._add_output(result, found.end())
                 return result
 
             found = self.abort.search(result)
@@ -93,9 +107,9 @@ class SosVirtualMachine(object):
                 print('[sos test] debugging to exit the test.')
                 input()
             if found:
-                self.full_output += result
+                self._add_output(result)
                 raise Exception(f'Fault encountered waiting:\n{result}')
-        self.full_output += result
+        self._add_output(result)
         raise TimeoutError(f'Timed out waiting for QEMU response:\n{result}')
 
     def send_cmd(self, command):

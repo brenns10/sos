@@ -148,8 +148,10 @@ static int cmd_recv(int argc, char **argv)
 
 static int cmd_demo(int argc, char **argv)
 {
-	int i;
-	for (i = 0; i < 10; i++)
+	int i, count = 10;
+	if (argc == 2)
+		count = atoi(argv[1]);
+	for (i = 0; i < count; i++)
 		runproc("hello", 0);
 	puts("Launched all processes!\n");
 	return 0;
