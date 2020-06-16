@@ -79,12 +79,12 @@ void timer_isr(uint32_t intid, struct ctx *ctx)
 	reg = 1;
 	SET_CNTP_CTL(reg);
 
-	/* Interrupt should now be safe to clear */
-	gic_end_interrupt(intid);
-
 	if (timer_can_reschedule(ctx)) {
 		/* We interrupted sys/user mode. This means we can go ahead and
 		 * reschedule safely. */
 		irq_schedule(ctx);
 	}
+
+	/* Interrupt should now be safe to clear */
+	gic_end_interrupt(intid);
 }
