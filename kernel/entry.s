@@ -77,12 +77,12 @@ resctx:
 	ldr DSTMODE, [sp, #64]
 	and DSTMODE, DSTMODE, #MODE_MASK
 	pop {SPRESTO, LRRESTO}
+	mov a2, sp
 
 	/* If currently in SYS mode, move into SVC mode so we know we can safely
 	 * return without touching a user-mode stack. */
 	cmp CURMODE, #MODE_SYS
 	bne 1f
-		mov a2, sp
 		cps #MODE_SVC
 		mov sp, a2
 
