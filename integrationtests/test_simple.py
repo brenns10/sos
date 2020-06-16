@@ -2,7 +2,6 @@
 """
 Basic tests of functionality for SOS
 """
-import pytest
 
 
 def test_main_runs(raw_vm):

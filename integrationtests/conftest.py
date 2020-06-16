@@ -58,8 +58,12 @@ class SosVirtualMachine(object):
             args=(self.qemu.stdout, self.stdout_queue, self.qemu, self.debug)
         )
         self.stdout_thread.start()
+        self.full_output = ''
 
     def read_until(self, pattern, timeout=None):
+        """
+        Read output until a regex is matched
+        """
         if not isinstance(pattern, re.Pattern):
             pattern = re.compile(pattern)
         if timeout is None:
@@ -79,6 +83,7 @@ class SosVirtualMachine(object):
 
             found = pattern.search(result)
             if found:
+                self.full_output += result
                 return result
 
             found = self.abort.search(result)
@@ -88,14 +93,25 @@ class SosVirtualMachine(object):
                 print('[sos test] debugging to exit the test.')
                 input()
             if found:
+                self.full_output += result
                 raise Exception(f'Fault encountered waiting:\n{result}')
+        self.full_output += result
         raise TimeoutError(f'Timed out waiting for QEMU response:\n{result}')
 
-    def cmd(self, command, pattern='[uk]sh>', timeout=None):
-        if timeout is None:
-            timeout = self.timeout
+    def send_cmd(self, command):
+        """
+        Send a command, and return immediately without waiting for any output.
+        """
         self.qemu.stdin.write(command + '\r\n')
         self.qemu.stdin.flush()
+
+    def cmd(self, command, pattern='[uk]sh>', timeout=None):
+        """
+        Send a command and wait for a user or kernel shell prompt.
+        """
+        if timeout is None:
+            timeout = self.timeout
+        self.send_cmd(command)
         return self.read_until(pattern, timeout=timeout)
 
     def stop(self):
