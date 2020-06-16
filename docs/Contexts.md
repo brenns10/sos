@@ -79,8 +79,11 @@ Race conditions
 Interrupts may be triggered during any mode. If the interrupt switches the
 currently active task, there could be some consequences.  If the currently
 active task was in the process of storing contexts and switching to a new active
-task, then this context could be clobbered. Preemption is normally not allowed
-for SVC mode, but it is allowed for SYS, and SYS mode can use the context
-resumption primitives. The solution here is to add more policy to prevent
-preemption. This work is started (.nopreempt linker section) but not completed
-yet.
+task, then this context could be clobbered. Since the kernel is fully
+preemptive, we take care to disable preemption during these critical sections.
+
+Preemption is always disabled when running a function in the `.nopreempt`
+section. It is also controlled by a boolean flag.
+
+At this point, I'm confident that the glaringly obvious race conditions with
+respect to scheduling are taken care of.
