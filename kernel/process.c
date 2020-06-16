@@ -263,10 +263,14 @@ void destroy_current_process()
 	schedule();
 }
 
-void context_switch(struct process *new_process)
+void __nopreempt context_switch(struct process *new_process)
 {
+	/* Still can't preempt __nopreempt function, this takes effect only once
+	 * we have left the function. */
+	preempt_enabled = true;
+
 	if (new_process == current)
-		goto out;
+		return;
 
 	/* current could be NULL in two cases:
 	 * 1. Starting the first process after initialization.
@@ -375,9 +379,12 @@ void irq_schedule(struct ctx *ctx)
 /**
  * Choose and context switch into a different active process.
  */
-void schedule(void)
+void __nopreempt schedule(void)
 {
-	struct process *proc = choose_new_process();
+	struct process *proc;
+	preempt_enabled = false; /* gets reenabled on context switch */
+	cxtk_track_schedule();
+	proc = choose_new_process();
 	context_switch(proc);
 }
 

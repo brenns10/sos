@@ -20,7 +20,7 @@ struct ctxrec {
 #define CTX_SYSC  3
 #define CTX_SYSCR 4
 #define CTX_IRQ   5
-#define CTX_BLK   6
+#define CTX_SCHED 6
 
 struct ctxrec *ctxarr = NULL;
 size_t ctxidx = 0;
@@ -30,6 +30,8 @@ size_t ctxidx = 0;
 
 static inline void cxtk_track(uint8_t type, uint32_t arg, uint8_t smallarg)
 {
+	int flags;
+	irqsave(&flags);
 	if (ctxarr[ctxidx].type == type && ctxarr[ctxidx].arg == arg &&
 	    ctxarr[ctxidx].smallarg == smallarg) {
 		ctxarr[ctxidx].count += 1;
@@ -40,6 +42,7 @@ static inline void cxtk_track(uint8_t type, uint32_t arg, uint8_t smallarg)
 		ctxarr[ctxidx].smallarg = smallarg;
 		ctxarr[ctxidx].count = 1;
 	}
+	irqrestore(&flags);
 }
 
 void cxtk_init(void)
@@ -70,9 +73,9 @@ void cxtk_track_proc(void)
 	cxtk_track(CTX_PROC, current->id, 0);
 }
 
-void cxtk_track_block(void)
+void cxtk_track_schedule(void)
 {
-	cxtk_track(CTX_BLK, 0, 0);
+	cxtk_track(CTX_SCHED, 0, 0);
 }
 
 void cxtk_report(void)
@@ -114,8 +117,8 @@ void cxtk_report(void)
 			       ctxarr[i].smallarg, irqname, ctxarr[i].arg,
 			       ctxarr[i].count);
 			break;
-		case CTX_BLK:
-			printf("   block (x%u)\n", ctxarr[i].count);
+		case CTX_SCHED:
+			printf("   schedule() (x%u)\n", ctxarr[i].count);
 			break;
 		default:
 			puts("error: unknown entry type\n");

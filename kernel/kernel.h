@@ -325,3 +325,5 @@ void dhcp_kthread_start(void);
 void backtrace(void);
 void backtrace_ctx(struct ctx *ctx);
 void panic(struct ctx *ctx);
+
+#define __nopreempt __attribute__((section(".nopreempt")))

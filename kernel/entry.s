@@ -8,6 +8,7 @@
 .equ MODE_MASK, 0x1F
 .text
 
+.section .nopreempt
 /*
  * setctx(): store CPU context into memory. Return (in a1) 0 on the first call,
  * some non-zero value of a1 when returning via a call to resctx().
@@ -124,6 +125,7 @@ return_to_svc:
 	pop {v1-v8}
 	rfefd sp!
 
+.section .text
 
 /*
  * Handle SWI. To do this we must store the process context and then dispatch
