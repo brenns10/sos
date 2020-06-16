@@ -53,13 +53,6 @@ bool timer_can_reschedule(struct ctx *ctx)
 		return false;
 	}
 
-	/* TODO: currently SVC mode is not preemptive. However, there's not much
-	 * preventing it from being so. For now, don't preempt SVC mode, but in
-	 * the future we will get rid of this. */
-	if ((ctx->spsr & ARM_MODE_MASK) == ARM_MODE_SVC) {
-		return false;
-	}
-
 	return preempt_enabled;
 }
 
