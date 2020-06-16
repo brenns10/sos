@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "alloc.h"
+#include "cpu.h"
 #include "format.h"
 #include "list.h"
 #include "wait.h"
@@ -168,88 +169,6 @@ void sysinfo(void);
 void setup_stacks(void *location);
 
 /**
- * Load coprocessor register into dst.
- */
-#define get_cpreg(dst, CRn, op1, CRm, op2)                                     \
-	__asm__ __volatile__("mrc p15, " #op1 ", %[rd], " #CRn ", " #CRm       \
-	                     ", " #op2                                         \
-	                     : [ rd ] "=r"(dst)                                \
-	                     :                                                 \
-	                     :)
-
-/**
- * Set coprocessor register from src.
- */
-#define set_cpreg(src, CRn, op1, CRm, op2)                                     \
-	__asm__ __volatile__("mcr p15, " #op1 ", %[rs], " #CRn ", " #CRm       \
-	                     ", " #op2                                         \
-	                     : [ rs ] "+r"(src)                                \
-	                     :                                                 \
-	                     :)
-
-/**
- * Get 64-bit cpreg
- */
-#define get_cpreg64(dstlo, dsthi, CRm, op3)                                    \
-	__asm__ __volatile__("mrrc p15, " #op3 ", %[Rt], %[Rt2], " #CRm        \
-	                     : [ Rt ] "=r"(dstlo), [ Rt2 ] "=r"(dsthi)         \
-	                     :                                                 \
-	                     :)
-
-#define set_cpreg64(srclo, srchi, CRm, op3)                                    \
-	__asm__ __volatile__("mcrr p15, " #op3 ", %[Rt], %[Rt2], " #CRm        \
-	                     : [ Rt ] "+r"(srclo), [ Rt2 ] "+r"(srchi)         \
-	                     :                                                 \
-	                     :)
-
-/**
- * Load SPSR
- */
-#define get_spsr(dst)                                                          \
-	__asm__ __volatile__("mrs %[rd], spsr" : [ rd ] "=r"(dst) : :)
-
-/**
- * Load CPSR
- */
-#define get_cpsr(dst)                                                          \
-	__asm__ __volatile__("mrs %[rd], cpsr" : [ rd ] "=r"(dst) : :)
-
-#define ARM_MODE_USER 0x10U
-#define ARM_MODE_FIQ  0x11U
-#define ARM_MODE_IRQ  0x12U
-#define ARM_MODE_SVC  0x13U
-#define ARM_MODE_ABRT 0x17U
-#define ARM_MODE_UNDF 0x1BU
-#define ARM_MODE_SYS  0x1FU
-#define ARM_MODE_MASK 0x1FU
-
-/**
- * Load stack pointer
- */
-#define get_sp(dst) __asm__ __volatile__("mov %[rd], sp" : [ rd ] "=r"(dst) : :)
-#define get_fp(dst) __asm__ __volatile__("mov %[rd], fp" : [ rd ] "=r"(dst) : :)
-
-struct ctx {
-	uint32_t sp;
-	uint32_t lr;
-	uint32_t a1;
-	uint32_t a2;
-	uint32_t a3;
-	uint32_t a4;
-	uint32_t r12;
-	uint32_t v1;
-	uint32_t v2;
-	uint32_t v3;
-	uint32_t v4;
-	uint32_t v5;
-	uint32_t v6;
-	uint32_t v7;
-	uint32_t v8;
-	uint32_t ret;
-	uint32_t spsr;
-};
-
-/**
  * This "process" is hardly a process. It runs in user mode, but shares its
  * memory space with the kernel. It has a separate stack and separate registers,
  * and it can call a "relinquish()" method which swi's back into svc mode. This
@@ -294,17 +213,6 @@ struct process {
 	/** Waitlist for when the process ends */
 	struct waitlist endlist;
 };
-
-/**
- * Indices of important data within the process context:
- * - RET: preferred return address (which was LR_svc upon exception entry)
- * - SPSR: saved program status register, returned to CPSR on return
- * - SP: process stack pointer
- */
-#define PROC_CTX_RET  15
-#define PROC_CTX_SPSR 16
-#define PROC_CTX_SP   0
-#define PROC_CTX_A1   2
 
 /* Create a process */
 struct process *create_process(uint32_t binary);
@@ -404,10 +312,6 @@ struct netif;
 extern struct netif nif;
 
 #define EBUSY 1
-
-#define mb()                asm("dsb")
-#define interrupt_disable() __asm__ __volatile__("cpsid i")
-#define interrupt_enable()  __asm__ __volatile__("cpsie i")
 
 void packet_init(void);
 struct packet *udp_wait(uint16_t port);
