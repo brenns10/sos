@@ -297,7 +297,6 @@ void __nopreempt context_switch(struct process *new_process)
 	 * reference for solution. */
 
 	cxtk_track_proc();
-out:
 	resctx(0, &current->context);
 }
 
