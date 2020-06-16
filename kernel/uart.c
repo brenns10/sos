@@ -58,8 +58,10 @@ void putc(char c)
 
 void puts(char *string)
 {
+	preempt_disable();
 	while (*string)
 		putc(*(string++));
+	preempt_enable();
 }
 
 uint8_t saved;
