@@ -31,6 +31,8 @@ struct process;
 
 #define SOS_VERSION "0.1"
 
+#define __nopreempt __attribute__((section(".nopreempt")))
+
 /*
  * Linker symbols for virtual memory addresses.
  */
@@ -308,8 +310,8 @@ void timer_init(void);
 void timer_isr(uint32_t intid, struct ctx *ctx);
 
 /* special exectuion functions, see entry.s */
-int setctx(struct ctx *ctx);
-void resctx(uint32_t rv, struct ctx *ctx);
+int __nopreempt setctx(struct ctx *ctx);
+void __nopreempt resctx(uint32_t rv, struct ctx *ctx);
 
 /* Virtio */
 void virtio_init(void);
@@ -334,5 +336,3 @@ void dhcp_kthread_start(void);
 void backtrace(void);
 void backtrace_ctx(struct ctx *ctx);
 void panic(struct ctx *ctx);
-
-#define __nopreempt __attribute__((section(".nopreempt")))
