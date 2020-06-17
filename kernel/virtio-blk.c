@@ -250,6 +250,7 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	vdev->virtq = virtq;
 	vdev->intid = intid;
 	vdev->blkdev.ops = &virtio_blk_ops;
+	vdev->blkdev.blksiz = VIRTIO_BLK_SECTOR_SIZE;
 	snprintf(&vdev->blkdev.name, sizeof(vdev->blkdev.name), "vblk%d",
 	         vdev->intid);
 

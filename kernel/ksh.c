@@ -7,6 +7,7 @@
  * to it.
  */
 #include "cxtk.h"
+#include "fat.h"
 #include "kernel.h"
 #include "slab.h"
 #include "string.h"
@@ -129,6 +130,7 @@ struct cmd cmds[] = {
 	{ .name = "resctx",
 	  .func = cmd_resctx,
 	  .help = "demo for setctx/resctx" },
+	{ .name = "fat", .func = cmd_fat, .help = "print fat info" },
 };
 
 /*
