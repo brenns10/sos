@@ -9,6 +9,8 @@ void wait_list_init(struct waitlist *wl)
 {
 	INIT_HLIST_HEAD(wl->waiting);
 	wl->waitcount = 0;
+	INIT_SPINSEM(&wl->waitlock, 1);
+	wl->triggered = false;
 }
 
 void wait_list_destroy(struct waitlist *wl)
@@ -21,20 +23,30 @@ void wait_list_destroy(struct waitlist *wl)
 
 void wait_for(struct waitlist *wl)
 {
+	int flags;
 	struct waiter waiter;
+	spin_acquire_irqsave(&wl->waitlock, &flags);
+	if (wl->triggered) {
+		spin_release_irqrestore(&wl->waitlock, &flags);
+		return;
+	}
 	waiter.proc = current;
 	wl->waitcount++;
 	hlist_insert(&wl->waiting, &waiter.list);
 	current->flags.pr_ready = 0;
+	spin_release_irqrestore(&wl->waitlock, &flags);
 	schedule();
 }
 
 void wait_list_awaken(struct waitlist *wl)
 {
 	struct waiter *waiter;
+	int flags;
+	spin_acquire_irqsave(&wl->waitlock, &flags);
+	wl->triggered = true;
 	list_for_each_entry(waiter, &wl->waiting, list, struct waiter)
 	{
 		waiter->proc->flags.pr_ready = 1;
 	}
-	wait_list_init(wl); /* reset the list */
+	spin_release_irqrestore(&wl->waitlock, &flags);
 }

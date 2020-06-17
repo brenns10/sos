@@ -15,10 +15,14 @@
 #pragma once
 
 #include "list.h"
+#include "sync.h"
+#include <stdbool.h>
 
 struct waitlist {
 	struct hlist_head waiting;
 	int waitcount;
+	spinsem_t waitlock;
+	bool triggered;
 };
 
 struct waiter {

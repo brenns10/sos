@@ -3,6 +3,8 @@ QEMU_CMD = $(QEMU) -M virt -global virtio-mmio.force-legacy=false -nographic \
        -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd \
        -netdev user,id=u1 -device virtio-net-device,netdev=u1 -object filter-dump,id=f1,netdev=u1,file=dump.pcap \
        -d guest_errors
+# Consider adding to -d when debugging:
+#    trace:virtio_blk* (or really virtio*)
 QEMU_DBG = -gdb tcp::9000 -S
 TOOLCHAIN ?= arm-none-eabi-
 AS = $(TOOLCHAIN)as
@@ -77,6 +79,7 @@ kernel.elf: kernel/user.o
 kernel.elf: kernel/wait.o
 kernel.elf: kernel/cxtk.o
 kernel.elf: kernel/debug.o
+kernel.elf: kernel/blk.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o

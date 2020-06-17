@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "blk.h"
+
 #define VIRTIO_MAGIC   0x74726976
 #define VIRTIO_VERSION 0x2
 #define VIRTIO_DEV_NET 0x1
@@ -160,8 +162,8 @@ struct virtio_blk_req {
 	uint8_t status;
 	/* end standard fields, begin helpers */
 	uint8_t _pad[3];
-	struct process *waiting;
 	uint32_t descriptor;
+	struct blkreq blkreq;
 } __attribute__((packed));
 
 #define VIRTIO_BLK_SECTOR_SIZE 512

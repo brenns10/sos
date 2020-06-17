@@ -37,13 +37,13 @@ static int echo(int argc, char **argv)
 
 static int cmd_acquire(int argc, char **argv)
 {
-	spin_acquire(&sem);
+	_spin_acquire(&sem);
 	return 0;
 }
 
 static int cmd_release(int argc, char **argv)
 {
-	spin_release(&sem);
+	_spin_release(&sem);
 	return 0;
 }
 
@@ -102,13 +102,13 @@ struct cmd cmds[] = {
 	  .func = cmd_timer_get_ctl,
 	  .help = "get current timer ctl register" },
 	{ .name = "blkread",
-	  .func = virtio_blk_cmd_read,
+	  .func = blk_cmd_read,
 	  .help = "read block device sector" },
 	{ .name = "blkwrite",
-	  .func = virtio_blk_cmd_write,
+	  .func = blk_cmd_write,
 	  .help = "write block device sector" },
 	{ .name = "blkstatus",
-	  .func = virtio_blk_cmd_status,
+	  .func = blk_cmd_status,
 	  .help = "read block device status" },
 	{ .name = "netstatus",
 	  .func = virtio_net_cmd_status,

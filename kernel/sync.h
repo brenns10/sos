@@ -2,6 +2,9 @@
  * Synchronization primitives
  */
 #pragma once
+#include <stdint.h>
+
+#include "cpu.h"
 
 typedef uint32_t spinsem_t;
 
@@ -26,9 +29,14 @@ typedef uint32_t spinsem_t;
 #define INIT_SPINSEM(addr, val)     *(addr) = (val)
 
 /*
- * spin_acquire(inputaddr): attempt to "acquire" the semaphore pointed by
+ * _spin_acquire(inputaddr): attempt to "acquire" the semaphore pointed by
  * inputaddr. This means attempting to decrement the semaphore if it is greater
  * than 0, otherwise blocking (by spinning) until it is greater than 0.
+ *
+ * This is a raw procedure - to properly spin lock, interrupts must be disabled.
+ * Otherwise, an interrupt could deadlock waiting on this lock. In fact, since
+ * SOS is single-CPU, a lock could be implemented just by disabling interrupts,
+ * but oh well.
  *
  * Implementation notes:
  *
@@ -44,7 +52,7 @@ typedef uint32_t spinsem_t;
  *   3) Finally, execute a memory barrier to ensure that memory accesses after
  *      this take place after we've gained mutual exclusion.
  */
-#define spin_acquire(inputaddr)                                                \
+#define _spin_acquire(inputaddr)                                               \
 	__asm__ __volatile__("1:  clrex\n\t"                                   \
 	                     "    ldrex r0, [%[addr]]\n\t"                     \
 	                     "    cmp   r0, #0\n\t"                            \
@@ -58,8 +66,14 @@ typedef uint32_t spinsem_t;
 	                     : [ addr ] "r"(inputaddr)                         \
 	                     : "r0", "r1", "cc", "memory")
 
+static inline void spin_acquire_irqsave(spinsem_t *sem, int *flags)
+{
+	irqsave(flags);
+	_spin_acquire(sem);
+}
+
 /*
- * spin_release(inputaddr): release the semaphore pointed by inputaddr. This
+ * _spin_release(inputaddr): release the semaphore pointed by inputaddr. This
  * means incrementing the semaphore. DO NOT do this if you didn't have a
  * previous spin_acquire(), that would be rude.
  *
@@ -70,7 +84,7 @@ typedef uint32_t spinsem_t;
  *   2) We still need a loop here, so that we can retry in case our exclusive
  *      store got interrupted by somebody else.
  */
-#define spin_release(inputaddr)                                                \
+#define _spin_release(inputaddr)                                               \
 	__asm__ __volatile__("    dmb\n\t"                                     \
 	                     "1:  ldrex r0, [%[addr]]\n\t"                     \
 	                     "    add   r0, r0, #1\n\t"                        \
@@ -80,3 +94,9 @@ typedef uint32_t spinsem_t;
 	                     : /* no output */                                 \
 	                     : [ addr ] "r"(inputaddr)                         \
 	                     : "r0", "r1", "cc", "memory")
+
+static inline void spin_release_irqrestore(spinsem_t *sem, int *flags)
+{
+	_spin_release(sem);
+	irqrestore(flags);
+}

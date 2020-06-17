@@ -1,6 +1,7 @@
 /*
  * Entry point for C code. At this point, the MMU is enabled.
  */
+#include "blk.h"
 #include "cxtk.h"
 #include "kernel.h"
 #include "socket.h"
@@ -25,6 +26,7 @@ void main(uint32_t phys)
 	timer_init();
 	uart_init();
 	packet_init();
+	blk_init();
 	virtio_init();
 	cxtk_init();
 
