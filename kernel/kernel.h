@@ -25,6 +25,7 @@
 		*(volatile uint32_t *)&(_reg) = __myval__;                     \
 	} while (0)
 #define READ32(_reg) (*(volatile uint32_t *)&(_reg))
+#define READ64(_reg) (*(volatile uint64_t *)&(_reg))
 
 struct ctx;
 struct process;

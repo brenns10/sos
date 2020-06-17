@@ -54,6 +54,10 @@ int blk_cmd_status(int argc, char **argv)
 		printf("no such blockdev \"%s\"", argv[1]);
 		return 1;
 	}
+	printf("Block device \"%s\"\n", argv[1]);
+	printf("    block size : %d\n", dev->blksiz);
+	printf("    block count: %d\n", (uint32_t)dev->blkcnt);
+	puts("Device info below:\n");
 	dev->ops->status(dev);
 	return 0;
 }

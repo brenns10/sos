@@ -71,6 +71,7 @@ struct blkdev_ops {
 struct blkdev {
 	struct list_head blklist;
 	struct blkdev_ops *ops;
+	uint64_t blkcnt;
 	uint32_t blksiz;
 	char name[16];
 };

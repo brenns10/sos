@@ -37,6 +37,7 @@ spinsem_t vdev_list_lock;
 
 struct virtio_blk {
 	virtio_regs *regs;
+	struct virtio_blk_config *config;
 	struct virtqueue *virtq;
 	uint32_t intid;
 	struct list_head list;
@@ -229,6 +230,7 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	struct virtio_blk *vdev;
 	struct virtqueue *virtq;
 	int flags;
+	uint32_t genbefore, genafter;
 
 	maybe_virtio_mod_init();
 	vdev = kmalloc(sizeof(struct virtio_blk));
@@ -249,8 +251,15 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	vdev->regs = regs;
 	vdev->virtq = virtq;
 	vdev->intid = intid;
+	vdev->config = (struct virtio_blk_config *)&regs->Config;
 	vdev->blkdev.ops = &virtio_blk_ops;
 	vdev->blkdev.blksiz = VIRTIO_BLK_SECTOR_SIZE;
+	/* capacity is 64 bit, configuration reg read is not atomic */
+	do {
+		genbefore = READ32(vdev->regs->ConfigGeneration);
+		vdev->blkdev.blkcnt = READ64(vdev->config->capacity);
+		genafter = READ32(vdev->regs->ConfigGeneration);
+	} while (genbefore != genafter);
 	snprintf(&vdev->blkdev.name, sizeof(vdev->blkdev.name), "vblk%d",
 	         vdev->intid);
 
