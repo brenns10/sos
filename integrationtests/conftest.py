@@ -37,8 +37,9 @@ class SosVirtualMachine(object):
 
     timeout = 2
     abort = re.compile(r'END OF FAULT REPORT')
+    prompt = re.compile(r'[uk]sh>')
 
-    def start(self):
+    def start(self, diskimg=None):
         thisdir = os.path.dirname(__file__)
         kernel = os.path.join(thisdir, '../kernel.bin')
         qemu_cmd = os.environ['QEMU_CMD']
@@ -47,6 +48,8 @@ class SosVirtualMachine(object):
             print('\n[sos test] DEBUGGING MODE ACTIVE')
             print('[sos test] Use `make gdb` in separate terminal to debug test')
             self.timeout = 120
+        if diskimg:
+            qemu_cmd = qemu_cmd.replace('mydisk', diskimg)
         cmd = f'{qemu_cmd} -kernel {kernel}'
         self.qemu = subprocess.Popen(
             shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -119,10 +122,12 @@ class SosVirtualMachine(object):
         self.qemu.stdin.write(command + '\r\n')
         self.qemu.stdin.flush()
 
-    def cmd(self, command, pattern='[uk]sh>', timeout=None):
+    def cmd(self, command, pattern=None, timeout=None):
         """
         Send a command and wait for a user or kernel shell prompt.
         """
+        if pattern is None:
+            pattern = self.prompt
         if timeout is None:
             timeout = self.timeout
         self.send_cmd(command)
@@ -137,7 +142,6 @@ class SosVirtualMachine(object):
 def raw_vm():
     sos = SosVirtualMachine()
     try:
-        sos.start()
         yield sos
     finally:
         sos.stop()
@@ -145,5 +149,6 @@ def raw_vm():
 
 @pytest.fixture
 def vm(raw_vm):
-    raw_vm.read_until('ush>')
+    raw_vm.start()
+    raw_vm.read_until(raw_vm.prompt)
     yield raw_vm

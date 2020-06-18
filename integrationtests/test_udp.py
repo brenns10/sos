@@ -25,6 +25,7 @@ def recvfrom_timeout(sk, timeout=2):
 
 @pytest.fixture
 def net_vm(raw_vm):
+    raw_vm.start()
     raw_vm.read_until('netif is configured')
     yield raw_vm
 

@@ -6,10 +6,12 @@ import time
 
 
 def test_main_runs(raw_vm):
+    raw_vm.start()
     raw_vm.read_until("SOS: Startup")
 
 
 def test_boots_to_user_shell(raw_vm):
+    raw_vm.start()
     raw_vm.read_until(r"Stephen's OS \(user shell")
 
 
