@@ -72,6 +72,34 @@ static int cmd_resctx(int argc, char **argv)
 	return 0;
 }
 
+static int cmd_udiv(int argc, char **argv)
+{
+	uint32_t dividend, divisor, result, remainder;
+	if (argc != 3) {
+		puts("usage: udiv DIVIDEND DIVISOR\n");
+	}
+	dividend = atoi(argv[1]);
+	divisor = atoi(argv[2]);
+	result = dividend / divisor;
+	remainder = dividend % divisor;
+	printf("= %u (rem %u)\n", result, remainder);
+	return 0;
+}
+
+static int cmd_sdiv(int argc, char **argv)
+{
+	int32_t dividend, divisor, result, remainder;
+	if (argc != 3) {
+		puts("usage: sdiv DIVIDEND DIVISOR\n");
+	}
+	dividend = atoi(argv[1]);
+	divisor = atoi(argv[2]);
+	result = dividend / divisor;
+	remainder = dividend % divisor;
+	printf("= %d (rem %d)\n", result, remainder);
+	return 0;
+}
+
 static int help(int argc, char **argv);
 struct cmd cmds[] = {
 	{ .name = "echo",
@@ -131,6 +159,8 @@ struct cmd cmds[] = {
 	  .func = cmd_resctx,
 	  .help = "demo for setctx/resctx" },
 	{ .name = "fat", .func = cmd_fat, .help = "print fat info" },
+	{ .name = "udiv", .func = cmd_udiv, .help = "unsigned division" },
+	{ .name = "sdiv", .func = cmd_sdiv, .help = "signed division" },
 };
 
 /*
