@@ -2,6 +2,7 @@
  * PL011 Driver
  */
 #include "kernel.h"
+#include "sync.h"
 
 #define UART_INTID 33
 
@@ -47,6 +48,7 @@ typedef volatile struct __attribute__((packed)) {
 
 uint32_t uart_base = 0x09000000;
 struct process *waiting = NULL;
+spinsem_t uart_sem;
 #define base ((pl011_registers *)uart_base)
 
 void putc(char c)
@@ -80,17 +82,21 @@ int try_getc(void)
 
 int getc_blocking(void)
 {
-	int rv;
+	int rv, flags;
 	if (waiting)
 		return -EBUSY;
 
+	spin_acquire_irqsave(&uart_sem, &flags);
 	rv = try_getc();
 	while (rv == -1) {
 		current->flags.pr_ready = 0;
 		waiting = current;
+		spin_release_irqrestore(&uart_sem, &flags);
 		schedule();
+		spin_acquire_irqsave(&uart_sem, &flags);
 		rv = try_getc();
 	}
+	spin_release_irqrestore(&uart_sem, &flags);
 	return rv;
 }
 
@@ -159,6 +165,8 @@ void uart_init(void)
 	/* Only interrupt for RX */
 	reg = UARTIMSC_UART_RXIM;
 	WRITE32(base->UARTIMSC, reg);
+
+	INIT_SPINSEM(&uart_sem, 1);
 
 	gic_register_isr(UART_INTID, 1, uart_isr, "uart");
 	gic_enable_interrupt(UART_INTID);
