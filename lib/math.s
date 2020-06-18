@@ -1,46 +1,60 @@
-/*
-r0: dividend
-r1: divisor
-  returns
-r0: result
-*/
-  .globl divide_u32
-  .globl __aeabi_uidiv
-  .globl __aeabi_uidivmod
-divide_u32:
-__aeabi_uidiv:
+	.globl __aeabi_idivmod
+	.globl __aeabi_idiv
+__aeabi_idivmod:
+__aeabi_idiv:
+	push {lr}
+	push {v1, v2}
+	mov v1, #0
+	cmp a1, #0
+	movlt v1, #1
+	neglt a1, a1
+
+	mov v2, #0
+	cmp a2, #0
+	movlt v2, #1
+	neglt a2, a2
+
+	bl divide
+
+	eors a3, v1, v2
+	negne a1, a1
+	cmp v1, #1
+	negeq a2, a2
+	pop {v1, v2}
+	pop {pc}
+
+	.globl divide
+	.globl __aeabi_uidivmod
+	.globl __aeabi_uidiv
+divide:
 __aeabi_uidivmod:
-  result .req r0
-  remainder .req r1
-  shift .req r2
-  current .req r3
+__aeabi_uidiv:
+	result   .req a1
+	dividend .req a2
+	divisor  .req a3
+	shift    .req a4
 
-  clz shift, r1
-  clz r3, r0
-  subs shift, r3
-  lsl current, r1, shift
-  mov remainder, r0
-  mov result, #0
-  blt $divide_u32_return
+	mov divisor, a2
+	mov dividend, a1
 
-$divide_u32_loop:
-  cmp remainder, current
-  blt $divide_u32_loop_continue
+	clz a1, divisor
+	clz a4, dividend
+	sub shift, a1, a4
+	mov a1, #1
+	lsl divisor, divisor, shift
+	lsl shift, a1, shift
+	mov result, #0
 
-  add result, result, #1
-  subs remainder, current // short circuit if we evenly divided
-  lsleq result, shift
-  beq $divide_u32_return
+	_divide_loop:
+		cmp shift, #0
+		moveq pc, lr  /* RETURN */
 
-$divide_u32_loop_continue:
-  subs shift, #1
-  lsrge current, #1
-  lslge result, #1
-  bge $divide_u32_loop
+		cmp dividend, divisor
+		blt _divide_shift_right
+			sub dividend, dividend, divisor
+			add result, result, shift
+		_divide_shift_right:
+			lsr shift, shift, #1
+			lsr divisor, divisor, #1
+			b _divide_loop
 
-$divide_u32_return:
-  .unreq current
-  mov pc, lr
-  .unreq result
-  .unreq remainder
-  .unreq shift
