@@ -255,10 +255,15 @@ uint32_t printf(const char *format, ...)
 
 int atoi(const char *str)
 {
-	int i, val = 0;
-	for (i = 0; str[i]; i++)
+	int i = 0, val = 0;
+	bool negate = false;
+	if (str[i] == '-') {
+		negate = true;
+		i++;
+	}
+	for (; str[i]; i++)
 		val = val * 10 + (str[i] - '0');
-	return val;
+	return negate ? -val : val;
 }
 
 #ifdef TEST_PREFIX
