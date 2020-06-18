@@ -24,6 +24,7 @@ void blkdev_register(struct blkdev *dev)
 	spin_acquire_irqsave(&blkdev_list_lock, &flags);
 	list_insert_end(&blkdev_list, &dev->blklist);
 	spin_release_irqrestore(&blkdev_list_lock, &flags);
+	printf("blk: registered device \"%s\"\n", dev->name);
 }
 
 struct blkdev *blkdev_get_by_name(char *name)

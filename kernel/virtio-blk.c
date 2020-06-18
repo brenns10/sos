@@ -274,6 +274,5 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 	mb();
 
 	blkdev_register(&vdev->blkdev);
-	printf("%s: ready!\n", &vdev->blkdev.name);
 	return 0;
 }
