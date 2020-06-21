@@ -38,10 +38,10 @@ bool strprefix(const char *haystack, const char *prefix)
 	uint32_t i;
 	for (i = 0; haystack[i] == prefix[i]; i++)
 		if (haystack[i] == '\0')
-			return 0; /* strings are equal! */
+			return true; /* strings are equal! */
 	if (prefix[i] == '\0')
-		return 0; /* haystack is longer but that's ok */
-	return 1;
+		return true; /* haystack is longer but that's ok */
+	return false;
 }
 
 bool strsuffix(const char *haystack, const char *suffix)
