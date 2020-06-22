@@ -96,6 +96,88 @@ out:
 	kfree(fs, sizeof(*fs));
 }
 
+uint32_t fat_cluster_to_block(struct fat_fs *fs, uint32_t clusno)
+{
+	return (fs->RootSec + fs->RootDirSectors +
+	        (clusno - 2) * fs->bpb->BPB_SecPerClus);
+}
+
+#define FAT_MAX_SHORTNAME 11
+/* Bitmap mapping saying whether a byte is an invalid character */
+uint8_t fat_invalid_char[256 / 8] = {
+	[0] = 0xff, [1] = 0xff, [2] = 0xff,  [3] = 0xff,  [4] = 0x4,
+	[5] = 0xdc, [7] = 0xfc, [11] = 0x38, [15] = 0x10,
+};
+/**
+ * Simultaneously determine if "input" is a valid short name, and if so, copy it
+ * to the correct format of dest. Return <0 if the name is invalid, or 0 if the
+ * name is valid. Callers should assume that the value of dest is not preserved,
+ * even if the name is invalid. The validation step will check the following:
+ * - length of total filename is no more than 11
+ * - length of basename is no more than 8
+ * - extension is no more than 3
+ * - convert lower case to upper
+ * - ensure no illegal characters are in name
+ * The array at dest will be null terminated (dest[10] = '\0') to ensure that
+ * printing out the filename is legal.
+ *
+ * Some sample calls:
+ *
+ * "hi world" -> -1
+ * "file1" -> "FILE1      "
+ */
+int fat_valid_shortname(char *input, char *dest)
+{
+	uint32_t i, j, maxval;
+	if (strlen(input) > FAT_MAX_SHORTNAME + 1) /* +1 to account for '.' */
+		return -1;
+
+	/* Copy over the base (without extension) */
+	for (i = 0, j = 0; input[i] && (i < 8); i++) {
+		if (input[i] == '.') {
+			break;
+		} else if (fat_invalid_char[input[i] >> 3] &
+		           (1 << (input[i] & 0x7))) {
+			return -EINVAL;
+		} else if (input[i] >= 'a' && input[i] <= 'z') {
+			dest[j++] = input[i] + ('A' - 'a');
+		} else {
+			dest[j++] = input[i];
+		}
+	}
+
+	/* SPACE PAD the base */
+	for (; j < 8; j++)
+		dest[j] = ' ';
+
+	if (input[i]) {
+		if (input[i] != '.') {
+			return -ENAMETOOLONG;
+		}
+		i++;
+		maxval = i + 3;
+		for (; input[i] && (i < maxval); i++) {
+			if (fat_invalid_char[input[i] >> 3] &
+			    (1 << (input[i] & 0x7))) {
+				return -EINVAL;
+			} else if (input[i] >= 'a' && input[i] <= 'z') {
+				dest[j++] = input[i] + ('A' - 'a');
+			} else {
+				dest[j++] = input[i];
+			}
+		}
+		if (input[i]) {
+			return -ENAMETOOLONG; /* too long extension */
+		}
+	}
+
+	/* SPACE PAD extension */
+	for (; j < 11; j++)
+		dest[j] = ' ';
+	dest[11] = '\0'; /* NUL terminate for good measure */
+	return 0;
+}
+
 void fat_list_root(struct fat_fs *fs)
 {
 	/* read first sector of root dir */
@@ -139,6 +221,51 @@ void fat_list_root(struct fat_fs *fs)
 		}
 	}
 	kfree(dirent, 512);
+}
+
+int fat_root_find(struct fat_fs *fs, char *shortname, struct fat_dirent *outent)
+{
+	/* read first sector of root dir */
+	struct fat_dirent *dirent;
+	struct blkreq *req;
+	char searchfor[12];
+	int rv = -ENOENT;
+
+	if ((rv = fat_valid_shortname(shortname, searchfor)) < 0) {
+		return rv;
+	}
+
+	dirent = kmalloc(512);
+	req = fs->dev->ops->alloc(fs->dev);
+	req->blkidx = fs->RootSec;
+	req->type = BLKREQ_READ;
+	req->buf = dirent;
+	req->size = 512;
+	fs->dev->ops->submit(fs->dev, req);
+	wait_for(&req->wait);
+	fs->dev->ops->free(fs->dev, req);
+
+	for (uint32_t i = 0; i < (512 / 32); i++) {
+		if (dirent[i].DIR_Name[0] == 0xE5) {
+			continue; /* free */
+		}
+		if (dirent[i].DIR_Name[0] == 0) {
+			break;
+		}
+		if ((dirent[i].DIR_Attr & FAT_ATTR_LONG_NAME_MASK) ==
+		    FAT_ATTR_LONG_NAME) {
+			continue; /* TODO: support long name */
+		}
+
+		if (memcmp(&dirent[i].DIR_Name, &searchfor,
+		           FAT_MAX_SHORTNAME) == 0) {
+			*outent = dirent[i];
+			rv = 0;
+			break;
+		}
+	}
+	kfree(dirent, 512);
+	return rv;
 }
 
 void *fat_read_blockpair(struct blkdev *dev, uint64_t blkno)
@@ -227,6 +354,51 @@ void fat_iter_fat12(struct fat_fs *fs)
 	kfree(blk, 1024);
 }
 
+int fat_read_root_file(struct fat_fs *fs, char *fn)
+{
+	int rv = 0;
+	uint32_t blkno, clusno, maxbytes;
+	struct fat_dirent dirent;
+	struct blkreq *req;
+	char *data;
+
+	if ((rv = fat_root_find(fs, fn, &dirent)) < 0)
+		return rv;
+
+	clusno = (dirent.DIR_FstClusHI << 16) | dirent.DIR_FstClusLO;
+	blkno = fat_cluster_to_block(fs, clusno);
+	printf("Read file at cluster %u, blkno %u, size %u\n", clusno, blkno,
+	       dirent.DIR_FileSize);
+	maxbytes = dirent.DIR_FileSize;
+	if (dirent.DIR_FileSize > 511) {
+		puts("WARNING: file longer than a block\n");
+		maxbytes = 511;
+		/* TODO support multiple blocks */
+	}
+
+	data = kmalloc(512);
+	req = fs->dev->ops->alloc(fs->dev);
+	req->size = 512;
+	req->blkidx = blkno;
+	req->type = BLKREQ_READ;
+	req->buf = (uint8_t *)data;
+	fs->dev->ops->submit(fs->dev, req);
+	wait_for(&req->wait);
+	if (req->status != BLKREQ_OK) {
+		rv = -EIO;
+		goto out;
+	}
+
+	data[maxbytes] = '\0'; /* nul terminate to be safe */
+	puts("BEGIN FILE\n");
+	puts(data);
+	puts("END FILE\n");
+out:
+	kfree(data, 512);
+	fs->dev->ops->free(fs->dev, req);
+	return rv;
+}
+
 int cmd_fat(int argc, char **argv)
 {
 	struct blkdev *dev;
@@ -245,5 +417,15 @@ int cmd_fat(int argc, char **argv)
 	fat_list_root(fs_global);
 	puts("FILE ALLOCATION TABLE:\n");
 	fat_iter_fat12(fs_global);
+	return 0;
+}
+
+int cmd_fatcat(int argc, char **argv)
+{
+	if (argc != 2) {
+		puts("usage: fatcat FILENAME\n");
+		return 1;
+	}
+	fat_read_root_file(fs_global, argv[1]);
 	return 0;
 }

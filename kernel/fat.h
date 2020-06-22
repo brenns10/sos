@@ -101,3 +101,4 @@ struct fat_fs {
 };
 
 int cmd_fat(int argc, char **argv);
+int cmd_fatcat(int argc, char **argv);

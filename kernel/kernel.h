@@ -9,6 +9,7 @@
 
 #include "alloc.h"
 #include "cpu.h"
+#include "errno.h"
 #include "format.h"
 #include "list.h"
 #include "wait.h"
@@ -322,8 +323,6 @@ struct packet;
 void virtio_net_send(struct virtio_net *dev, struct packet *pkt);
 struct netif;
 extern struct netif nif;
-
-#define EBUSY 1
 
 void packet_init(void);
 struct packet *udp_wait(uint16_t port);

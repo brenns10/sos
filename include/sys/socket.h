@@ -8,22 +8,6 @@ typedef uint16_t in_port_t;
 
 enum {
 	/* noformat */
-	EAFNOSUPPORT = 1,
-	EPROTONOSUPPORT,
-	EPROTOTYPE,
-	EACCES,
-	EINVAL,
-	EADDRINUSE,
-	EADDRNOTAVAIL,
-	EBADF,
-	EOPNOTSUPP,
-	EMSGSIZE,
-	ENOTCONN,
-	EDESTADDRREQ,
-};
-
-enum {
-	/* noformat */
 	AF_INET = 1,
 };
 

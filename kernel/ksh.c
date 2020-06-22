@@ -159,6 +159,7 @@ struct cmd cmds[] = {
 	  .func = cmd_resctx,
 	  .help = "demo for setctx/resctx" },
 	{ .name = "fat", .func = cmd_fat, .help = "print fat info" },
+	{ .name = "fatcat", .func = cmd_fatcat, .help = "print fat file" },
 	{ .name = "udiv", .func = cmd_udiv, .help = "unsigned division" },
 	{ .name = "sdiv", .func = cmd_sdiv, .help = "signed division" },
 };
