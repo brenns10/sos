@@ -42,6 +42,12 @@ _irq: ldr pc, =irq_impl
 _fiq: ldr pc, =fiq_impl
 
 start_impl:
+	/* Trap cores which arent core 0 */
+	mrc p15, 0, r0, c0, c0, 5
+	and r0, #0xFF
+	cmp r0, #0
+	subne pc, pc, #8
+
 	/*
 	 * Step 0: Setup the stack pointer and branch into C code for pre_mmu
 	 * initialization.
@@ -107,15 +113,6 @@ start_impl:
 	ldr a4, =#0x00404000
 	add a4, a1, a4
 	sub a4, a4, a3
-	mov v4, #0x10 /* PRW_UNA */
-	bl map_pages
-
-	/*
-	 * Step 3.5: Identity map 0x90000000 in, for UART.
-	 */
-	mov a2, #0x09000000
-	mov a3, #0x09000000
-	mov a4, #0x1000
 	mov v4, #0x10 /* PRW_UNA */
 	bl map_pages
 
