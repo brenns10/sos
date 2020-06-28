@@ -19,7 +19,7 @@ HOSTCC = gcc
 ARCH := armv7-a
 ASFLAGS = -g -march=$(ARCH)
 CFLAGS = -g -ffreestanding -nostdlib -fPIE -march=$(ARCH) -iquote lib \
-         -iquote include -marm -Wall -Wno-address-of-packed-member
+         -iquote include -iquote kernel -marm -Wall -Wno-address-of-packed-member
 LDFLAGS = -nostdlib -fPIE
 
 TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g -DTEST_PREFIX
@@ -28,13 +28,13 @@ TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g -DTEST_PREFIX
 -include conf.mk
 
 .PHONY: run
-run: kernel.bin mydisk
+run: kernel/configvals.h kernel.bin mydisk
 	@echo Running. Exit with Ctrl-A X
 	@echo
 	$(QEMU_CMD) -kernel kernel.bin
 
 .PHONY: all
-all: kernel.bin compile_unittests
+all: kernel/configvals.h kernel.bin compile_unittests
 
 .PHONY: debug
 debug: kernel.bin mydisk
@@ -91,6 +91,9 @@ kernel.elf: lib/slab.o
 kernel.elf: lib/math.o
 kernel.elf: lib/inet.o
 
+kernel.elf: board/qemu.o
+kernel.elf: board/rpi4b.o
+
 # Object files going into each userspace program:
 USER_BASIC = user/syscall.o user/startup.o
 user/salutations.elf: user/salutations.o lib/format.o $(USER_BASIC)
@@ -146,7 +149,7 @@ unittest: compile_unittests
 	gcovr -r . --html --html-details -o cov.html lib/ unittests/
 
 .PHONY: integrationtest
-integrationtest: kernel.bin mydisk
+integrationtest: kernel/configvals.h kernel.bin mydisk
 	@QEMU_CMD="$(QEMU_CMD)" $(PYTEST) integrationtests
 
 .PHONY: testdebug
@@ -154,14 +157,32 @@ testdebug:
 	@SOS_DEBUG=true QEMU_CMD="$(QEMU_CMD) $(QEMU_DBG)" $(PYTEST) integrationtests -k $(TEST) -s
 
 .PHONY: test
-test: unittest integrationtest
+test: kernel/configvals.h unittest integrationtest
 
 .PHONY: clean
 clean:
 	rm -f *.elf *.bin
 	rm -f kernel/*.o
+	rm -f kernel/configvals.h
+	rm -f board/*.o
 	rm -f lib/*.o unittests/*.to lib/*.to
 	rm -f user/*.o user/*.elf user/*.bin
 	rm -f unittests/*.gcda unittests/*.gcno unittests/*.to unittests/*.test
 	rm -f cov.*.html
 	rm -f dump.pcap
+
+.PHONY: config_qemu config_rpi4b
+config_qemu: clean
+	cp config/qemu.h kernel/configvals.h
+config_rpi4b: clean
+	cp config/rpi4b.h kernel/configvals.h
+
+kernel/configvals.h:
+	@echo You have not configured the kernel. Please read through kernel/config.h
+	@echo and create a file kernel/configvals.h which specifies each option.
+	@echo Alternatively, select one of the following premade configurations:
+	@echo
+	@echo "  make config_qemu"
+	@echo "  make config_rpi4b"
+	@echo
+	@exit 1

@@ -1,6 +1,7 @@
 /**
  * PL011 Driver
  */
+#include "config.h"
 #include "kernel.h"
 #include "sync.h"
 
@@ -46,7 +47,7 @@ typedef volatile struct __attribute__((packed)) {
 	uint32_t UARTDMACR;
 } pl011_registers;
 
-uint32_t uart_base = 0x09000000;
+uint32_t uart_base = CONFIG_UART_BASE;
 struct process *waiting = NULL;
 spinsem_t uart_sem;
 #define base ((pl011_registers *)uart_base)
@@ -152,22 +153,37 @@ void uart_init(void)
 {
 	uint32_t reg;
 
-	/* Half full TX/RX interrupt */
-	reg = 0x12;
-	WRITE32(base->UARTIFLS, reg);
 	/* Set 8 bit words, and enable FIFO */
-	reg = UARTLCR_FEN | UARTLCR_8BIT;
-	WRITE32(base->UARTLCR_H, reg);
+	WRITE32(base->UARTLCR_H, UARTLCR_FEN | UARTLCR_8BIT);
+
 	/* Enable UART, Tx, Rx */
-	reg = base->UARTCR;
+	reg = READ32(base->UARTCR);
 	reg |= (UARTCR_UARTEN | UARTCR_TXE | UARTCR_RXE);
 	WRITE32(base->UARTCR, reg);
-	/* Only interrupt for RX */
-	reg = UARTIMSC_UART_RXIM;
-	WRITE32(base->UARTIMSC, reg);
 
 	INIT_SPINSEM(&uart_sem, 1);
+}
+
+void uart_init_irq(void)
+{
+	/* Half full TX/RX interrupt */
+	WRITE32(base->UARTIFLS, 0x12);
+
+	/* Only interrupt for RX */
+	WRITE32(base->UARTIMSC, UARTIMSC_UART_RXIM);
 
 	gic_register_isr(UART_INTID, 1, uart_isr, "uart");
 	gic_enable_interrupt(UART_INTID);
+}
+
+/*
+ * Remap the UART base. This should be called after MMU is enabled, and we need
+ * to map a virtual address to the physical UART base.
+ */
+void uart_remap(void)
+{
+	uint32_t new_addr = alloc_pages(kern_virt_allocator, 0x1000, 0);
+	kmem_map_pages(new_addr, uart_base, 0x1000,
+	               PRW_UNA | EXECUTE_NEVER | DEVICE_SHAREABLE);
+	uart_base = new_addr;
 }

@@ -453,7 +453,7 @@ void kmem_free_page(void *ptr)
 
 void kmem_init(uint32_t phys)
 {
-	uint32_t new_uart, old_uart, alloc_so_far, cpreg;
+	uint32_t alloc_so_far, cpreg;
 	void *stack;
 	/*
 	 * First, setup some global well-known variables to help ourselves out.
@@ -487,15 +487,6 @@ void kmem_init(uint32_t phys)
 	init_page_allocator(kern_virt_allocator, (uint32_t)code_start,
 	                    0x3FFFFFFF);
 	mark_alloc(kern_virt_allocator, (uint32_t)code_start, alloc_so_far);
-
-	/*
-	 * Now that we have our allocators, let's allocate some virtual memory
-	 * to map the UART at.
-	 */
-	new_uart = alloc_pages(kern_virt_allocator, 0x1000, 0);
-	old_uart = uart_base;
-	kmem_map_page(new_uart, uart_base, PRW_UNA | EXECUTE_NEVER);
-	uart_base = new_uart;
 
 	/*
 	 * Here we unmap the old physical code locations, and the old UART

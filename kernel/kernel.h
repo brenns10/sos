@@ -14,6 +14,8 @@
 #include "list.h"
 #include "wait.h"
 
+#include "config.h"
+
 /* Useful macros for the kernel to use */
 #define nelem(x) (sizeof(x) / sizeof(x[0]))
 
@@ -73,6 +75,8 @@ void puts(char *string);
 void putc(char c);
 int getc_blocking(void);
 void uart_init(void);
+void uart_init_irq(void);
+void uart_remap(void);
 void uart_wait(struct process *p);
 void uart_isr(uint32_t intid, struct ctx *ctx);
 uint32_t snprintf(char *buf, uint32_t size, const char *format, ...);
@@ -126,9 +130,14 @@ extern void *kern_virt_allocator;
 /*
  * MMU Constants
  */
-#define SLD__AP2 (1 << 9)
-#define SLD__AP1 (1 << 5)
-#define SLD__AP0 (1 << 4)
+#define SLD__AP2  (1 << 9)
+#define SLD__AP1  (1 << 5)
+#define SLD__AP0  (1 << 4)
+#define SLD__C    (1 << 3)
+#define SLD__B    (1 << 2)
+#define SLD__TEX0 (1 << 6)
+#define SLD__TEX1 (1 << 7)
+#define SLD__TEX2 (1 << 8)
 
 /* first level descriptor types */
 #define FLD_UNMAPPED 0x00
@@ -154,6 +163,9 @@ extern void *kern_virt_allocator;
 #define PRO_UNA       (SLD__AP2 | SLD__AP0) /* AP=0b101 */
 #define PRO_URO       (SLD__AP2 | SLD__AP1) /* AP=0b110 */
 #define EXECUTE_NEVER 0x01
+
+#define DEVICE_SHAREABLE    (SLD__B)
+#define DEVICE_NONSHAREABLE (SLD__TEX1)
 
 /*
  * KMalloc
