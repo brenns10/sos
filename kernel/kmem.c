@@ -451,7 +451,7 @@ void kmem_free_page(void *ptr)
 	kmem_free_pages(ptr, 4096);
 }
 
-void kmem_init(uint32_t phys, bool verbose)
+void kmem_init(uint32_t phys)
 {
 	uint32_t new_uart, old_uart, alloc_so_far, cpreg;
 	void *stack;
@@ -471,22 +471,6 @@ void kmem_init(uint32_t phys, bool verbose)
 	second_level_table = (void *)first_level_table + 0x4000;
 	dynamic = second_level_table + 0x00400000;
 
-	if (verbose) {
-		printf("\tphys_code_start = 0x%x\n", phys_code_start);
-		printf("\tphys_code_end = 0x%x\n", phys_code_end);
-		printf("\tphys_data_start = 0x%x\n", phys_data_start);
-		printf("\tphys_data_end = 0x%x\n", phys_data_end);
-		printf("\tphys_stack_start = 0x%x\n", phys_stack_start);
-		printf("\tphys_stack_end = 0x%x\n", phys_stack_end);
-		printf("\tphys_first_level_table = 0x%x\n",
-		       phys_first_level_table);
-		printf("\tphys_second_level_table = 0x%x\n",
-		       phys_second_level_table);
-		printf("\tphys_dynamic = 0x%x\n", phys_dynamic);
-		printf("\tsecond_level_table = 0x%x\n", second_level_table);
-		printf("\tdynamic = 0x%x\n", dynamic);
-	}
-
 	/*
 	 * Now, let's map some memory and use it to establish two allocators:
 	 * (a) Physical memory allocator
@@ -504,28 +488,14 @@ void kmem_init(uint32_t phys, bool verbose)
 	                    0x3FFFFFFF);
 	mark_alloc(kern_virt_allocator, (uint32_t)code_start, alloc_so_far);
 
-	if (verbose) {
-		printf("We have allocators now!\n");
-		/*show_pages(phys_allocator);
-		show_pages(kern_virt_allocator);*/
-	}
-
 	/*
 	 * Now that we have our allocators, let's allocate some virtual memory
 	 * to map the UART at.
 	 */
 	new_uart = alloc_pages(kern_virt_allocator, 0x1000, 0);
 	old_uart = uart_base;
-	if (verbose)
-		printf("Old UART was 0x%x, new will be 0x%x\n", old_uart,
-		       new_uart);
 	kmem_map_page(new_uart, uart_base, PRW_UNA | EXECUTE_NEVER);
 	uart_base = new_uart;
-
-	if (verbose) {
-		printf("We have made the swap\n");
-		/*show_pages(kern_virt_allocator);*/
-	}
 
 	/*
 	 * Here we unmap the old physical code locations, and the old UART
@@ -546,9 +516,6 @@ void kmem_init(uint32_t phys, bool verbose)
 	                (uint32_t)data_start),
 	               PRW_UNA | EXECUTE_NEVER);
 
-	if (verbose)
-		printf("We have adjusted memory permissions!\n");
-
 	/*
 	 * Setup stacks for other modes, and map the first code page at 0x00 so
 	 * we can handle exceptions.
@@ -563,11 +530,6 @@ void kmem_init(uint32_t phys, bool verbose)
 
 	/* This may be a no-op, but let's map the interrupt vector at 0x0 */
 	kmem_map_page(0x00, phys_code_start, PRO_URO);
-
-	if (verbose) {
-		printf("We have setup interrupt mode stacks!\n");
-		/*print_first_level(0, 0xFFFFFFFF);*/
-	}
 
 	/* At this point, we have configured the first and second level tables
 	 * as if they were managing the whole memory space. However, we have now
@@ -595,14 +557,7 @@ void kmem_init(uint32_t phys, bool verbose)
 	free_pages(kern_virt_allocator,
 	           (uint32_t)second_level_table + 0x00100000, 0x00300000);
 
+	/* Set TTBCR to determine the 1/3 user kernel split */
 	cpreg = 2;
 	set_cpreg(cpreg, c2, 0, c0, 2);
-
-	if (verbose) {
-		printf("We set TTBCR and now we're fully in kernel space!\n");
-		printf("Here's the physical memory:\n");
-		show_pages(phys_allocator);
-		printf("Here's the kernel virtual memory:\n");
-		show_pages(kern_virt_allocator);
-	}
 }

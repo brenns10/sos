@@ -81,7 +81,7 @@ uint32_t printf(const char *format, ...);
 /*
  * Initialize kernel memory system (see mem.c for details)
  */
-void kmem_init(uint32_t phys, bool verbose);
+void kmem_init(uint32_t phys);
 
 /*
  * Return pages of kernel memory, already mapped and everything!
