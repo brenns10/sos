@@ -21,6 +21,7 @@ void pre_mmu(void)
 	 * Upon return from this function, the MMU is enabled, we jump to the
 	 * destination virtual addres of the kernel, and execute main().
 	 */
+	board_premmu();
 	uart_init();
 }
 

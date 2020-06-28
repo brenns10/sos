@@ -182,8 +182,5 @@ void uart_init_irq(void)
  */
 void uart_remap(void)
 {
-	uint32_t new_addr = alloc_pages(kern_virt_allocator, 0x1000, 0);
-	kmem_map_pages(new_addr, uart_base, 0x1000,
-	               PRW_UNA | EXECUTE_NEVER | DEVICE_SHAREABLE);
-	uart_base = new_addr;
+	uart_base = kmem_remap_periph(uart_base);
 }

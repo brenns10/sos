@@ -111,6 +111,7 @@ uint32_t umem_lookup_phys(struct process *p, void *virt_ptr);
 void kmem_map_pages(uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs);
 void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys,
                     uint32_t len, uint32_t attrs);
+uint32_t kmem_remap_periph(uint32_t addr);
 
 /*
  * Unmap memory

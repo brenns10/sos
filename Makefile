@@ -81,6 +81,7 @@ kernel.elf: kernel/cxtk.o
 kernel.elf: kernel/debug.o
 kernel.elf: kernel/blk.o
 kernel.elf: kernel/fat.o
+kernel.elf: kernel/rpi-gpio.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o

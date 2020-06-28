@@ -3,4 +3,5 @@
  */
 #pragma once
 
+void board_premmu(void);
 void board_init(void);
