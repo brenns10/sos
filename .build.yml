@@ -11,6 +11,7 @@ sources:
 tasks:
  - build: |
      cd sos
+     make config_qemu
      make all
  - test: |
      cd sos
