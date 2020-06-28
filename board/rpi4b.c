@@ -1,3 +1,4 @@
+#include "arm-mailbox.h"
 #include "config.h"
 #include "rpi-gpio.h"
 
@@ -10,10 +11,20 @@ void board_premmu(void)
 	 */
 	set_gpio_function(14, 4);
 	set_gpio_function(15, 4);
+
+	/*
+	 * For visual indicators, turn off both leds
+	 */
+	led_act_off();
+	led_pwr_off();
 }
 
 void board_init(void)
 {
+	gpio_remap();
+	mbox_remap();
+
+	led_act_on();
 }
 
 #endif
