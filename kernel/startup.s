@@ -56,7 +56,7 @@ start_impl:
 	ldr a2, =code_start
 	ldr a3, =stack_end
 	sub a3, a3, a2
-	add sp, a1, a2
+	add sp, a1, a3
 	bl pre_mmu
 
 	/*
