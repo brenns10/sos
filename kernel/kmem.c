@@ -533,7 +533,7 @@ void kmem_init(uint32_t phys)
 	svc_stack = &stack_end;
 
 	/* This may be a no-op, but let's map the interrupt vector at 0x0 */
-	kmem_map_page(0x00, phys_code_start, PRO_URO);
+	kmem_map_page(0x00, phys_code_start, PRO_UNA);
 
 	/* At this point, we have configured the first and second level tables
 	 * as if they were managing the whole memory space. However, we have now
