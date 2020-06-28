@@ -35,7 +35,10 @@ SECTIONS {
 	}
 	.data . : {
 		*(.data)
+		*(.data.rel)
+		*(.data.rel.local)
 	}
+	bss_start = .;
 	.bss . : {
 		*(.bss)
 	}

@@ -6,10 +6,11 @@
 #include "cxtk.h"
 #include "kernel.h"
 #include "socket.h"
+#include "string.h"
 
 void main(uint32_t);
 
-void pre_mmu(void)
+void pre_mmu(uint32_t phys)
 {
 	/*
 	 * Called immediately upon startup. This is an excellent place to
@@ -21,6 +22,12 @@ void pre_mmu(void)
 	 * Upon return from this function, the MMU is enabled, we jump to the
 	 * destination virtual addres of the kernel, and execute main().
 	 */
+
+	// Set .bss to 0. Be careful to compute the address based on the
+	// physical one passed up by startup.s, symbol addresses may be
+	// incorrect.
+	memset((void *)(phys + (uint32_t)&bss_start - (uint32_t)&code_start), 0,
+	       data_end - bss_start);
 	board_premmu();
 	uart_init();
 	puts("SOS: starting...");

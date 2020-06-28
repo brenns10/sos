@@ -43,6 +43,7 @@ struct process;
 extern uint8_t code_start[];
 extern uint8_t code_end[];
 extern uint8_t data_start[];
+extern uint8_t bss_start[];
 extern uint8_t data_end[];
 extern uint8_t stack_start[];
 extern uint8_t stack_end[];
