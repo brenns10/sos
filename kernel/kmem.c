@@ -500,9 +500,13 @@ void kmem_init(uint32_t phys)
 	/*
 	 * Here we unmap the old physical code locations, and the old UART
 	 * location.
+	 * TODO: This is temporarily disabled in order to support board rpi4b.
+	 * We should first check whether the physical address range we're
+	 * unmapping overlaps with the virtual address range! New MMU code
+	 * should take this into account.
 	 */
-	kmem_unmap_pages(phys_code_start, phys_dynamic - phys_code_start);
-	kmem_unmap_pages(old_uart, 0x1000);
+	// kmem_unmap_pages(phys_code_start, phys_dynamic - phys_code_start);
+	// kmem_unmap_pages(old_uart, 0x1000);
 
 	/*
 	 * At this point, we can adjust the flags on the code to be read-only,
