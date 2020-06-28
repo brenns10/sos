@@ -1,5 +1,6 @@
 #include "arm-mailbox.h"
 #include "config.h"
+#include "kernel.h"
 #include "rpi-gpio.h"
 
 #if CONFIG_BOARD == BOARD_RPI4B
@@ -25,6 +26,8 @@ void board_init(void)
 	mbox_remap();
 
 	led_act_on();
+
+	ksh(KSH_SPIN);
 }
 
 #endif
