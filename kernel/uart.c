@@ -81,6 +81,15 @@ int try_getc(void)
 	return READ32(base->UARTDR) & UARTDR_DATA;
 }
 
+int getc_spinning(void)
+{
+	int rv;
+	do {
+		rv = try_getc();
+	} while (rv == -1);
+	return rv;
+}
+
 int getc_blocking(void)
 {
 	int rv, flags;

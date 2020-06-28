@@ -344,7 +344,7 @@ struct process *choose_new_process(void)
 			puts("[kernel] WARNING: no more processes remain, "
 			     "dropping into kernel shell\n");
 			warned = true;
-			chosen = create_kthread(ksh, NULL);
+			chosen = create_kthread(ksh, KSH_BLOCK);
 			list_insert(&process_list, &chosen->list);
 			return chosen;
 		}

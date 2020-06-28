@@ -74,6 +74,7 @@ extern void *svc_stack;
 void puts(char *string);
 void putc(char c);
 int getc_blocking(void);
+int getc_spinning(void);
 void uart_init(void);
 void uart_init_irq(void);
 void uart_remap(void);
@@ -288,6 +289,8 @@ extern uint32_t process_ush_end[];
 
 void dtb_init(uint32_t phys);
 
+#define KSH_SPIN  ((void *)1)
+#define KSH_BLOCK ((void *)2)
 void ksh(void *);
 
 /* ksh commands */

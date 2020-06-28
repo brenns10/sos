@@ -177,14 +177,17 @@ static int help(int argc, char **argv)
 /*
  * Parsing logic
  */
-static void getline(void)
+static void getline(void *arg)
 {
 	unsigned int i = 0;
 
 	puts("ksh> ");
 
 	do {
-		input[i++] = getc_blocking();
+		if (arg == KSH_SPIN)
+			input[i++] = getc_spinning();
+		else
+			input[i++] = getc_blocking();
 		putc(input[i - 1]);
 	} while (input[i - 1] != '\r' && i < sizeof(input));
 	putc('\n');
@@ -226,13 +229,12 @@ static void execute(void)
 void ksh(void *arg)
 {
 	int rv;
-	(void)arg; /* unused */
 	if ((rv = setctx(&kshctx)) != 0) {
 		printf("I have been bamboozled!\nYou sent %d\n", rv);
 	}
 	puts("Stephen's OS, (kernel shell)\n");
 	while (true) {
-		getline();
+		getline(arg);
 		tokenize();
 		execute();
 	}
