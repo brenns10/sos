@@ -23,6 +23,7 @@ void pre_mmu(void)
 	 */
 	board_premmu();
 	uart_init();
+	puts("SOS: starting...");
 }
 
 void start_ush(void)
@@ -34,9 +35,12 @@ void start_ush(void)
 
 void main(uint32_t phys)
 {
-	puts("SOS: Startup\n");
+	/* WARNING: printing functions may not be used until after uart_remap()!
+	 * MMU has been enabled and thus UART is no longer mapped.
+	 */
 	kmem_init(phys);
 	uart_remap();
+	puts(" started!\n");
 	board_init();
 	kmalloc_init();
 	process_init();
