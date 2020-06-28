@@ -43,6 +43,17 @@ _fiq: ldr pc, =fiq_impl
 
 start_impl:
 	/*
+	 * Step 0: Setup the stack pointer and branch into C code for pre_mmu
+	 * initialization.
+	 */
+	adr a1, _start
+	ldr a2, =code_start
+	ldr a3, =stack_end
+	sub a3, a3, a2
+	add sp, a1, a2
+	bl pre_mmu
+
+	/*
 	 * Step 1: Figure out where the translation table base belongs and
 	 * initialize it.
 	 *

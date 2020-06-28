@@ -8,6 +8,22 @@
 
 #define VERBOSE false
 
+void main(uint32_t);
+
+void pre_mmu(void)
+{
+	/*
+	 * Called immediately upon startup. This is an excellent place to
+	 * implement early logic:
+	 *   - isolate cores of multicore system
+	 *   - initialize console peripheral for early communication
+	 *   - setup page tables (soon^TM)
+	 *
+	 * Upon return from this function, the MMU is enabled, we jump to the
+	 * destination virtual addres of the kernel, and execute main().
+	 */
+}
+
 void start_ush(void)
 {
 	struct process *proc;
