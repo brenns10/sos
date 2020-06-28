@@ -16,3 +16,4 @@ tags
 compile_commands.json
 conf.mk
 .clangd
+kernel/configvals.h
