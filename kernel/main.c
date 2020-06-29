@@ -28,8 +28,8 @@ void pre_mmu(uint32_t phys)
 	// incorrect.
 	memset((void *)(phys + (uint32_t)&bss_start - (uint32_t)&code_start), 0,
 	       data_end - bss_start);
-	board_premmu();
 	uart_init();
+	board_premmu();
 	puts("SOS: starting...");
 }
 
