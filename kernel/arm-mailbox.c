@@ -24,6 +24,7 @@ struct arm_mbox_msg {
 
 uint8_t static_mbox_msg[32] __attribute__((aligned(16)));
 uint32_t mbox_address = 0xFE00B880;
+bool mbox_vaddr = false;
 #define MBOX_READ   (mbox_address + 0x00)
 #define MBOX_STATUS (mbox_address + 0x18)
 #define MBOX_WRITE  (mbox_address + 0x20)
@@ -34,9 +35,12 @@ uint32_t mbox_address = 0xFE00B880;
 extern bool mmu_on;
 void write_mbox(struct arm_mbox_msg *msg, uint8_t chan)
 {
-	/* TODO check msg low bits */
 	uint32_t val = (uint32_t)msg;
-	/* TODO we probably need to translate to phys */
+	if ((val & 0xF) != 0)
+		printf("mbox: misaligned message 0x%x\n", msg);
+	if (mbox_vaddr) {
+		val = kmem_lookup_phys(msg);
+	}
 	val += chan;
 	while (READ32FROM(MBOX_STATUS) & 0x80000000) {
 		/* wait for mbox to not be full */
@@ -82,4 +86,5 @@ void mbox_set_led_state(int pin, int state)
 void mbox_remap(void)
 {
 	mbox_address = kmem_remap_periph(mbox_address);
+	mbox_vaddr = true;
 }
