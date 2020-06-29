@@ -4,10 +4,9 @@ SOS (Stephen's OS)
 [![builds.sr.ht status](https://builds.sr.ht/~brenns10/sos.svg)](https://builds.sr.ht/~brenns10/sos?)
 
 This is my personal operating system project. It targets the 32-bit ARMv7-A
-architecture, with the only currently supported machine being QEMU (a VM). It is
-easy to compile, run, modify, and debug. Despite being very limited, this
-one-person projcet has actually made a great deal of progress and continues to
-improve.
+architecture. The main target board is qemu, but progress is being made on the
+Raspberry Pi 4B target! Despite being very imited, this one-person project has
+actually made a great deal of progress and continues to improve.
 
 Instructions
 ------------
@@ -23,7 +22,10 @@ Ubuntu users should see more detailed setup instructions in
 
 With these dependencies satisfied, you can do the following:
 
-    # Build & run the OS in a VM:
+    # First, configure SOS to run in a VM:
+    make config_qemu
+
+    # Then, either build & run the OS in a VM:
     make run
     # or...
 
@@ -31,6 +33,14 @@ With these dependencies satisfied, you can do the following:
     make debug
     # (in another terminal)
     make gdb
+
+
+Raspberry Pi 4B
+---------------
+
+This OS is growing support for the Raspberry Pi 4B. So far, SOS can boot into a
+simple kernel shell (which is not backed by kernel threads or a scheduler yet).
+For more information on setup and running, see [docs/RaspberryPi.md][].
 
 Demo
 ----

@@ -1,0 +1,5 @@
+target remote localhost:3333
+layout asm
+layout regs
+file kernel.elf
+#set $pc = 0x24
