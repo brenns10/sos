@@ -563,7 +563,7 @@ uint32_t kmem_remap_periph(uint32_t addr)
 	uint32_t offset = addr & 0xFFF;
 	addr &= 0xFFFFF000;
 	new_addr = alloc_pages(kern_virt_allocator, 0x1000, 0);
-	kmem_map_pages(new_addr, uart_base, 0x1000,
+	kmem_map_pages(new_addr, addr, 0x1000,
 	               PRW_UNA | EXECUTE_NEVER | DEVICE_SHAREABLE);
 	return new_addr | offset;
 }
