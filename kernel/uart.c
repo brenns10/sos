@@ -54,6 +54,8 @@ spinsem_t uart_sem;
 
 void putc(char c)
 {
+	if (c == '\n')
+		putc('\r');
 	while (base->UARTFR & UARTFR_TXFF) {
 	}
 	WRITE32(base->UARTDR, c);
@@ -76,7 +78,7 @@ int try_getc(void)
 		has_saved = 0;
 		return saved;
 	}
-	if (base->UARTFR & UARTFR_RXFE)
+	if (READ32(base->UARTFR) & UARTFR_RXFE)
 		return -1;
 	return READ32(base->UARTDR) & UARTDR_DATA;
 }

@@ -42,7 +42,7 @@ def devname(blkvm):
 
 def test_blk_count(blkvm, devname):
     res = blkvm.cmd(f'blkstatus {devname}')
-    assert 'block count: 2\n' in res
+    assert 'block count: 2\r\n' in res
 
 
 def test_readp(blkvm, devname):
