@@ -3,11 +3,6 @@
 
 uint32_t gpio_address = 0xFE200000;
 
-uint32_t get_gpio_address(void)
-{
-	return gpio_address;
-}
-
 void set_gpio_function(uint32_t pin, uint32_t fn)
 {
 	uint32_t *addr;
@@ -16,7 +11,7 @@ void set_gpio_function(uint32_t pin, uint32_t fn)
 	if (pin > 53 || fn > 7)
 		return; /* invalid */
 
-	addr = (uint32_t *)get_gpio_address();
+	addr = (uint32_t *)gpio_address;
 	word = pin / 10;
 	shift = (pin % 10) * 3;
 	val = READ32(addr[word]);
@@ -33,7 +28,7 @@ void set_gpio(uint32_t pin, uint32_t val)
 	if (pin > 53)
 		return;
 
-	addr = (uint32_t *)get_gpio_address();
+	addr = (uint32_t *)gpio_address;
 	word = pin / 32;
 	bit = pin % 32;
 	reg = READ32(addr[word]);
