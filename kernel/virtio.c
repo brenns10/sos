@@ -205,7 +205,8 @@ void virtio_init(void)
 	/* TODO: we know these addresses due to manually reading device tree,
 	 * but we should automate that */
 	uint32_t page_virt = alloc_pages(kern_virt_allocator, 0x4000, 0);
-	kmem_map_pages(page_virt, 0x0a000000U, 0x4000, PRW_UNA | EXECUTE_NEVER);
+	kmem_map_pages(page_virt, 0x0a000000U, 0x4000,
+	               DEVICE_SHAREABLE | KMEM_PERM_DATA);
 
 	for (int i = 0; i < 32; i++)
 		virtio_dev_init(page_virt + 0x200 * i, 32 + 0x10 + i);

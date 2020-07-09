@@ -99,7 +99,7 @@ struct process *create_process(uint32_t binary)
 	 */
 	phys = alloc_pages(phys_allocator, 0x8000, 14);
 	virt = alloc_pages(kern_virt_allocator, 0x8000, 0);
-	kmem_map_pages(virt, phys, 0x8000, PRW_UNA);
+	kmem_map_pages(virt, phys, 0x8000, KMEM_ATTR_DEFAULT | KMEM_PERM_DATA);
 	p->first = (uint32_t *)virt;
 	p->shadow = (void *)p->first + 0x4000;
 	p->ttbr1 = phys;
@@ -112,7 +112,7 @@ struct process *create_process(uint32_t binary)
 	 */
 	phys = alloc_pages(phys_allocator, size, 0);
 	virt = alloc_pages(kern_virt_allocator, size, 0);
-	kmem_map_pages(virt, phys, size, PRW_UNA);
+	kmem_map_pages(virt, phys, size, KMEM_ATTR_DEFAULT | KMEM_PERM_DATA);
 
 	/*
 	 * Copy the "process image" over.
@@ -134,7 +134,7 @@ struct process *create_process(uint32_t binary)
 	 * generally whenever we free virtual addresses TODO. */
 	set_cpreg(virt, c8, 0, c7, 3);
 	mark_alloc(p->vmem_allocator, 0x40000000, size);
-	umem_map_pages(p, 0x40000000, phys, size, PRW_URW);
+	umem_map_pages(p, 0x40000000, phys, size, UMEM_DEFAULT);
 
 	/*
 	 * Set up some process variables

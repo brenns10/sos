@@ -767,7 +767,8 @@ bool dtb_init_interrupt_cb(const struct dtb_iter *iter, void *data)
 void dtb_init(uint32_t phys)
 {
 	uint32_t virt = alloc_pages(kern_virt_allocator, 0x4000, 0);
-	kmem_map_pages((uint32_t)virt, phys, 0x4000, PRW_UNA);
+	kmem_map_pages((uint32_t)virt, phys, 0x4000,
+	               KMEM_ATTR_DEFAULT | KMEM_PERM_DATA);
 
 	info.hdr = (struct fdt_header *)virt;
 	info.rsv = (void *)(virt + be2host(info.hdr->off_mem_rsvmap));

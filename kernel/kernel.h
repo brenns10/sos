@@ -141,6 +141,7 @@ extern void *kern_virt_allocator;
 #define SLD__TEX0 (1 << 6)
 #define SLD__TEX1 (1 << 7)
 #define SLD__TEX2 (1 << 8)
+#define SLD__S    (1 << 10)
 
 /* first level descriptor types */
 #define FLD_UNMAPPED 0x00
@@ -167,8 +168,35 @@ extern void *kern_virt_allocator;
 #define PRO_URO       (SLD__AP2 | SLD__AP1) /* AP=0b110 */
 #define EXECUTE_NEVER 0x01
 
+/* Memory attributes: Choose either:
+ * - DEVICE_SHAREABLE
+ * - DEVICE_NONSHAREABLE
+ * - NORMAL_SHAREABLE
+ * - NORMAL_NONSHAREABLE
+ *
+ * Normal memory can further select cache attributes.
+ */
 #define DEVICE_SHAREABLE    (SLD__B)
 #define DEVICE_NONSHAREABLE (SLD__TEX1)
+#define NORMAL_SHAREABLE    (SLD__TEX2 | SLD__S)
+#define NORMAL_NONSHAREABLE (SLD__TEX2)
+#define CACHE_INNER_NC      (0)
+#define CACHE_INNER_WBWA    (SLD__TEX0)
+#define CACHE_INNER_WT      (SLD__TEX1)
+#define CACHE_INNER_WB      (SLD__TEX1 | SLD__TEX0)
+#define CACHE_OUTER_NC      (0)
+#define CACHE_OUTER_WBWA    (SLD__B)
+#define CACHE_OUTER_WT      (SLD__C)
+#define CACHE_OUTER_WB      (SLD__C | SLD__B)
+
+/* Default for kernel memory is to be shareable and non cacheable. Someday I'll
+ * think about enabling the caches. */
+#define KMEM_ATTR_DEFAULT (NORMAL_SHAREABLE | CACHE_INNER_NC | CACHE_OUTER_NC)
+#define KMEM_PERM_DATA    (PRW_UNA | EXECUTE_NEVER)
+#define KMEM_PERM_CODE    (PRO_UNA)
+
+/* permissions and attrs for umem, default */
+#define UMEM_DEFAULT (NORMAL_SHAREABLE | PRW_URW | NOT_GLOBAL)
 
 /*
  * KMalloc

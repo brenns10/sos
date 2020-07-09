@@ -413,7 +413,8 @@ void *kmem_get_pages(uint32_t bytes, uint32_t align)
 {
 	void *virt = (void *)alloc_pages(kern_virt_allocator, bytes, align);
 	uint32_t phys = alloc_pages(phys_allocator, bytes, 0);
-	kmem_map_pages((uint32_t)virt, phys, bytes, PRW_UNA | EXECUTE_NEVER);
+	kmem_map_pages((uint32_t)virt, phys, bytes,
+	               KMEM_ATTR_DEFAULT | KMEM_PERM_DATA);
 	return virt;
 }
 
@@ -479,7 +480,7 @@ void kmem_init(uint32_t phys)
 	phys_allocator = dynamic;
 	kern_virt_allocator = dynamic + 0x1000;
 	kmem_map_pages((uint32_t)dynamic, phys_dynamic, 0x2000,
-	               PRW_UNA | EXECUTE_NEVER);
+	               KMEM_ATTR_DEFAULT | KMEM_PERM_DATA);
 
 	alloc_so_far = phys_dynamic - phys_code_start + 0x2000;
 	init_page_allocator(phys_allocator, phys_code_start, 0xFFFFFFFF);
@@ -505,11 +506,12 @@ void kmem_init(uint32_t phys)
 	 * generally a bit more secure.
 	 */
 	kmem_map_pages((uint32_t)code_start, phys_code_start,
-	               (uint32_t)(code_end - code_start), PRO_URO);
+	               (uint32_t)(code_end - code_start),
+	               KMEM_ATTR_DEFAULT | KMEM_PERM_CODE);
 	kmem_map_pages((uint32_t)data_start, phys_data_start,
 	               ((uint32_t)first_level_table + 0x00404000 -
 	                (uint32_t)data_start),
-	               PRW_UNA | EXECUTE_NEVER);
+	               KMEM_ATTR_DEFAULT | KMEM_PERM_DATA);
 
 	/*
 	 * Setup stacks for other modes, and map the first code page at 0x00 so
@@ -524,7 +526,8 @@ void kmem_init(uint32_t phys)
 	svc_stack = &stack_end;
 
 	/* This may be a no-op, but let's map the interrupt vector at 0x0 */
-	kmem_map_page(0x00, phys_code_start, PRO_UNA);
+	kmem_map_page(0x00, phys_code_start,
+	              KMEM_ATTR_DEFAULT | KMEM_PERM_CODE);
 
 	/* At this point, we have configured the first and second level tables
 	 * as if they were managing the whole memory space. However, we have now
