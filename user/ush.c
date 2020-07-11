@@ -225,6 +225,8 @@ static void tokenize(void)
 
 static void execute(void)
 {
+	if (!tokens[0])
+		return; /* avoid NULL dereference */
 	for (unsigned int i = 0; i < nelem(cmds); i++) {
 		if (strcmp(tokens[0], cmds[i].name) == 0) {
 			cmds[i].func(argc, tokens);
