@@ -3,6 +3,7 @@
  */
 #include "gic.h"
 #include "kernel.h"
+#include "ksh.h"
 
 #define TIMER_INTID 30
 
@@ -22,7 +23,7 @@
 
 #define HZ 100
 
-int cmd_timer_get_freq(int argc, char **argv)
+static int cmd_timer_get_freq(int argc, char **argv)
 {
 	uint32_t dst;
 	GET_CNTFRQ(dst);
@@ -30,7 +31,7 @@ int cmd_timer_get_freq(int argc, char **argv)
 	return 0;
 }
 
-int cmd_timer_get_count(int argc, char **argv)
+static int cmd_timer_get_count(int argc, char **argv)
 {
 	uint32_t dst_hi, dst_lo;
 	GET_CNTPCT(dst_hi, dst_lo);
@@ -38,13 +39,20 @@ int cmd_timer_get_count(int argc, char **argv)
 	return 0;
 }
 
-int cmd_timer_get_ctl(int argc, char **argv)
+static int cmd_timer_get_ctl(int argc, char **argv)
 {
 	uint32_t dst;
 	GET_CNTP_CTL(dst);
 	printf("CNTP_CTL: 0x%x\n", dst);
 	return 0;
 }
+
+struct ksh_cmd timer_ksh_cmds[] = {
+	KSH_CMD("get-freq", cmd_timer_get_freq, "get timer frequency"),
+	KSH_CMD("get-count", cmd_timer_get_count, "get current timer value"),
+	KSH_CMD("get-ctl", cmd_timer_get_ctl, "get timer ctl register"),
+	{ 0 },
+};
 
 void timer_init(void)
 {

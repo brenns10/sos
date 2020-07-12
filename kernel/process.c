@@ -397,12 +397,12 @@ int32_t process_image_lookup(char *name)
 	return -1;
 }
 
-int cmd_mkproc(int argc, char **argv)
+static int cmd_mkproc(int argc, char **argv)
 {
 	struct process *newproc;
 	int img;
 	if (argc != 1) {
-		puts("usage: mkproc BINNAME");
+		puts("usage: proc create BINNAME");
 		return 1;
 	}
 
@@ -417,7 +417,7 @@ int cmd_mkproc(int argc, char **argv)
 	return 0;
 }
 
-int cmd_lsproc(int argc, char **argv)
+static int cmd_lsproc(int argc, char **argv)
 {
 	struct process *p;
 	list_for_each_entry(p, &process_list, list, struct process)
@@ -427,12 +427,12 @@ int cmd_lsproc(int argc, char **argv)
 	return 0;
 }
 
-int cmd_execproc(int argc, char **argv)
+static int cmd_execproc(int argc, char **argv)
 {
 	unsigned int pid;
 	struct process *p;
 	if (argc != 1) {
-		puts("usage: execproc PID\n");
+		puts("usage: proc exec PID\n");
 		return 1;
 	}
 
@@ -454,6 +454,13 @@ int cmd_execproc(int argc, char **argv)
 	context_switch(p);
 	return 0;
 }
+
+struct ksh_cmd proc_ksh_cmds[] = {
+	KSH_CMD("create", cmd_mkproc, "create new process given binary image"),
+	KSH_CMD("ls", cmd_lsproc, "list process IDs"),
+	KSH_CMD("exec", cmd_execproc, "run process"),
+	{ 0 },
+};
 
 static void idle(void *arg)
 {

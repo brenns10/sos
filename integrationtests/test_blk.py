@@ -41,17 +41,17 @@ def devname(blkvm):
 
 
 def test_blk_count(blkvm, devname):
-    res = blkvm.cmd(f'blkstatus {devname}')
+    res = blkvm.cmd(f'blk status {devname}')
     assert 'block count: 2\r\n' in res
 
 
 def test_readp(blkvm, devname):
-    res = blkvm.cmd(f'blkread {devname} 0')
+    res = blkvm.cmd(f'blk read {devname} 0')
     assert f'result: "{BLKS[0]}"' in res
-    res = blkvm.cmd(f'blkread {devname} 1')
+    res = blkvm.cmd(f'blk read {devname} 1')
     assert f'result: "{BLKS[1]}"' in res
 
 
 def test_read_out_of_bounds(blkvm, devname):
-    res = blkvm.cmd(f'blkread {devname} 2')
+    res = blkvm.cmd(f'blk read {devname} 2')
     assert 'ERROR' in res

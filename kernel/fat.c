@@ -1,6 +1,7 @@
 #include "fat.h"
 #include "blk.h"
 #include "kernel.h"
+#include "ksh.h"
 #include "string.h"
 
 #define BPB_FATSz(fat)                                                         \
@@ -399,11 +400,11 @@ out:
 	return rv;
 }
 
-int cmd_fat(int argc, char **argv)
+static int cmd_fat(int argc, char **argv)
 {
 	struct blkdev *dev;
 	if (argc != 1) {
-		puts("usage: fat BLKNAME\n");
+		puts("usage: fat init BLKNAME\n");
 		return 1;
 	}
 	dev = blkdev_get_by_name(argv[0]);
@@ -420,12 +421,18 @@ int cmd_fat(int argc, char **argv)
 	return 0;
 }
 
-int cmd_fatcat(int argc, char **argv)
+static int cmd_fatcat(int argc, char **argv)
 {
 	if (argc != 1) {
-		puts("usage: fatcat FILENAME\n");
+		puts("usage: fat cat FILENAME\n");
 		return 1;
 	}
 	fat_read_root_file(fs_global, argv[0]);
 	return 0;
 }
+
+struct ksh_cmd fat_ksh_cmds[] = {
+	KSH_CMD("init", cmd_fat, "initialize FAT filesystem"),
+	KSH_CMD("cat", cmd_fatcat, "print file from FAT filesystem"),
+	{ 0 },
+};

@@ -319,19 +319,6 @@ extern uint32_t process_ush_end[];
 void dtb_init(uint32_t phys);
 
 /* ksh commands */
-int cmd_mkproc(int argc, char **argv);
-int cmd_lsproc(int argc, char **argv);
-int cmd_execproc(int argc, char **argv);
-int cmd_dtb_ls(int argc, char **argv);
-int cmd_dtb_prop(int argc, char **argv);
-int cmd_dtb_dump(int argc, char **argv);
-int cmd_timer_get_freq(int argc, char **argv);
-int cmd_timer_get_count(int argc, char **argv);
-int cmd_timer_get_ctl(int argc, char **argv);
-int cmd_timer_set_tval(int argc, char **argv);
-int blk_cmd_status(int argc, char **argv);
-int blk_cmd_read(int argc, char **argv);
-int blk_cmd_write(int argc, char **argv);
 int virtio_net_cmd_status(int argc, char **argv);
 int virtio_net_cmd_dhcpdiscover(int argc, char **argv);
 int dhcp_cmd_discover(int argc, char **argv);

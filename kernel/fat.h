@@ -99,6 +99,3 @@ struct fat_fs {
 	uint32_t FatSec2;
 	uint32_t RootSec;
 };
-
-int cmd_fat(int argc, char **argv);
-int cmd_fatcat(int argc, char **argv);

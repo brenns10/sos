@@ -2,6 +2,7 @@
  * Device Tree Parsing
  */
 #include "kernel.h"
+#include "ksh.h"
 #include "string.h"
 #include "util.h"
 
@@ -594,11 +595,11 @@ static bool dtb_ls_cb(const struct dtb_iter *iter, void *data)
 	return false;
 }
 
-int cmd_dtb_ls(int argc, char **argv)
+static int cmd_dtb_ls(int argc, char **argv)
 {
 	struct dt_path path;
 	if (argc != 1) {
-		puts("usage: dtb-ls DTBPATH\n");
+		puts("usage: dtb ls DTBPATH\n");
 		return 1;
 	}
 
@@ -625,11 +626,11 @@ static bool dtb_prop_cb(const struct dtb_iter *iter, void *data)
 	return false;
 }
 
-int cmd_dtb_prop(int argc, char **argv)
+static int cmd_dtb_prop(int argc, char **argv)
 {
 	struct dt_path path;
 	if (argc != 1) {
-		puts("usage: dtb-prop DTBPATH\n");
+		puts("usage: dtb prop DTBPATH\n");
 		return 1;
 	}
 
@@ -670,10 +671,10 @@ static bool dtb_dump_cb(const struct dtb_iter *iter, void *data)
 	return false;
 }
 
-int cmd_dtb_dump(int argc, char **argv)
+static int cmd_dtb_dump(int argc, char **argv)
 {
 	if (argc != 1) {
-		puts("usage: dtb-dump\n");
+		puts("usage: dtb dump\n");
 		return 1;
 	}
 
@@ -681,6 +682,13 @@ int cmd_dtb_dump(int argc, char **argv)
 	         dtb_dump_cb, NULL);
 	return 0;
 }
+
+struct ksh_cmd dtb_ksh_cmds[] = {
+	KSH_CMD("ls", cmd_dtb_ls, "list device tree nodes"),
+	KSH_CMD("prop", cmd_dtb_prop, "show properties for a node"),
+	KSH_CMD("dump", cmd_dtb_dump, "dump the whole damn dtb"),
+	{ 0 },
+};
 
 /*****************************
  * Initializations for the device tree "module"
