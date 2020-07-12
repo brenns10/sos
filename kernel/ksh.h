@@ -1,6 +1,7 @@
 /*
  * ksh.h: kernel shell
  */
+#pragma once
 
 typedef int (*ksh_func)(int argc, char **argv);
 

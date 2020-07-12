@@ -1,5 +1,6 @@
 #include "blk.h"
 #include "kernel.h"
+#include "ksh.h"
 #include "string.h"
 #include "wait.h"
 
@@ -47,12 +48,12 @@ int blk_cmd_status(int argc, char **argv)
 {
 	struct blkdev *dev;
 	if (argc != 1) {
-		puts("usage: blkstatus BLKNAME\n");
+		puts("usage: blk status BLKNAME\n");
 		return 1;
 	}
 	dev = blkdev_get_by_name(argv[0]);
 	if (!dev) {
-		printf("no such blockdev \"%s\"", argv[0]);
+		printf("no such blockdev \"%s\"\n", argv[0]);
 		return 1;
 	}
 	printf("Block device \"%s\"\n", argv[0]);
@@ -70,12 +71,12 @@ int blk_cmd_read(int argc, char **argv)
 	struct blkreq *req;
 
 	if (argc != 2) {
-		puts("usage: blkread BLKNAME SECTOR\n");
+		puts("usage: blk read BLKNAME SECTOR\n");
 		return 1;
 	}
 	dev = blkdev_get_by_name(argv[0]);
 	if (!dev) {
-		printf("no such blockdev \"%s\"", argv[0]);
+		printf("no such blockdev \"%s\"\n", argv[0]);
 		return 1;
 	}
 
@@ -104,12 +105,12 @@ int blk_cmd_write(int argc, char **argv)
 	uint32_t len, rv = 0;
 
 	if (argc != 3) {
-		puts("usage: blkwrite BLKNAME SECTOR STRING\n");
+		puts("usage: blk write BLKNAME SECTOR STRING\n");
 		return 1;
 	}
 	dev = blkdev_get_by_name(argv[0]);
 	if (!dev) {
-		printf("no such blockdev \"%s\"", argv[0]);
+		printf("no such blockdev \"%s\"\n", argv[0]);
 		return 1;
 	}
 
@@ -133,3 +134,10 @@ cleanup:
 	dev->ops->free(dev, req);
 	return rv;
 }
+
+struct ksh_cmd blk_ksh_cmds[] = {
+	KSH_CMD("read", blk_cmd_read, "read block device sector"),
+	KSH_CMD("write", blk_cmd_write, "write block device sector"),
+	KSH_CMD("status", blk_cmd_status, "read block device status"),
+	{ 0 },
+};

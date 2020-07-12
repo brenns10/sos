@@ -14,6 +14,7 @@
 #include "sync.h"
 
 #include "ksh.h"
+#include "ksh_commands.h"
 
 static char input[256];
 static char *tokens[16];
@@ -118,9 +119,6 @@ struct ksh_cmd cmds[] = {
 	        "get current timer value"),
 	KSH_CMD("timer-get-ctl", cmd_timer_get_ctl,
 	        "get current timer ctl register"),
-	KSH_CMD("blkread", blk_cmd_read, "read block device sector"),
-	KSH_CMD("blkwrite", blk_cmd_write, "write block device sector"),
-	KSH_CMD("blkstatus", blk_cmd_status, "read block device status"),
 	KSH_CMD("netstatus", virtio_net_cmd_status, "read net device status"),
 	KSH_CMD("dhcpdiscover", dhcp_cmd_discover, "send DHCPDISCOVER"),
 	KSH_CMD("help", help, "show this help message"),
@@ -132,16 +130,37 @@ struct ksh_cmd cmds[] = {
 	KSH_CMD("fatcat", cmd_fatcat, "print fat file"),
 	KSH_CMD("udiv", cmd_udiv, "unsigned division"),
 	KSH_CMD("sdiv", cmd_sdiv, "signed division"),
+	KSH_SUB_COMMANDS
+	/* nofmt */
+	{ 0 },
 };
 
-/*
- * help() goes after the cmds array so it can print out a listing
- */
-static int help(int argc, char **argv)
+static void print_cmd(int argc, char **argv)
 {
-	for (unsigned int i = 0; i < nelem(cmds); i++)
-		printf("%s:\t%s\n", cmds[i].name, cmds[i].help);
-	return 0;
+	if (argc <= 0)
+		return;
+	puts(argv[0]);
+	for (int i = 1; i < argc; i++)
+		printf(" %s", argv[i]);
+	putc('\n');
+}
+
+static void print_help(struct ksh_cmd *cmds)
+{
+	int len, maxlen = 0;
+	for (unsigned int i = 0; cmds[i].kind != KSH_EMPTY; i++) {
+		len = strlen(cmds[i].name);
+		if (len > maxlen)
+			maxlen = len;
+	}
+	maxlen += 2; /* account for colon and maybe asterisk */
+	for (unsigned int i = 0; cmds[i].kind != KSH_EMPTY; i++) {
+		len = printf("%s%s:", cmds[i].name,
+		             cmds[i].kind == KSH_SUB ? "*" : "");
+		for (; len < maxlen; len++)
+			putc(' ');
+		printf("%s\n", cmds[i].help);
+	}
 }
 
 /*
@@ -206,6 +225,7 @@ static struct ksh_lookup_res ksh_lookup(struct ksh_cmd *cmds, int argc,
 	 * nested menus.
 	 */
 	for (res.level = 0; res.level < argc; res.level++) {
+		bool next_level = false;
 		/* Inner loop, iterate over items within this menu.
 		 */
 		for (cmdidx = 0; cmds[cmdidx].kind != KSH_EMPTY; cmdidx++) {
@@ -219,14 +239,16 @@ static struct ksh_lookup_res ksh_lookup(struct ksh_cmd *cmds, int argc,
 			} else {
 				/* Go to the next level of the outer loop */
 				cmds = cmds[cmdidx].sub;
+				next_level = true;
 				break;
 			}
 		}
 
 		/* If we're not at the end of this menu, that means we should
 		 * descend another level into the outer loop */
-		if (cmds[cmdidx].kind != KSH_EMPTY)
+		if (next_level) {
 			continue; /* outer loop */
+		}
 
 		/* Command not found in this menu. Return the menu we're
 		 * currently in, its level, and and error code. */
@@ -242,15 +264,34 @@ static struct ksh_lookup_res ksh_lookup(struct ksh_cmd *cmds, int argc,
 	return res;
 }
 
+static int help(int argc, char **argv)
+{
+	struct ksh_lookup_res res = ksh_lookup(cmds, argc, argv);
+
+	if (res.status == KSHRES_NOTFOUND) {
+		puts("command does not exist: ");
+		print_cmd(res.level + 1, argv);
+	} else if (res.status == KSHRES_INCOMPLETE) {
+		/* Did not encounter a complete command, the res.cmd entry is
+		 * actually an array of cmds for a menu, print help listing. */
+		print_help(res.cmd);
+	} else {
+		/* Found a single command */
+		printf("%s: %s\n", res.cmd->name, res.cmd->help);
+	}
+	return 0;
+}
+
 static int execute(struct ksh_cmd *cmds, int argc, char **argv)
 {
 	struct ksh_lookup_res res = ksh_lookup(cmds, argc, argv);
 
 	if (res.status != KSHRES_FOUND) {
 		if (res.status == KSHRES_NOTFOUND) {
-			puts("command not found\n");
+			puts("command not found: ");
+			print_cmd(res.level + 1, argv);
 		} else {
-			puts("incomplete command\n");
+			print_cmd(res.level, argv);
 		}
 		return -1;
 	} else {
