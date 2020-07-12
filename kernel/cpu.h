@@ -110,3 +110,9 @@ static inline void irqrestore(int *flags)
 	if (*flags)
 		interrupt_enable();
 }
+
+static inline void tlbiall(void)
+{
+	uint32_t reg = 0;
+	set_cpreg(reg, c8, 0, c7, 0);
+}

@@ -22,6 +22,23 @@ void board_premmu(void)
 
 void board_init(void)
 {
+	uint32_t reg;
+
+	/*
+	 * Enable caches
+	 */
+	get_cpreg(reg, c1, 0, c0, 0);
+	reg |= (1 << 2);  // cache
+	reg |= (1 << 12); // icache
+	set_cpreg(reg, c1, 0, c0, 0);
+
+	/*
+	 * Invalidate TLB - this is just superstition on my part after enabling
+	 * the caches. It's all in the hopes of getting the strex instructior to
+	 * work, but so far nothing has worked.
+	 */
+	tlbiall();
+
 	gpio_remap();
 	mbox_remap();
 
