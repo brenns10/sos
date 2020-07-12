@@ -191,7 +191,7 @@ extern void *kern_virt_allocator;
 
 /* Default for kernel memory is to be shareable and non cacheable. Someday I'll
  * think about enabling the caches. */
-#define KMEM_ATTR_DEFAULT (NORMAL_SHAREABLE | CACHE_INNER_NC | CACHE_OUTER_NC)
+#define KMEM_ATTR_DEFAULT (NORMAL_SHAREABLE | CACHE_INNER_WB | CACHE_OUTER_WB)
 #define KMEM_PERM_DATA    (PRW_UNA | EXECUTE_NEVER)
 #define KMEM_PERM_CODE    (PRO_UNA)
 
