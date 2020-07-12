@@ -7,6 +7,4 @@ dtoverlay=disable-bt
 init_uart_baud=115200
 init_uart_clock=3000000
 enable_jtag_gpio=1
-kernel_old=1
-disable_commandline_tags=1
 kernel=sos.img

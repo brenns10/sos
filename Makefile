@@ -16,7 +16,7 @@ PYTEST = python3 -m pytest
 
 HOSTCC = gcc
 
-ARCH := armv7-a
+ARCH := armv8-a
 ASFLAGS = -g -march=$(ARCH)
 CFLAGS = -g -ffreestanding -nostdlib -fPIE -march=$(ARCH) -iquote lib \
          -iquote include -iquote kernel -marm -Wall -Wno-address-of-packed-member

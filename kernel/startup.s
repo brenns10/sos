@@ -51,6 +51,25 @@ _irq: ldr pc, =irq_impl
 _fiq: ldr pc, =fiq_impl
 
 start_impl:
+	/* Are we in HYP mode? If so, get out of there */
+	mrs r0, cpsr
+	and r1, r0, #MODE_MASK
+	cmp r1, #MODE_HYP
+	bne out_of_hyp
+
+	/* Set spsr to SVC mode */
+	bic r0, #MODE_MASK
+	orr r0, #MODE_SVC
+	msr spsr_cxsf, r0
+	/* Set HVBAR to our interrupt vector */
+	mov r0, #0x8000
+	mcr p15, 4, r0, c12, c0, 0
+	/* Set LR to the next instructions */
+	add r0, pc, #4
+	msr ELR_hyp, r0
+	eret
+
+out_of_hyp:
 	/* Trap cores which arent core 0 */
 	mrc p15, 0, r0, c0, c0, 5
 	and r0, #0xFF
@@ -134,7 +153,7 @@ start_impl:
 	mcr p15, 0, a1, c3, c0, 0 /* access control for domain 0 */
 
 	mrc p15, 0, a1, c1, c0, 0
-	ldr a2, =0x00800001
+	ldr a2, =0x00000001
 	orr a1, a1, a2
 	mcr p15, 0, a1, c1, c0, 0 /* set vmsa6 bit, set mmu enable */
 
