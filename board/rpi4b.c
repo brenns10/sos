@@ -1,6 +1,7 @@
 #include "arm-mailbox.h"
 #include "config.h"
 #include "kernel.h"
+#include "ksh.h"
 #include "rpi-gpio.h"
 
 #if CONFIG_BOARD == BOARD_RPI4B

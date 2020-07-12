@@ -72,6 +72,19 @@ static inline void spin_acquire_irqsave(spinsem_t *sem, int *flags)
 	_spin_acquire(sem);
 }
 
+#define ldrex(dest, inputaddr)                                                 \
+	__asm__ __volatile__("    ldrex %[rv], [%[addr]]\n\t"                  \
+	                     : [ rv ] "=r"(dest)                               \
+	                     : [ addr ] "r"(inputaddr)                         \
+	                     : "memory")
+#define strex(dst, val, inputaddr)                                             \
+	__asm__ __volatile__("    strex %[dest], %[value], [%[addr]]\n\t"      \
+	                     : [ dest ] "=r"(dst)                              \
+	                     : [ addr ] "r"(inputaddr), [ value ] "r"(val)     \
+	                     : "memory")
+
+#define clrex() __asm__ __volatile__("    clrex\n\t" :::)
+
 /*
  * _spin_release(inputaddr): release the semaphore pointed by inputaddr. This
  * means incrementing the semaphore. DO NOT do this if you didn't have a

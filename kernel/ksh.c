@@ -18,7 +18,6 @@
 
 static char input[256];
 static char *tokens[16];
-DECLARE_SPINSEM(sem, 2);
 struct ctx kshctx;
 
 /*
@@ -35,18 +34,6 @@ static int echo(int argc, char **argv)
 {
 	for (unsigned int i = 0; argv[i]; i++)
 		printf("Arg[%u]: \"%s\"\n", i, argv[i]);
-	return 0;
-}
-
-static int cmd_acquire(int argc, char **argv)
-{
-	_spin_acquire(&sem);
-	return 0;
-}
-
-static int cmd_release(int argc, char **argv)
-{
-	_spin_release(&sem);
 	return 0;
 }
 
@@ -105,8 +92,6 @@ static int cmd_sdiv(int argc, char **argv)
 static int help(int argc, char **argv);
 struct ksh_cmd cmds[] = {
 	KSH_CMD("echo", echo, "print each arg, useful for debugging"),
-	KSH_CMD("acquire", cmd_acquire, "acquire sem"),
-	KSH_CMD("release", cmd_release, "release sem"),
 	KSH_CMD("netstatus", virtio_net_cmd_status, "read net device status"),
 	KSH_CMD("dhcpdiscover", dhcp_cmd_discover, "send DHCPDISCOVER"),
 	KSH_CMD("help", help, "show this help message"),
@@ -277,7 +262,9 @@ static int execute(struct ksh_cmd *cmds, int argc, char **argv)
 			puts("command not found: ");
 			print_cmd(res.level + 1, argv);
 		} else {
+			puts("command listing: ");
 			print_cmd(res.level, argv);
+			print_help(res.cmd);
 		}
 		return -1;
 	} else {
