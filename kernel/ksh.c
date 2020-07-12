@@ -13,9 +13,10 @@
 #include "string.h"
 #include "sync.h"
 
+#include "ksh.h"
+
 static char input[256];
 static char *tokens[16];
-static int argc;
 DECLARE_SPINSEM(sem, 2);
 struct ctx kshctx;
 
@@ -101,67 +102,36 @@ static int cmd_sdiv(int argc, char **argv)
 }
 
 static int help(int argc, char **argv);
-struct cmd cmds[] = {
-	{ .name = "echo",
-	  .func = echo,
-	  .help = "print each arg, useful for debugging" },
-	{ .name = "mkproc",
-	  .func = cmd_mkproc,
-	  .help = "create a new process with binary image IMG" },
-	{ .name = "lsproc", .func = cmd_lsproc, .help = "list process IDs" },
-	{ .name = "execproc", .func = cmd_execproc, .help = "run process PID" },
-	{ .name = "acquire", .func = cmd_acquire, .help = "acquire sem" },
-	{ .name = "release", .func = cmd_release, .help = "release sem" },
-	{ .name = "dtb-ls",
-	  .func = cmd_dtb_ls,
-	  .help = "list device tree nodes" },
-	{ .name = "dtb-prop",
-	  .func = cmd_dtb_prop,
-	  .help = "show properties for a node" },
-	{ .name = "dtb-dump",
-	  .func = cmd_dtb_dump,
-	  .help = "dump the whole damn dtb" },
-	{ .name = "timer-get-freq",
-	  .func = cmd_timer_get_freq,
-	  .help = "get timer frequency" },
-	{ .name = "timer-get-count",
-	  .func = cmd_timer_get_count,
-	  .help = "get current timer value" },
-	{ .name = "timer-get-ctl",
-	  .func = cmd_timer_get_ctl,
-	  .help = "get current timer ctl register" },
-	{ .name = "blkread",
-	  .func = blk_cmd_read,
-	  .help = "read block device sector" },
-	{ .name = "blkwrite",
-	  .func = blk_cmd_write,
-	  .help = "write block device sector" },
-	{ .name = "blkstatus",
-	  .func = blk_cmd_status,
-	  .help = "read block device status" },
-	{ .name = "netstatus",
-	  .func = virtio_net_cmd_status,
-	  .help = "read net device status" },
-	{ .name = "dhcpdiscover",
-	  .func = dhcp_cmd_discover,
-	  .help = "send DHCPDISCOVER" },
-	{ .name = "help", .func = help, .help = "show this help message" },
-	{ .name = "show-arptable",
-	  .func = ip_cmd_show_arptable,
-	  .help = "show the arp table" },
-	{ .name = "slab-report",
-	  .func = cmd_slab_report,
-	  .help = "print all slab stats" },
-	{ .name = "cxtk",
-	  .func = cmd_cxtk_report,
-	  .help = "print context switch report" },
-	{ .name = "resctx",
-	  .func = cmd_resctx,
-	  .help = "demo for setctx/resctx" },
-	{ .name = "fat", .func = cmd_fat, .help = "print fat info" },
-	{ .name = "fatcat", .func = cmd_fatcat, .help = "print fat file" },
-	{ .name = "udiv", .func = cmd_udiv, .help = "unsigned division" },
-	{ .name = "sdiv", .func = cmd_sdiv, .help = "signed division" },
+struct ksh_cmd cmds[] = {
+	KSH_CMD("echo", echo, "print each arg, useful for debugging"),
+	KSH_CMD("mkproc", cmd_mkproc,
+	        "create a new process with binary image IMG"),
+	KSH_CMD("lsproc", cmd_lsproc, "list process IDs"),
+	KSH_CMD("execproc", cmd_execproc, "run process PID"),
+	KSH_CMD("acquire", cmd_acquire, "acquire sem"),
+	KSH_CMD("release", cmd_release, "release sem"),
+	KSH_CMD("dtb-ls", cmd_dtb_ls, "list device tree nodes"),
+	KSH_CMD("dtb-prop", cmd_dtb_prop, "show properties for a node"),
+	KSH_CMD("dtb-dump", cmd_dtb_dump, "dump the whole damn dtb"),
+	KSH_CMD("timer-get-freq", cmd_timer_get_freq, "get timer frequency"),
+	KSH_CMD("timer-get-count", cmd_timer_get_count,
+	        "get current timer value"),
+	KSH_CMD("timer-get-ctl", cmd_timer_get_ctl,
+	        "get current timer ctl register"),
+	KSH_CMD("blkread", blk_cmd_read, "read block device sector"),
+	KSH_CMD("blkwrite", blk_cmd_write, "write block device sector"),
+	KSH_CMD("blkstatus", blk_cmd_status, "read block device status"),
+	KSH_CMD("netstatus", virtio_net_cmd_status, "read net device status"),
+	KSH_CMD("dhcpdiscover", dhcp_cmd_discover, "send DHCPDISCOVER"),
+	KSH_CMD("help", help, "show this help message"),
+	KSH_CMD("show-arptable", ip_cmd_show_arptable, "show the arp table"),
+	KSH_CMD("slab-report", cmd_slab_report, "print all slab stats"),
+	KSH_CMD("cxtk", cmd_cxtk_report, "print context switch report"),
+	KSH_CMD("resctx", cmd_resctx, "demo for setctx/resctx"),
+	KSH_CMD("fat", cmd_fat, "print fat info"),
+	KSH_CMD("fatcat", cmd_fatcat, "print fat file"),
+	KSH_CMD("udiv", cmd_udiv, "unsigned division"),
+	KSH_CMD("sdiv", cmd_sdiv, "signed division"),
 };
 
 /*
@@ -194,7 +164,7 @@ static void getline(void *arg)
 	input[i - 1] = '\0';
 }
 
-static void tokenize(void)
+static int tokenize(void)
 {
 	unsigned int start = 0, tok = 0, i;
 	for (i = 0; input[i]; i++) {
@@ -212,30 +182,92 @@ static void tokenize(void)
 		tokens[tok++] = &input[start];
 	}
 	tokens[tok] = NULL;
-	argc = tok;
+	return tok;
 }
 
-static void execute(void)
+struct ksh_lookup_res {
+	struct ksh_cmd *cmd;
+	int level;
+	enum {
+		/* nofmt */
+		KSHRES_FOUND,
+		KSHRES_NOTFOUND,
+		KSHRES_INCOMPLETE,
+	} status;
+};
+
+static struct ksh_lookup_res ksh_lookup(struct ksh_cmd *cmds, int argc,
+                                        char **argv)
 {
-	for (unsigned int i = 0; i < nelem(cmds); i++) {
-		if (strcmp(tokens[0], cmds[i].name) == 0) {
-			cmds[i].func(argc, tokens);
-			return;
+	unsigned int cmdidx;
+	struct ksh_lookup_res res;
+
+	/* Outer loop: each iteration means we're another level deeper into the
+	 * nested menus.
+	 */
+	for (res.level = 0; res.level < argc; res.level++) {
+		/* Inner loop, iterate over items within this menu.
+		 */
+		for (cmdidx = 0; cmds[cmdidx].kind != KSH_EMPTY; cmdidx++) {
+			if (strcmp(argv[res.level], cmds[cmdidx].name) != 0)
+				continue; /* inner loop */
+
+			if (cmds[cmdidx].kind == KSH_FUNC) {
+				res.cmd = &cmds[cmdidx];
+				res.status = KSHRES_FOUND;
+				return res;
+			} else {
+				/* Go to the next level of the outer loop */
+				cmds = cmds[cmdidx].sub;
+				break;
+			}
 		}
+
+		/* If we're not at the end of this menu, that means we should
+		 * descend another level into the outer loop */
+		if (cmds[cmdidx].kind != KSH_EMPTY)
+			continue; /* outer loop */
+
+		/* Command not found in this menu. Return the menu we're
+		 * currently in, its level, and and error code. */
+		res.cmd = cmds;
+		res.status = KSHRES_NOTFOUND;
+		return res;
 	}
-	printf("command not found: \"%s\"\n", tokens[0]);
+
+	/* If we're here, we got to the end of the command, but we didn't find a
+	 * leaf item in the menu. */
+	res.cmd = cmds;
+	res.status = KSHRES_INCOMPLETE;
+	return res;
+}
+
+static int execute(struct ksh_cmd *cmds, int argc, char **argv)
+{
+	struct ksh_lookup_res res = ksh_lookup(cmds, argc, argv);
+
+	if (res.status != KSHRES_FOUND) {
+		if (res.status == KSHRES_NOTFOUND) {
+			puts("command not found\n");
+		} else {
+			puts("incomplete command\n");
+		}
+		return -1;
+	} else {
+		return res.cmd->func(argc, argv);
+	}
 }
 
 void ksh(void *arg)
 {
-	int rv;
+	int rv, argc;
 	if ((rv = setctx(&kshctx)) != 0) {
 		printf("I have been bamboozled!\nYou sent %d\n", rv);
 	}
 	puts("Stephen's OS, (kernel shell)\n");
 	while (true) {
 		getline(arg);
-		tokenize();
-		execute();
+		argc = tokenize();
+		execute(cmds, argc, tokens);
 	}
 }

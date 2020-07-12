@@ -3,6 +3,7 @@
  */
 #include "cxtk.h"
 #include "kernel.h"
+#include "ksh.h"
 #include "slab.h"
 #include "socket.h"
 #include "string.h"

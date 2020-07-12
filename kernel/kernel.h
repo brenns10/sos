@@ -318,10 +318,6 @@ extern uint32_t process_ush_end[];
 
 void dtb_init(uint32_t phys);
 
-#define KSH_SPIN  ((void *)1)
-#define KSH_BLOCK ((void *)2)
-void ksh(void *);
-
 /* ksh commands */
 int cmd_mkproc(int argc, char **argv);
 int cmd_lsproc(int argc, char **argv);
