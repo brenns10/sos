@@ -46,16 +46,16 @@ struct blkdev *blkdev_get_by_name(char *name)
 int blk_cmd_status(int argc, char **argv)
 {
 	struct blkdev *dev;
-	if (argc != 2) {
+	if (argc != 1) {
 		puts("usage: blkstatus BLKNAME\n");
 		return 1;
 	}
-	dev = blkdev_get_by_name(argv[1]);
+	dev = blkdev_get_by_name(argv[0]);
 	if (!dev) {
-		printf("no such blockdev \"%s\"", argv[1]);
+		printf("no such blockdev \"%s\"", argv[0]);
 		return 1;
 	}
-	printf("Block device \"%s\"\n", argv[1]);
+	printf("Block device \"%s\"\n", argv[0]);
 	printf("    block size : %d\n", dev->blksiz);
 	printf("    block count: %d\n", (uint32_t)dev->blkcnt);
 	puts("Device info below:\n");
@@ -69,20 +69,20 @@ int blk_cmd_read(int argc, char **argv)
 	uint32_t rv = 0;
 	struct blkreq *req;
 
-	if (argc != 3) {
-		puts("usage: blkstatus BLKNAME SECTOR\n");
+	if (argc != 2) {
+		puts("usage: blkread BLKNAME SECTOR\n");
 		return 1;
 	}
-	dev = blkdev_get_by_name(argv[1]);
+	dev = blkdev_get_by_name(argv[0]);
 	if (!dev) {
-		printf("no such blockdev \"%s\"", argv[1]);
+		printf("no such blockdev \"%s\"", argv[0]);
 		return 1;
 	}
 
 	req = dev->ops->alloc(dev);
 	req->size = 512;
 	req->buf = kmalloc(req->size);
-	req->blkidx = atoi(argv[2]);
+	req->blkidx = atoi(argv[1]);
 	dev->ops->submit(dev, req);
 	wait_for(&req->wait);
 	if (req->status != BLKREQ_OK) {
@@ -103,22 +103,22 @@ int blk_cmd_write(int argc, char **argv)
 	struct blkreq *req;
 	uint32_t len, rv = 0;
 
-	if (argc != 4) {
+	if (argc != 3) {
 		puts("usage: blkwrite BLKNAME SECTOR STRING\n");
 		return 1;
 	}
-	dev = blkdev_get_by_name(argv[1]);
+	dev = blkdev_get_by_name(argv[0]);
 	if (!dev) {
-		printf("no such blockdev \"%s\"", argv[1]);
+		printf("no such blockdev \"%s\"", argv[0]);
 		return 1;
 	}
 
 	req = dev->ops->alloc(dev);
 	req->size = 512;
 	req->buf = kmalloc(req->size);
-	req->blkidx = atoi(argv[2]);
-	len = strlen(argv[3]);
-	memcpy(req->buf, argv[3], len + 1);
+	req->blkidx = atoi(argv[1]);
+	len = strlen(argv[2]);
+	memcpy(req->buf, argv[2], len + 1);
 	dev->ops->submit(dev, req);
 	wait_for(&req->wait);
 	if (req->status != BLKREQ_OK) {

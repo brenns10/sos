@@ -64,11 +64,11 @@ static int cmd_cxtk_report(int argc, char **argv)
 static int cmd_resctx(int argc, char **argv)
 {
 	uint32_t val;
-	if (argc != 2) {
+	if (argc != 1) {
 		puts("usage: resctx VALUE_INTEGER\n");
 		return 1;
 	}
-	val = (uint32_t)atoi(argv[1]);
+	val = (uint32_t)atoi(argv[0]);
 	resctx(val, &kshctx);
 	return 0;
 }
@@ -76,11 +76,11 @@ static int cmd_resctx(int argc, char **argv)
 static int cmd_udiv(int argc, char **argv)
 {
 	uint32_t dividend, divisor, result, remainder;
-	if (argc != 3) {
+	if (argc != 2) {
 		puts("usage: udiv DIVIDEND DIVISOR\n");
 	}
-	dividend = atoi(argv[1]);
-	divisor = atoi(argv[2]);
+	dividend = atoi(argv[0]);
+	divisor = atoi(argv[1]);
 	result = dividend / divisor;
 	remainder = dividend % divisor;
 	printf("= %u (rem %u)\n", result, remainder);
@@ -90,11 +90,11 @@ static int cmd_udiv(int argc, char **argv)
 static int cmd_sdiv(int argc, char **argv)
 {
 	int32_t dividend, divisor, result, remainder;
-	if (argc != 3) {
+	if (argc != 2) {
 		puts("usage: sdiv DIVIDEND DIVISOR\n");
 	}
-	dividend = atoi(argv[1]);
-	divisor = atoi(argv[2]);
+	dividend = atoi(argv[0]);
+	divisor = atoi(argv[1]);
 	result = dividend / divisor;
 	remainder = dividend % divisor;
 	printf("= %d (rem %d)\n", result, remainder);
@@ -254,7 +254,11 @@ static int execute(struct ksh_cmd *cmds, int argc, char **argv)
 		}
 		return -1;
 	} else {
-		return res.cmd->func(argc, argv);
+		/* Since sub-menus won't know how deep they are, we can't
+		 * include the command itself in the arguments. Set argc and
+		 * argv accordingly. */
+		return res.cmd->func(argc - res.level - 1,
+		                     argv + res.level + 1);
 	}
 }
 

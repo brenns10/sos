@@ -401,15 +401,15 @@ int cmd_mkproc(int argc, char **argv)
 {
 	struct process *newproc;
 	int img;
-	if (argc != 2) {
+	if (argc != 1) {
 		puts("usage: mkproc BINNAME");
 		return 1;
 	}
 
-	img = process_image_lookup(argv[1]);
+	img = process_image_lookup(argv[0]);
 
 	if (img == -1) {
-		printf("unknown binary \"%s\"\n", argv[1]);
+		printf("unknown binary \"%s\"\n", argv[0]);
 		return 2;
 	}
 	newproc = create_process(img);
@@ -431,12 +431,12 @@ int cmd_execproc(int argc, char **argv)
 {
 	unsigned int pid;
 	struct process *p;
-	if (argc != 2) {
+	if (argc != 1) {
 		puts("usage: execproc PID\n");
 		return 1;
 	}
 
-	pid = atoi(argv[1]);
+	pid = atoi(argv[0]);
 
 	printf("starting process execution with pid=%u\n", pid);
 	list_for_each_entry(p, &process_list, list, struct process)

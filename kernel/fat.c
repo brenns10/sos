@@ -402,13 +402,13 @@ out:
 int cmd_fat(int argc, char **argv)
 {
 	struct blkdev *dev;
-	if (argc != 2) {
+	if (argc != 1) {
 		puts("usage: fat BLKNAME\n");
 		return 1;
 	}
-	dev = blkdev_get_by_name(argv[1]);
+	dev = blkdev_get_by_name(argv[0]);
 	if (!dev) {
-		printf("no such blockdev \"%s\"\n", argv[1]);
+		printf("no such blockdev \"%s\"\n", argv[0]);
 		return 1;
 	}
 	puts("INITIALIZE FAT DISK\n");
@@ -422,10 +422,10 @@ int cmd_fat(int argc, char **argv)
 
 int cmd_fatcat(int argc, char **argv)
 {
-	if (argc != 2) {
+	if (argc != 1) {
 		puts("usage: fatcat FILENAME\n");
 		return 1;
 	}
-	fat_read_root_file(fs_global, argv[1]);
+	fat_read_root_file(fs_global, argv[0]);
 	return 0;
 }

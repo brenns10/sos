@@ -597,12 +597,12 @@ static bool dtb_ls_cb(const struct dtb_iter *iter, void *data)
 int cmd_dtb_ls(int argc, char **argv)
 {
 	struct dt_path path;
-	if (argc != 2) {
+	if (argc != 1) {
 		puts("usage: dtb-ls DTBPATH\n");
 		return 1;
 	}
 
-	if (dt_path_parse(&path, argv[1]) != 0) {
+	if (dt_path_parse(&path, argv[0]) != 0) {
 		puts("error: bad dtb path\n");
 		return 1;
 	}
@@ -628,12 +628,12 @@ static bool dtb_prop_cb(const struct dtb_iter *iter, void *data)
 int cmd_dtb_prop(int argc, char **argv)
 {
 	struct dt_path path;
-	if (argc != 2) {
+	if (argc != 1) {
 		puts("usage: dtb-prop DTBPATH\n");
 		return 1;
 	}
 
-	if (dt_path_parse(&path, argv[1]) != 0) {
+	if (dt_path_parse(&path, argv[0]) != 0) {
 		puts("error: bad dtb path\n");
 		return 1;
 	}
