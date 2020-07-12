@@ -3,6 +3,7 @@
 .equ MODE_IRQ,  0x12
 .equ MODE_SVC,  0x13
 .equ MODE_ABRT, 0x17
+.equ MODE_HYP,  0x1A
 .equ MODE_UNDF, 0x1B
 .equ MODE_SYS,  0x1F
 .equ MODE_MASK, 0x1F

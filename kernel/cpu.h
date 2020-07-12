@@ -31,6 +31,7 @@ struct ctx {
 #define ARM_MODE_IRQ  0x12U
 #define ARM_MODE_SVC  0x13U
 #define ARM_MODE_ABRT 0x17U
+#define ARM_MODE_HYP  0x1AU
 #define ARM_MODE_UNDF 0x1BU
 #define ARM_MODE_SYS  0x1FU
 #define ARM_MODE_MASK 0x1FU
