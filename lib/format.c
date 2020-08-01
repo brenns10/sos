@@ -158,6 +158,7 @@ uint32_t vsnprintf(char *buf, uint32_t size, const char *format, va_list vl)
 	uint32_t uintval;
 	char *strval;
 	uint8_t *macptr;
+	char charval;
 
 	for (uint16_t in = 0; format[in]; in++) {
 		if (format[in] == '%') {
@@ -192,6 +193,10 @@ uint32_t vsnprintf(char *buf, uint32_t size, const char *format, va_list vl)
 			case 'M':
 				macptr = va_arg(vl, uint8_t *);
 				out = _format_mac(buf, size, out, macptr);
+				break;
+			case 'c':
+				charval = (char)(0xFF & va_arg(vl, int));
+				SET(buf, size, out, charval);
 				break;
 			case '%':
 				SET(buf, size, out, '%');
