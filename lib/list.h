@@ -106,6 +106,10 @@ void hlist_remove(struct hlist_head *parent_or_head, struct hlist_head *item);
 #define container_of(ptr, type, member)                                        \
 	((type *)((char *)ptr - list_offsetof(type, member)))
 
+#define alt_offsetof(ptr, member) (((size_t) & (ptr)->member) - ((size_t)(ptr)))
+#define alt_container_of(ptr, contptr, member)                                 \
+	((void *)((char *)ptr - alt_offsetof(contptr, member)))
+
 /**
  * Iterate over every item within a list. Use like a normal for statement.
  *
@@ -136,3 +140,23 @@ void hlist_remove(struct hlist_head *parent_or_head, struct hlist_head *item);
 	     &var_ptr->field_name != (head);                                   \
 	     var_ptr = container_of(var_ptr->field_name.next, container_type,  \
 	                            field_name))
+
+/**
+ * Iterate over every item within a list, but allow removing the node you are
+ * iterating over while doing so.
+ *
+ * var_ptr: variable which is a pointer to the container type, used as the
+ *          iteration variable
+ * next_ptr: variable to store a copy of the next item in iteration
+ * head: pointer to struct list_head which is the header of the list
+ * field_name: name of the struct list_head within the container type
+ *
+ */
+#define list_for_each_entry_safe(var_ptr, next_ptr, head, field_name)          \
+	for (var_ptr = NULL,                                                   \
+	    var_ptr = alt_container_of((head)->next, var_ptr, field_name),     \
+	    next_ptr = alt_container_of(var_ptr->field_name.next, var_ptr,     \
+	                                field_name);                           \
+	     &var_ptr->field_name != (head); var_ptr = next_ptr,               \
+	    next_ptr = alt_container_of(next_ptr->field_name.next, var_ptr,    \
+	                                field_name))
