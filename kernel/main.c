@@ -4,6 +4,7 @@
 #include "blk.h"
 #include "board.h"
 #include "cxtk.h"
+#include "fs.h"
 #include "kernel.h"
 #include "socket.h"
 #include "string.h"
@@ -57,6 +58,7 @@ void main(uint32_t phys)
 	uart_init_irq();
 	packet_init();
 	blk_init();
+	fs_init();
 	virtio_init();
 	cxtk_init();
 

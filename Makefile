@@ -84,6 +84,7 @@ kernel.elf: kernel/fat.o
 kernel.elf: kernel/rpi-gpio.o
 kernel.elf: kernel/arm-mailbox.o
 kernel.elf: kernel/sync.o
+kernel.elf: kernel/fs.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o
@@ -96,6 +97,8 @@ kernel.elf: lib/inet.o
 
 kernel.elf: board/qemu.o
 kernel.elf: board/rpi4b.o
+
+kernel/ksh.o: kernel/ksh_commands.h
 
 # Object files going into each userspace program:
 USER_BASIC = user/syscall.o user/startup.o

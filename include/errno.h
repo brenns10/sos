@@ -18,4 +18,6 @@ enum {
 	ENAMETOOLONG,
 	ENOENT,
 	EIO,
+	ENODEV,
+	ENOTDIR,
 };

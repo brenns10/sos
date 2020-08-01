@@ -93,3 +93,13 @@ void blkdev_register(struct blkdev *blk);
  * Retrieve a block device by its name.
  */
 struct blkdev *blkdev_get_by_name(char *name);
+
+/**
+ * Wait for every item in the request list to complete. If all requests have
+ * status BLKREQ_QK, return BLKREQ_OK, otherwise return BLKREQ_ERR.
+ */
+enum blkreq_status blkreq_wait_all(struct blkreq *req);
+/**
+ * Free every request in the request list.
+ */
+void blkreq_free_all(struct blkdev *dev, struct blkreq *req);

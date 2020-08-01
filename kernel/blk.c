@@ -1,6 +1,7 @@
 #include "blk.h"
 #include "kernel.h"
 #include "ksh.h"
+#include "list.h"
 #include "string.h"
 #include "wait.h"
 
@@ -42,6 +43,31 @@ struct blkdev *blkdev_get_by_name(char *name)
 	}
 	spin_release_irqrestore(&blkdev_list_lock, &flags);
 	return NULL;
+}
+
+enum blkreq_status blkreq_wait_all(struct blkreq *req)
+{
+	struct blkreq *iter;
+	enum blkreq_status status;
+	wait_for(&req->wait);
+	status = req->status;
+	list_for_each_entry(iter, &req->reqlist, reqlist, struct blkreq)
+	{
+		wait_for(&iter->wait);
+		if (iter->status != BLKREQ_OK)
+			status = iter->status;
+	}
+	return status;
+}
+
+void blkreq_free_all(struct blkdev *dev, struct blkreq *req)
+{
+	struct blkreq *iter, *next;
+	list_for_each_entry_safe(iter, next, &req->reqlist, reqlist)
+	{
+		dev->ops->free(dev, iter);
+	}
+	dev->ops->free(dev, req);
 }
 
 int blk_cmd_status(int argc, char **argv)

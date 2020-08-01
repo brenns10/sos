@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include "blk.h"
+#include "fs.h"
 #include "list.h"
 
 struct __attribute__((packed)) fat_bpb {
@@ -84,6 +85,7 @@ struct __attribute__((packed)) fat_dirent {
 #define FAT32 2
 
 struct fat_fs {
+	struct fs fs;
 	struct blkdev *dev;
 	struct fat_bpb *bpb;
 	union {

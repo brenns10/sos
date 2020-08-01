@@ -2,6 +2,7 @@
 #include "blk.h"
 #include "kernel.h"
 #include "ksh.h"
+#include "list.h"
 #include "string.h"
 
 #define BPB_FATSz(fat)                                                         \
@@ -14,6 +15,8 @@
 	(fs->type == FAT32 ? fat->bpb32->BS_FilSysType                         \
 	                   : fat->bpb1216->BS_FilSysType)
 
+#define FAT_EOF 0xFFFFFFFFFFFFFFFFL
+#define FAT_ERR 0xFFFFFFFFFFFFFFFEL
 char *fstype[3] = {
 	[FAT12] = "FAT12",
 	[FAT16] = "FAT16",
@@ -22,80 +25,8 @@ char *fstype[3] = {
 
 struct fat_fs *fs_global;
 
-void fat_init(struct blkdev *dev)
-{
-	struct blkreq *req;
-	struct fat_fs *fs = kmalloc(sizeof(struct fat_fs));
-	uint32_t RootDirSectors, DataSec, CountofClusters;
-
-	fs->dev = dev;
-
-	req = dev->ops->alloc(dev);
-	req->type = BLKREQ_READ;
-	req->buf = kmalloc(dev->blksiz);
-	req->blkidx = 0;
-	req->size = dev->blksiz;
-	dev->ops->submit(dev, req);
-	wait_for(&req->wait);
-	if (req->status != BLKREQ_OK)
-		goto out;
-
-	fs->bpb = (struct fat_bpb *)req->buf;
-	fs->bpbvoid = (void *)req->buf + sizeof(struct fat_bpb);
-	dev->ops->free(dev, req);
-	RootDirSectors = ((fs->bpb->BPB_RootEntCnt * 32) +
-	                  (fs->bpb->BPB_BytsPerSec - 1)) /
-	                 fs->bpb->BPB_BytsPerSec;
-	DataSec = BPB_TotSec(fs) -
-	          (fs->bpb->BPB_RsvdSecCnt +
-	           (fs->bpb->BPB_NumFATs * BPB_FATSz(fs)) + RootDirSectors);
-	CountofClusters = DataSec / fs->bpb->BPB_SecPerClus;
-
-	if (CountofClusters < 4085) {
-		fs->type = FAT12;
-	} else if (CountofClusters < 65525) {
-		fs->type = FAT16;
-	} else {
-		fs->type = FAT32;
-	}
-	fs->RootDirSectors = RootDirSectors;
-	fs->DataSec = DataSec;
-	fs->CountofClusters = CountofClusters;
-	if (!strprefix(BS_FilSysType(fs), fstype[fs->type]))
-		puts("NB: detected FAT type mismatch with recorded one\n");
-	fs->FatSec1 = fs->bpb->BPB_RsvdSecCnt;
-	fs->FatSec2 = fs->FatSec2 + BPB_FATSz(fs);
-	fs->RootSec =
-	        fs->bpb->BPB_RsvdSecCnt + fs->bpb->BPB_NumFATs * BPB_FATSz(fs);
-
-	printf("  OEMName: \"%s\"\n", fs->bpb->BS_OEMName);
-#define showint(name) printf("  " #name ": %u\n", fs->bpb->name)
-	showint(BPB_BytsPerSec);
-	showint(BPB_SecPerClus);
-	showint(BPB_RsvdSecCnt);
-	showint(BPB_NumFATs);
-	showint(BPB_RootEntCnt);
-	showint(BPB_TotSec16);
-	showint(BPB_Media);
-	showint(BPB_FATSz16);
-	showint(BPB_SecPerTrk);
-	showint(BPB_NumHeads);
-	showint(BPB_HiddSec);
-	showint(BPB_TotSec32);
-
-	printf("  CountofClusters: %u\n", CountofClusters);
-	printf("  RootDirSectors: %u\n", RootDirSectors);
-	printf("  DataSectors: %u\n", DataSec);
-	printf("  Root Directory Sector: %u\n", fs->RootSec);
-	printf("  We determined fstype: \"%s\"\n", fstype[fs->type]);
-	fs_global = fs;
-	return;
-
-out:
-	kfree(req->buf, dev->blksiz);
-	dev->ops->free(dev, req);
-	kfree(fs, sizeof(*fs));
-}
+#define clus_bytes(fs) (fs->bpb->BPB_BytsPerSec * fs->bpb->BPB_SecPerClus)
+#define sec_bytes(fs)  (fs->bpb->BPB_BytsPerSec)
 
 uint32_t fat_cluster_to_block(struct fat_fs *fs, uint32_t clusno)
 {
@@ -179,23 +110,83 @@ int fat_valid_shortname(char *input, char *dest)
 	return 0;
 }
 
-void fat_list_root(struct fat_fs *fs)
+int fat_extract_shortname(char *input, char *dest)
 {
-	/* read first sector of root dir */
-	struct fat_dirent *dirent = kmalloc(512);
-	struct blkreq *req = fs->dev->ops->alloc(fs->dev);
-	char fn[12];
-	uint32_t fstclus;
+	uint32_t i = 0, j;
+	for (j = 0; j < 8 && input[j] != ' '; j++)
+		dest[i++] = input[j];
+	if (input[8] != ' ')
+		dest[i++] = '.';
+	for (j = 8; j < 11 && input[j] != ' '; j++)
+		dest[i++] = input[j];
+	dest[i] = '\0';
+	return i;
+}
 
-	req->blkidx = fs->RootSec;
+int fat_read_sector(struct fat_fs *fs, uint64_t sector, void *dst)
+{
+	int rv = 0;
+	struct blkreq *req = fs->dev->ops->alloc(fs->dev);
+	req->blkidx = sector;
 	req->type = BLKREQ_READ;
-	req->buf = dirent;
-	req->size = 512;
+	req->buf = dst;
+	/* TODO: this could be different from the device block size */
+	req->size = fs->bpb->BPB_BytsPerSec;
 	fs->dev->ops->submit(fs->dev, req);
 	wait_for(&req->wait);
+	if (req->status != BLKREQ_OK)
+		rv = -EIO;
 	fs->dev->ops->free(fs->dev, req);
+	return rv;
+}
 
-	for (uint32_t i = 0; i < (512 / 32); i++) {
+int fat_read_cluster(struct fat_fs *fs, uint64_t cluster, void *dst)
+{
+	int i, rv = 0;
+	int nblk = clus_bytes(fs) / fs->dev->blksiz;
+	struct blkreq *first, *req;
+	enum blkreq_status status;
+
+	first = fs->dev->ops->alloc(fs->dev);
+	first->blkidx = fat_cluster_to_block(fs, cluster);
+	first->type = BLKREQ_READ;
+	first->buf = dst;
+	first->size = fs->dev->blksiz;
+	fs->dev->ops->submit(fs->dev, first);
+
+	for (i = 1; i < nblk; i++) {
+		req = fs->dev->ops->alloc(fs->dev);
+		req->blkidx = first->blkidx + i * fs->dev->blksiz;
+		req->type = BLKREQ_READ;
+		req->buf = dst + i * fs->dev->blksiz;
+		req->size = fs->dev->blksiz;
+		list_insert_end(&first->reqlist, &req->reqlist);
+		fs->dev->ops->submit(fs->dev, req);
+	}
+
+	status = blkreq_wait_all(first);
+	if (status != BLKREQ_OK)
+		rv = -EIO;
+	blkreq_free_all(fs->dev, first);
+	return rv;
+}
+
+int fat_print_root(struct fat_fs *fs)
+{
+	/* read first sector of root dir */
+	const unsigned int bps = fs->bpb->BPB_BytsPerSec;
+	struct fat_dirent *dirent = kmalloc(bps);
+	char fn[12];
+	uint32_t fstclus;
+	int rv = 0;
+
+	rv = fat_read_sector(fs, fs->RootSec, dirent);
+	if (rv < 0) {
+		kfree(dirent, bps);
+		return rv;
+	}
+
+	for (uint32_t i = 0; i < (bps / sizeof(dirent[0])); i++) {
 		if (dirent[i].DIR_Name[0] == 0xE5) {
 			continue; /* don't clutter with free entries */
 		}
@@ -221,52 +212,49 @@ void fat_list_root(struct fat_fs *fs)
 			       fstclus);
 		}
 	}
-	kfree(dirent, 512);
+	kfree(dirent, bps);
+	return rv;
 }
 
-int fat_root_find(struct fat_fs *fs, char *shortname, struct fat_dirent *outent)
+int fat_list_chunk(struct fat_fs *fs, struct fs_node *node,
+                   struct fat_dirent *dirent, unsigned int count)
 {
-	/* read first sector of root dir */
-	struct fat_dirent *dirent;
-	struct blkreq *req;
-	char searchfor[12];
-	int rv = -ENOENT;
+	struct fs_node *child;
+	uint8_t attr;
 
-	if ((rv = fat_valid_shortname(shortname, searchfor)) < 0) {
-		return rv;
-	}
-
-	dirent = kmalloc(512);
-	req = fs->dev->ops->alloc(fs->dev);
-	req->blkidx = fs->RootSec;
-	req->type = BLKREQ_READ;
-	req->buf = dirent;
-	req->size = 512;
-	fs->dev->ops->submit(fs->dev, req);
-	wait_for(&req->wait);
-	fs->dev->ops->free(fs->dev, req);
-
-	for (uint32_t i = 0; i < (512 / 32); i++) {
+	for (uint32_t i = 0; i < count / sizeof(dirent[0]); i++) {
 		if (dirent[i].DIR_Name[0] == 0xE5) {
-			continue; /* free */
+			continue;
 		}
 		if (dirent[i].DIR_Name[0] == 0) {
-			break;
+			return 1;
 		}
 		if ((dirent[i].DIR_Attr & FAT_ATTR_LONG_NAME_MASK) ==
 		    FAT_ATTR_LONG_NAME) {
-			continue; /* TODO: support long name */
-		}
+			// TODO: support long names
+			// printf("  [%u]: LONG_NAME\n", i);
+		} else {
+			attr = dirent[i].DIR_Attr;
 
-		if (memcmp(&dirent[i].DIR_Name, &searchfor,
-		           FAT_MAX_SHORTNAME) == 0) {
-			*outent = dirent[i];
-			rv = 0;
-			break;
+			child = slab_alloc(fs_node_slab);
+			child->parent = node;
+			INIT_LIST_HEAD(child->children);
+			child->nchildren = 0;
+			child->namelen = fat_extract_shortname(
+			        dirent[i].DIR_Name, child->name);
+			if (attr & FAT_ATTR_DIRECTORY)
+				child->type = FSN_LAZY_DIR;
+			else
+				child->type = FSN_FILE;
+			child->location = dirent[i].DIR_FstClusHI << 16 |
+			                  dirent[i].DIR_FstClusLO;
+			child->fs = (struct fs *)fs;
+
+			list_insert_end(&node->children, &child->list);
+			node->nchildren++;
 		}
 	}
-	kfree(dirent, 512);
-	return rv;
+	return 0;
 }
 
 void *fat_read_blockpair(struct blkdev *dev, uint64_t blkno)
@@ -297,7 +285,227 @@ void *fat_read_blockpair(struct blkdev *dev, uint64_t blkno)
 	return buf;
 }
 
-void fat_iter_fat12(struct fat_fs *fs)
+uint64_t fat12_next_cluster(struct fat_fs *fs, uint64_t cluster)
+{
+	uint8_t *blk = NULL;
+	uint32_t totcluster = BPB_TotSec(fs) / fs->bpb->BPB_SecPerClus;
+
+	uint32_t offset = (uint32_t)cluster + (uint32_t)cluster / 2;
+	uint32_t blkno =
+	        offset / fs->bpb->BPB_BytsPerSec + fs->bpb->BPB_RsvdSecCnt;
+	uint32_t byte = offset % fs->bpb->BPB_BytsPerSec;
+	uint64_t rv = 0;
+
+	blk = fat_read_blockpair(fs->dev, blkno);
+
+	uint16_t val = *(uint16_t *)&blk[byte];
+	if (cluster & 1) {
+		val >>= 4;
+	} else {
+		val &= 0xFFF;
+	}
+
+	if (val >= 2 && val < totcluster) {
+		rv = val;
+	} else if (val < 2) {
+		/* cluster is marked free, this is a bug! */
+		puts("BUG: fat12_next_cluster(): cluster already free\n");
+		rv = FAT_ERR;
+	} else if (val >= totcluster && val < 0xFF7) {
+		/* using reserved cluster number, bug! */
+		puts("BUG: fat12_next_cluster(): reserved cluster number\n");
+		rv = FAT_ERR;
+	} else if (val == 0xFF7) {
+		puts("BUG: fat12_next_cluster(): bad cluster\n");
+		rv = FAT_ERR;
+	} else if (val >= 0xFF8) {
+		rv = FAT_EOF;
+	}
+
+	kfree(blk, 2 * fs->bpb->BPB_BytsPerSec);
+	return rv;
+}
+
+uint64_t fat_next_cluster(struct fat_fs *fs, uint64_t cluster)
+{
+	switch (fs->type) {
+	case FAT12:
+		return fat12_next_cluster(fs, cluster);
+	default:
+		puts("unsupported fat type\n");
+		return FAT_ERR;
+	}
+}
+
+int fat_list_root(struct fat_fs *fs, struct fs_node *node)
+{
+	/* read first sector of root dir */
+	const unsigned int bps = fs->bpb->BPB_BytsPerSec;
+	struct fat_dirent *dirent = kmalloc(bps);
+	uint32_t i;
+	int rv = 0;
+
+	for (i = 0; i < fs->bpb->BPB_RootEntCnt; i++) {
+		rv = fat_read_sector(fs, fs->RootSec + i, dirent);
+		if (rv < 0) {
+			kfree(dirent, bps);
+			/* Cleanup the node so that if we retry, we won't have
+			 * duplicate entries. */
+			fs_reset_dir(node);
+			return rv;
+		}
+		rv = fat_list_chunk(fs, node, dirent, bps);
+		if (rv == 1) {
+			rv = 0;
+			break;
+		}
+	}
+
+	kfree(dirent, bps);
+	node->type = FSN_DIR;
+	return rv;
+}
+
+int fat_list(struct fs_node *node)
+{
+	struct fat_fs *fs = node->fs;
+	struct fat_dirent *dirent = kmalloc(clus_bytes(fs));
+	int rv = 0;
+	uint64_t clus;
+
+	for (clus = node->location; clus != FAT_EOF;
+	     clus = fat_next_cluster(fs, clus)) {
+		if (clus == FAT_ERR) {
+			kfree(dirent, clus_bytes(fs));
+			fs_reset_dir(node);
+			return -EIO;
+		}
+
+		rv = fat_read_cluster(fs, clus, dirent);
+		if (rv != 0) {
+			kfree(dirent, clus_bytes(fs));
+			fs_reset_dir(node);
+			return rv;
+		}
+		rv = fat_list_chunk(fs, node, dirent, clus_bytes(fs));
+		if (rv == 1) {
+			rv = 0;
+			break;
+		}
+	}
+	kfree(dirent, clus_bytes(fs));
+	node->type = FSN_DIR;
+	return rv;
+}
+
+struct fs_ops fat_fs_ops = {
+	.fs_list = fat_list,
+	.fs_open = NULL,
+};
+
+void fat_init(struct blkdev *dev)
+{
+	struct blkreq *req;
+	struct fat_fs *fs = kmalloc(sizeof(struct fat_fs));
+	uint32_t RootDirSectors, DataSec, CountofClusters;
+
+	/*
+	 * TODO: check whether BPB_BytsPerSec is less than device block size
+	 */
+
+	fs->dev = dev;
+	fs->fs.fs_type = FS_FAT;
+	fs->fs.fs_root = fs_root;
+	fs->fs.fs_ops = &fat_fs_ops;
+
+	req = dev->ops->alloc(dev);
+	req->type = BLKREQ_READ;
+	req->buf = kmalloc(dev->blksiz);
+	req->blkidx = 0;
+	req->size = dev->blksiz;
+	dev->ops->submit(dev, req);
+	wait_for(&req->wait);
+	if (req->status != BLKREQ_OK)
+		goto out;
+
+	fs->bpb = (struct fat_bpb *)req->buf;
+	fs->bpbvoid = (void *)req->buf + sizeof(struct fat_bpb);
+	dev->ops->free(dev, req);
+	RootDirSectors = ((fs->bpb->BPB_RootEntCnt * 32) +
+	                  (fs->bpb->BPB_BytsPerSec - 1)) /
+	                 fs->bpb->BPB_BytsPerSec;
+	DataSec = BPB_TotSec(fs) -
+	          (fs->bpb->BPB_RsvdSecCnt +
+	           (fs->bpb->BPB_NumFATs * BPB_FATSz(fs)) + RootDirSectors);
+	CountofClusters = DataSec / fs->bpb->BPB_SecPerClus;
+
+	if (CountofClusters < 4085) {
+		fs->type = FAT12;
+	} else if (CountofClusters < 65525) {
+		fs->type = FAT16;
+	} else {
+		fs->type = FAT32;
+	}
+	fs->RootDirSectors = RootDirSectors;
+	fs->DataSec = DataSec;
+	fs->CountofClusters = CountofClusters;
+	if (!strprefix(BS_FilSysType(fs), fstype[fs->type]))
+		puts("NB: detected FAT type mismatch with recorded one\n");
+	fs->FatSec1 = fs->bpb->BPB_RsvdSecCnt;
+	fs->FatSec2 = fs->FatSec2 + BPB_FATSz(fs);
+	fs->RootSec =
+	        fs->bpb->BPB_RsvdSecCnt + fs->bpb->BPB_NumFATs * BPB_FATSz(fs);
+
+	printf("  OEMName: \"%s\"\n", fs->bpb->BS_OEMName);
+#define showint(name) printf("  " #name ": %u\n", fs->bpb->name)
+	showint(BPB_BytsPerSec);
+	showint(BPB_SecPerClus);
+	showint(BPB_RsvdSecCnt);
+	showint(BPB_NumFATs);
+	showint(BPB_RootEntCnt);
+	showint(BPB_TotSec16);
+	showint(BPB_Media);
+	showint(BPB_FATSz16);
+	showint(BPB_SecPerTrk);
+	showint(BPB_NumHeads);
+	showint(BPB_HiddSec);
+	showint(BPB_TotSec32);
+
+	printf("  CountofClusters: %u\n", CountofClusters);
+	printf("  RootDirSectors: %u\n", RootDirSectors);
+	printf("  DataSectors: %u\n", DataSec);
+	printf("  Root Directory Sector: %u\n", fs->RootSec);
+	printf("  We determined fstype: \"%s\"\n", fstype[fs->type]);
+
+	/* Add root directory contents to root */
+	fat_list_root(fs, fs_root);
+	fs_global = fs;
+	fs_root->fs = fs;
+	return;
+
+out:
+	kfree(req->buf, dev->blksiz);
+	dev->ops->free(dev, req);
+	kfree(fs, sizeof(*fs));
+}
+
+static int cmd_fat(int argc, char **argv)
+{
+	struct blkdev *dev;
+	if (argc != 1) {
+		puts("usage: fat init BLKNAME\n");
+		return 1;
+	}
+	dev = blkdev_get_by_name(argv[0]);
+	if (!dev) {
+		printf("no such blockdev \"%s\"\n", argv[0]);
+		return 1;
+	}
+	fat_init(dev);
+	return 0;
+}
+
+static void fat12_iter(struct fat_fs *fs)
 {
 	int32_t freebegin = -1;
 	uint32_t curblkno = 0; /* initial block is 0, we know FAT will be > 0 */
@@ -355,84 +563,25 @@ void fat_iter_fat12(struct fat_fs *fs)
 	kfree(blk, 1024);
 }
 
-int fat_read_root_file(struct fat_fs *fs, char *fn)
+static int cmd_fat_iter(int argc, char **argv)
 {
-	int rv = 0;
-	uint32_t blkno, clusno, maxbytes;
-	struct fat_dirent dirent;
-	struct blkreq *req;
-	char *data;
-
-	if ((rv = fat_root_find(fs, fn, &dirent)) < 0)
-		return rv;
-
-	clusno = (dirent.DIR_FstClusHI << 16) | dirent.DIR_FstClusLO;
-	blkno = fat_cluster_to_block(fs, clusno);
-	printf("Read file at cluster %u, blkno %u, size %u\n", clusno, blkno,
-	       dirent.DIR_FileSize);
-	maxbytes = dirent.DIR_FileSize;
-	if (dirent.DIR_FileSize > 511) {
-		puts("WARNING: file longer than a block\n");
-		maxbytes = 511;
-		/* TODO support multiple blocks */
+	if (!fs_global) {
+		puts("No file system initialized\n");
+		return 0;
 	}
-
-	data = kmalloc(512);
-	req = fs->dev->ops->alloc(fs->dev);
-	req->size = 512;
-	req->blkidx = blkno;
-	req->type = BLKREQ_READ;
-	req->buf = (uint8_t *)data;
-	fs->dev->ops->submit(fs->dev, req);
-	wait_for(&req->wait);
-	if (req->status != BLKREQ_OK) {
-		rv = -EIO;
-		goto out;
+	switch (fs_global->type) {
+	case FAT12:
+		fat12_iter(fs_global);
+		break;
+	default:
+		puts("Unsupported FAT type\n");
+		break;
 	}
-
-	data[maxbytes] = '\0'; /* nul terminate to be safe */
-	puts("BEGIN FILE\n");
-	puts(data);
-	puts("END FILE\n");
-out:
-	kfree(data, 512);
-	fs->dev->ops->free(fs->dev, req);
-	return rv;
-}
-
-static int cmd_fat(int argc, char **argv)
-{
-	struct blkdev *dev;
-	if (argc != 1) {
-		puts("usage: fat init BLKNAME\n");
-		return 1;
-	}
-	dev = blkdev_get_by_name(argv[0]);
-	if (!dev) {
-		printf("no such blockdev \"%s\"\n", argv[0]);
-		return 1;
-	}
-	puts("INITIALIZE FAT DISK\n");
-	fat_init(dev);
-	puts("ROOT DIRECTORY CONTENTS:\n");
-	fat_list_root(fs_global);
-	puts("FILE ALLOCATION TABLE:\n");
-	fat_iter_fat12(fs_global);
-	return 0;
-}
-
-static int cmd_fatcat(int argc, char **argv)
-{
-	if (argc != 1) {
-		puts("usage: fat cat FILENAME\n");
-		return 1;
-	}
-	fat_read_root_file(fs_global, argv[0]);
 	return 0;
 }
 
 struct ksh_cmd fat_ksh_cmds[] = {
 	KSH_CMD("init", cmd_fat, "initialize FAT filesystem"),
-	KSH_CMD("cat", cmd_fatcat, "print file from FAT filesystem"),
+	KSH_CMD("iter", cmd_fat_iter, "iterate over file allocation table"),
 	{ 0 },
 };
