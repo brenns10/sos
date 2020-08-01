@@ -119,3 +119,10 @@ int buf_trim(struct buffer *buf, unsigned int newlen)
 	buf->buf[newlen] = '\0';
 	return 0;
 }
+
+char *strchrnul(const char *s, int c)
+{
+	while (*s && *s != c)
+		s++;
+	return (char *)s;
+}

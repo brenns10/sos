@@ -43,4 +43,6 @@ int buf_append(struct buffer *buf, const char *str);
  */
 int buf_trim(struct buffer *buf, unsigned int newlen);
 
+char *strchrnul(const char *s, int c);
+
 #endif
