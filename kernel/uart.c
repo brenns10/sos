@@ -49,7 +49,7 @@ typedef volatile struct __attribute__((packed)) {
 
 uint32_t uart_base = CONFIG_UART_BASE;
 struct process *waiting = NULL;
-spinsem_t uart_sem;
+DECLARE_SPINSEM(uart_sem, 1);
 #define base ((pl011_registers *)uart_base)
 
 void putc(char c)
@@ -171,8 +171,6 @@ void uart_init(void)
 	reg = READ32(base->UARTCR);
 	reg |= (UARTCR_UARTEN | UARTCR_TXE | UARTCR_RXE);
 	WRITE32(base->UARTCR, reg);
-
-	INIT_SPINSEM(&uart_sem, 1);
 }
 
 void uart_init_irq(void)
