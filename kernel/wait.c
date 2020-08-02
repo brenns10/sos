@@ -44,7 +44,7 @@ void wait_list_awaken(struct waitlist *wl)
 	int flags;
 	spin_acquire_irqsave(&wl->waitlock, &flags);
 	wl->triggered = true;
-	list_for_each_entry(waiter, &wl->waiting, list, struct waiter)
+	list_for_each_entry(waiter, &wl->waiting, list)
 	{
 		waiter->proc->flags.pr_ready = 1;
 	}

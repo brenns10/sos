@@ -104,7 +104,7 @@ void slab_report(struct slab *slab)
 void slab_report_all(void)
 {
 	struct slab *slab;
-	list_for_each_entry(slab, &slabs, slabs, struct slab)
+	list_for_each_entry(slab, &slabs, slabs)
 	{
 		slab_report(slab);
 	}

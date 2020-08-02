@@ -96,7 +96,7 @@ static struct virtio_blk *virtio_blk_get_dev_by_intid(uint32_t intid)
 	struct virtio_blk *blk;
 	int flags;
 	spin_acquire_irqsave(&vdev_list_lock, &flags);
-	list_for_each_entry(blk, &vdevs, list, struct virtio_blk)
+	list_for_each_entry(blk, &vdevs, list)
 	{
 		if (blk->intid == intid) {
 			spin_release_irqrestore(&vdev_list_lock, &flags);

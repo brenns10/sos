@@ -48,7 +48,7 @@ static void test_insert_end(struct unittest *test)
 	list_insert(&list, &first.list);
 	list_insert_end(&list, &second.list);
 
-	list_for_each_entry(iter, &list, list, struct item)
+	list_for_each_entry(iter, &list, list)
 	{
 		i++;
 		UNITTEST_EXPECT_EQ(test, iter->number, i);

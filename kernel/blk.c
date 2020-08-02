@@ -34,7 +34,7 @@ struct blkdev *blkdev_get_by_name(char *name)
 	struct blkdev *dev;
 	int flags;
 	spin_acquire_irqsave(&blkdev_list_lock, &flags);
-	list_for_each_entry(dev, &blkdev_list, blklist, struct blkdev)
+	list_for_each_entry(dev, &blkdev_list, blklist)
 	{
 		if (strcmp(dev->name, name) == 0) {
 			spin_release_irqrestore(&blkdev_list_lock, &flags);
@@ -51,7 +51,7 @@ enum blkreq_status blkreq_wait_all(struct blkreq *req)
 	enum blkreq_status status;
 	wait_for(&req->wait);
 	status = req->status;
-	list_for_each_entry(iter, &req->reqlist, reqlist, struct blkreq)
+	list_for_each_entry(iter, &req->reqlist, reqlist)
 	{
 		wait_for(&iter->wait);
 		if (iter->status != BLKREQ_OK)

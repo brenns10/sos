@@ -22,8 +22,7 @@ static struct udp_wait_entry *lookup_entry(uint16_t port)
 {
 	struct udp_wait_entry *entry;
 	uint32_t hash = udp_hash(port);
-	list_for_each_entry(entry, &udp_hlist[hash], list,
-	                    struct udp_wait_entry)
+	list_for_each_entry(entry, &udp_hlist[hash], list)
 	{
 		if (entry->port == port)
 			return entry;
@@ -68,8 +67,7 @@ void udp_recv(struct netif *netif, struct packet *pkt)
 	/*printf("udp_recv src=%u dst=%u\n", ntohs(pkt->udp->src_port),
 	       ntohs(pkt->udp->dst_port));*/
 	pkt->al = pkt->tl + sizeof(struct udphdr);
-	list_for_each_entry(entry, &udp_hlist[hash], list,
-	                    struct udp_wait_entry)
+	list_for_each_entry(entry, &udp_hlist[hash], list)
 	{
 		if (entry->sock) {
 			/* TODO: socket may not be connected to this endpoint,
@@ -261,7 +259,7 @@ error:
 struct packet *socket_recvq_get(struct socket *socket)
 {
 	struct packet *pkt;
-	list_for_each_entry(pkt, &socket->recvq, list, struct packet)
+	list_for_each_entry(pkt, &socket->recvq, list)
 	{
 		return pkt;
 	}

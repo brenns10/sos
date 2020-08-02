@@ -10,7 +10,7 @@ DECLARE_LIST_HEAD(sockops_list);
 static struct sockops *lookup_proto(int protocol)
 {
 	struct sockops *ops;
-	list_for_each_entry(ops, &sockops_list, list, struct sockops)
+	list_for_each_entry(ops, &sockops_list, list)
 	{
 		if (ops->proto == protocol)
 			return ops;
@@ -57,7 +57,7 @@ void socket_destroy(struct socket *sock)
 {
 	struct packet *pkt;
 	wait_list_destroy(&sock->recvwait);
-	list_for_each_entry(pkt, &sock->recvq, list, struct packet)
+	list_for_each_entry(pkt, &sock->recvq, list)
 	{
 		packet_free(pkt);
 	}
@@ -67,7 +67,7 @@ void socket_destroy(struct socket *sock)
 struct socket *socket_get_by_fd(struct process *proc, int fd)
 {
 	struct socket *sk;
-	list_for_each_entry(sk, &proc->sockets, sockets, struct socket)
+	list_for_each_entry(sk, &proc->sockets, sockets)
 	{
 		if (sk->fildes == fd)
 			return sk;

@@ -230,7 +230,7 @@ void destroy_current_process()
 	} else {
 	}
 
-	list_for_each_entry(sock, &current->sockets, sockets, struct socket)
+	list_for_each_entry(sock, &current->sockets, sockets)
 	{
 		socket_destroy(sock);
 	}
@@ -306,7 +306,7 @@ struct process *choose_new_process(void)
 	struct process *iter, *chosen = NULL;
 	int count_seen = 0, count_ready = 0;
 
-	list_for_each_entry(iter, &process_list, list, struct process)
+	list_for_each_entry(iter, &process_list, list)
 	{
 		count_seen++;
 		if (iter->flags.pr_ready) {
@@ -420,7 +420,7 @@ static int cmd_mkproc(int argc, char **argv)
 static int cmd_lsproc(int argc, char **argv)
 {
 	struct process *p;
-	list_for_each_entry(p, &process_list, list, struct process)
+	list_for_each_entry(p, &process_list, list)
 	{
 		printf("%u\n", p->id);
 	}
@@ -439,7 +439,7 @@ static int cmd_execproc(int argc, char **argv)
 	pid = atoi(argv[0]);
 
 	printf("starting process execution with pid=%u\n", pid);
-	list_for_each_entry(p, &process_list, list, struct process)
+	list_for_each_entry(p, &process_list, list)
 	{
 		if (p->id == pid) {
 			break;

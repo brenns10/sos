@@ -24,7 +24,7 @@ void fs_reset_dir(struct fs_node *node)
 struct fs_node *fs_find_in_dir(struct fs_node *node, const char *name)
 {
 	struct fs_node *child;
-	list_for_each_entry(child, &node->children, list, struct fs_node)
+	list_for_each_entry(child, &node->children, list)
 	{
 		if (strcmp(child->name, name) == 0) {
 			return child;
@@ -120,7 +120,7 @@ static int cmd_ls(int argc, char **argv)
 		puts("error: not a directory\n");
 		return 1;
 	}
-	list_for_each_entry(child, &node->children, list, struct fs_node)
+	list_for_each_entry(child, &node->children, list)
 	{
 		printf("%c %s\n", child->type == FSN_FILE ? 'f' : 'd',
 		       child->name);

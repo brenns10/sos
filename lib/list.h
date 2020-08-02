@@ -117,7 +117,6 @@ void hlist_remove(struct hlist_head *parent_or_head, struct hlist_head *item);
  *          iteration variable
  * head: pointer to struct list_head which is the header of the list
  * field_name: name of the struct list_head within the container type
- * container_type: type of the struct containing struct list_head (not pointer)
  *
  * Sample code:
  *
@@ -130,16 +129,17 @@ void hlist_remove(struct hlist_head *parent_or_head, struct hlist_head *item);
  *   // assume everything is initialized and populated
  *
  *   struct my_example *iter;
- *   list_for_each_entry(iter, &head, list_field, struct my_example) {
+ *   list_for_each_entry(iter, &head, list_field) {
  *     printf("list entry: \"%s\"\n", iter->message);
  *   }
  *
  */
-#define list_for_each_entry(var_ptr, head, field_name, container_type)         \
-	for (var_ptr = container_of((head)->next, container_type, field_name); \
+#define list_for_each_entry(var_ptr, head, field_name)                         \
+	for (var_ptr = NULL,                                                   \
+	    var_ptr = alt_container_of((head)->next, var_ptr, field_name);     \
 	     &var_ptr->field_name != (head);                                   \
-	     var_ptr = container_of(var_ptr->field_name.next, container_type,  \
-	                            field_name))
+	     var_ptr = alt_container_of(var_ptr->field_name.next, var_ptr,     \
+	                                field_name))
 
 /**
  * Iterate over every item within a list, but allow removing the node you are
