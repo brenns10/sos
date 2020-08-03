@@ -86,3 +86,13 @@ def test_list_other(mountvm):
     assert ('d', '.') in entries
     assert ('d', '..') in entries
     assert ('f', 'FILE2.TXT') in entries
+
+
+def test_cat_file_root(mountvm):
+    output = mountvm.cmd('fs cat /FILE1.TXT')
+    assert 'the first file' in output
+
+
+def test_cat_file_other(mountvm):
+    output = mountvm.cmd('fs cat /DIR/FILE2.TXT')
+    assert 'the second file' in output
