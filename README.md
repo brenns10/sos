@@ -16,9 +16,18 @@ an ARM cross compiler. These dependencies are straightforward on Arch Linux, but
 Ubuntu users should see more detailed setup instructions in
 [Ubuntu.md](Ubuntu.md).
 
+Some additional dependencies which get installed by the following command:
+
+- pytest: a python testing framework, used to implement integration tests. You
+  can skip this if you're not planning to run integration tests.
+- mtools: tools which create and manage MS-DOS FAT12/16/32 volumes. These are
+  automatically used by the integration test framework, but also are useful for
+  creating your own filesystem image. However, a few dummy FS images are
+  included in this repo, so it is not strictly necessary.
+
     # Arch Linux
     $ sudo pacman -Sy arm-none-eabi-gcc arm-none-eabi-binutils arm-none-eabi-gdb \
-          qemu qemu-arch-extra python-pytest
+          qemu qemu-arch-extra python-pytest mtools
 
 With these dependencies satisfied, you can do the following:
 
@@ -33,6 +42,11 @@ With these dependencies satisfied, you can do the following:
     make debug
     # (in another terminal)
     make gdb
+    # or...
+
+    # Run unit tests (which exercise just the C code) plus integration tests
+    # (which start SOS in a VM and then test command functionality)
+    make test
 
 
 Raspberry Pi 4B
@@ -131,6 +145,7 @@ Here is a longer list of things my OS can do:
   basic functionality which uses it.
 * Driver for a virtio network device (see `kernel/virtio-net.c`) and some very
   basic functionality which uses it.
+* FAT filesystem driver (currently only supports FAT12)
 
 Some Limitations
 ----------------
