@@ -7,6 +7,7 @@
 #include "string.h"
 
 struct slab *fs_node_slab;
+struct slab *file_slab;
 struct fs_node *fs_root;
 
 void fs_reset_dir(struct fs_node *node)
@@ -96,6 +97,16 @@ out:
 	return rv;
 }
 
+struct file *fs_alloc_file(void)
+{
+	return slab_alloc(file_slab);
+}
+
+void fs_free_file(struct file *f)
+{
+	slab_free(file_slab, f);
+}
+
 static int cmd_ls(int argc, char **argv)
 {
 	struct fs_node *node;
@@ -131,8 +142,33 @@ static int cmd_ls(int argc, char **argv)
 
 static int cmd_cat(int argc, char **argv)
 {
-	puts("not supported yet\n");
-	return 1;
+	int rv = 0;
+	struct fs_node *node;
+	struct file *f;
+	char *buf;
+	int blksize = 1024;
+
+	if (argc < 1 || argc > 2) {
+		puts("usage: cat FILENAME [blksiz]\n");
+		return 1;
+	}
+	if (argc == 2) {
+		blksize = atoi(argv[1]);
+	}
+	rv = fs_resolve(argv[0], &node);
+	if (rv < 0) {
+		return rv;
+	}
+	f = node->fs->fs_ops->fs_open(node, 0);
+	buf = kmalloc(blksize);
+	do {
+		rv = f->ops->read(f, buf, blksize);
+		if (rv > 0)
+			nputs(buf, rv);
+	} while (rv == blksize);
+	f->ops->close(f);
+	kfree(buf, blksize);
+	return rv;
 }
 
 struct ksh_cmd fs_ksh_cmds[] = {
@@ -145,6 +181,7 @@ void fs_init(void)
 {
 	fs_node_slab =
 	        slab_new("fs_node", sizeof(struct fs_node), kmem_get_page);
+	file_slab = slab_new("file", sizeof(struct file), kmem_get_page);
 	fs_root = slab_alloc(fs_node_slab);
 	strlcpy(fs_root->name, "/", sizeof(fs_root->name));
 	fs_root->type = FSN_LAZY_DIR;

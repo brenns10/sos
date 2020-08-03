@@ -69,6 +69,15 @@ void puts(char *string)
 	preempt_enable();
 }
 
+void nputs(char *string, int n)
+{
+	int i;
+	preempt_disable();
+	for (i = 0; i < n; i++)
+		putc(string[i]);
+	preempt_enable();
+}
+
 uint8_t saved;
 uint8_t has_saved;
 

@@ -101,3 +101,10 @@ struct fat_fs {
 	uint32_t FatSec2;
 	uint32_t RootSec;
 };
+
+struct fat_file_private {
+	uint64_t first_cluster;
+	uint64_t current_cluster;
+};
+
+#define fat_priv(file) ((struct fat_file_private *)file->priv)

@@ -73,6 +73,7 @@ extern void *svc_stack;
  * Basic I/O (see uart.s and format.c for details)
  */
 void puts(char *string);
+void nputs(char *string, int n);
 void putc(char c);
 int getc_blocking(void);
 int getc_spinning(void);

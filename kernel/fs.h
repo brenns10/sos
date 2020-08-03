@@ -11,17 +11,21 @@ struct fs;
 struct fs_ops;
 
 struct file_ops {
-	int (*read)(int fd, void *dst, size_t amt);
+	int (*read)(struct file *f, void *dst, size_t amt);
+	int (*close)(struct file *f);
 };
 
+#define FILE_PRIVATE_SIZE 16
 struct file {
 	struct file_ops *ops;
 	struct fs_node *node;
+	uint64_t pos;
+	uint8_t priv[FILE_PRIVATE_SIZE];
 };
 
 struct fs_ops {
 	int (*fs_list)(struct fs_node *node);
-	struct file *(*fs_open)(struct fs_node *node);
+	struct file *(*fs_open)(struct fs_node *node, int flags);
 };
 
 struct fs {
@@ -37,6 +41,7 @@ struct fs_node {
 	struct list_head list; /* for containing in the parent's list */
 	struct list_head children;
 	int nchildren;
+	uint64_t size;
 	char name[FILENAME_MAX];
 	unsigned short namelen;
 	enum { FSN_FILE,     // regular file
@@ -52,3 +57,5 @@ extern struct fs_node *fs_root;
 void fs_init(void);
 void fs_reset_dir(struct fs_node *node);
 int fs_resolve(const char *path, struct fs_node **out);
+struct file *fs_alloc_file(void);
+void fs_free_file(struct file *f);

@@ -25,8 +25,10 @@ char *fstype[3] = {
 
 struct fat_fs *fs_global;
 
-#define clus_bytes(fs) (fs->bpb->BPB_BytsPerSec * fs->bpb->BPB_SecPerClus)
-#define sec_bytes(fs)  (fs->bpb->BPB_BytsPerSec)
+#define clus_bytes(fs)                                                         \
+	(((struct fat_fs *)(fs))->bpb->BPB_BytsPerSec *                        \
+	 ((struct fat_fs *)(fs))->bpb->BPB_SecPerClus)
+#define sec_bytes(fs) (((struct fat_fs *)(fs))->bpb->BPB_BytsPerSec)
 
 uint32_t fat_cluster_to_block(struct fat_fs *fs, uint32_t clusno)
 {
@@ -246,6 +248,7 @@ int fat_list_chunk(struct fat_fs *fs, struct fs_node *node,
 				child->type = FSN_LAZY_DIR;
 			else
 				child->type = FSN_FILE;
+			child->size = dirent[i].DIR_FileSize;
 			child->location = dirent[i].DIR_FstClusHI << 16 |
 			                  dirent[i].DIR_FstClusLO;
 			child->fs = (struct fs *)fs;
@@ -366,6 +369,66 @@ int fat_list_root(struct fat_fs *fs, struct fs_node *node)
 	return rv;
 }
 
+int fat_read(struct file *f, void *dst, size_t amt)
+{
+	const unsigned int clusiz = clus_bytes(f->node->fs);
+	struct fat_file_private *priv = fat_priv(f);
+	struct fat_fs *fs = (struct fat_fs *)f->node->fs;
+	uint8_t *buf = kmalloc(clusiz);
+
+	uint64_t endpos = f->pos + amt;
+	int rv = 0;
+	size_t bytes = 0;
+	size_t blkstart, blkend;
+
+	if (endpos > f->node->size) {
+		endpos = f->node->size;
+	}
+
+	while (f->pos < endpos) {
+		blkstart = (uint32_t)f->pos % clusiz;
+		blkend = clusiz;
+		if (endpos < (f->pos - blkstart + clusiz))
+			blkend = (uint32_t)endpos % clusiz;
+
+		if (blkstart == 0 && blkend == clusiz) {
+			/* read directly into dst, bypassing copy */
+			rv = fat_read_cluster(fs, priv->current_cluster,
+			                      dst + bytes);
+			if (rv < 0)
+				goto out;
+		} else {
+			/* read into malloc buffer and copy */
+			rv = fat_read_cluster(fs, priv->current_cluster, buf);
+			if (rv < 0)
+				goto out;
+			memcpy(dst + bytes, buf + blkstart, blkend - blkstart);
+		}
+		bytes += blkend - blkstart;
+		f->pos += bytes;
+
+		if (blkend == clusiz)
+			priv->current_cluster =
+			        fat_next_cluster(fs, priv->current_cluster);
+	}
+
+	rv = bytes;
+out:
+	kfree(buf, clusiz);
+	return rv;
+}
+
+int fat_close(struct file *f)
+{
+	fs_free_file(f);
+	return 0;
+}
+
+struct file_ops fat_file_ops = {
+	.read = fat_read,
+	.close = fat_close,
+};
+
 int fat_list(struct fs_node *node)
 {
 	struct fat_fs *fs = node->fs;
@@ -398,9 +461,22 @@ int fat_list(struct fs_node *node)
 	return rv;
 }
 
+struct file *fat_open(struct fs_node *node, int flags)
+{
+	struct file *file = fs_alloc_file();
+	struct fat_file_private *priv = fat_priv(file);
+
+	file->ops = &fat_file_ops;
+	file->node = node;
+	file->pos = 0;
+	priv->first_cluster = node->location;
+	priv->current_cluster = node->location;
+	return file;
+}
+
 struct fs_ops fat_fs_ops = {
 	.fs_list = fat_list,
-	.fs_open = NULL,
+	.fs_open = fat_open,
 };
 
 void fat_init(struct blkdev *dev)
