@@ -125,97 +125,74 @@ int fat_extract_shortname(char *input, char *dest)
 	return i;
 }
 
-int fat_read_sector(struct fat_fs *fs, uint64_t sector, void *dst)
-{
-	int rv = 0;
-	struct blkreq *req = fs->dev->ops->alloc(fs->dev);
-	req->blkidx = sector;
-	req->type = BLKREQ_READ;
-	req->buf = dst;
-	/* TODO: this could be different from the device block size */
-	req->size = fs->bpb->BPB_BytsPerSec;
-	fs->dev->ops->submit(fs->dev, req);
-	wait_for(&req->wait);
-	if (req->status != BLKREQ_OK)
-		rv = -EIO;
-	fs->dev->ops->free(fs->dev, req);
-	return rv;
-}
-
-int fat_read_cluster(struct fat_fs *fs, uint64_t cluster, void *dst)
+int fat_clusop(struct blkdev *dev, uint64_t block, void *dst, int op, int nblk)
 {
 	int i, rv = 0;
-	int nblk = clus_bytes(fs) / fs->dev->blksiz;
 	struct blkreq *first, *req;
 	enum blkreq_status status;
 
-	first = fs->dev->ops->alloc(fs->dev);
-	first->blkidx = fat_cluster_to_block(fs, cluster);
-	first->type = BLKREQ_READ;
+	first = dev->ops->alloc(dev);
+	first->blkidx = block;
+	first->type = op;
 	first->buf = dst;
-	first->size = fs->dev->blksiz;
-	fs->dev->ops->submit(fs->dev, first);
+	first->size = dev->blksiz;
+	dev->ops->submit(dev, first);
 
 	for (i = 1; i < nblk; i++) {
-		req = fs->dev->ops->alloc(fs->dev);
-		req->blkidx = first->blkidx + i * fs->dev->blksiz;
+		req = dev->ops->alloc(dev);
+		req->blkidx = block + i;
 		req->type = BLKREQ_READ;
-		req->buf = dst + i * fs->dev->blksiz;
-		req->size = fs->dev->blksiz;
+		req->buf = dst + i * dev->blksiz;
+		req->size = dev->blksiz;
 		list_insert_end(&first->reqlist, &req->reqlist);
-		fs->dev->ops->submit(fs->dev, req);
+		dev->ops->submit(dev, req);
 	}
 
 	status = blkreq_wait_all(first);
 	if (status != BLKREQ_OK)
 		rv = -EIO;
-	blkreq_free_all(fs->dev, first);
+	blkreq_free_all(dev, first);
 	return rv;
 }
 
-int fat_print_root(struct fat_fs *fs)
+static inline int fat_read_cluster(struct fat_fs *fs, uint64_t cluster,
+                                   void *dst)
 {
-	/* read first sector of root dir */
-	const unsigned int bps = fs->bpb->BPB_BytsPerSec;
-	struct fat_dirent *dirent = kmalloc(bps);
-	char fn[12];
-	uint32_t fstclus;
-	int rv = 0;
+	int nblk = clus_bytes(fs) / fs->dev->blksiz;
+	uint64_t block = fat_cluster_to_block(fs, cluster);
+	return fat_clusop(fs->dev, block, dst, BLKREQ_READ, nblk);
+}
 
-	rv = fat_read_sector(fs, fs->RootSec, dirent);
-	if (rv < 0) {
-		kfree(dirent, bps);
-		return rv;
-	}
+static inline int fat_write_cluster(struct fat_fs *fs, uint64_t cluster,
+                                    void *src)
+{
+	int nblk = clus_bytes(fs) / fs->dev->blksiz;
+	uint64_t block = fat_cluster_to_block(fs, cluster);
+	return fat_clusop(fs->dev, block, src, BLKREQ_WRITE, nblk);
+}
 
-	for (uint32_t i = 0; i < (bps / sizeof(dirent[0])); i++) {
-		if (dirent[i].DIR_Name[0] == 0xE5) {
-			continue; /* don't clutter with free entries */
-		}
-		if (dirent[i].DIR_Name[0] == 0) {
-			printf("  [%u] No more data!\n", i);
-			break;
-		}
-		if ((dirent[i].DIR_Attr & FAT_ATTR_LONG_NAME_MASK) ==
-		    FAT_ATTR_LONG_NAME) {
-			printf("  [%u]: LONG_NAME\n", i);
-		} else {
-			fstclus = dirent[i].DIR_FstClusHI << 16 |
-			          dirent[i].DIR_FstClusLO;
-			uint8_t attr = dirent[i].DIR_Attr;
-			strlcpy(fn, dirent[i].DIR_Name, sizeof(fn));
-			printf("  [%u]: \"%s\"%s%s%s%s%s%s: cluster %u\n", i,
-			       fn, (attr & FAT_ATTR_READ_ONLY) ? " RO" : "",
-			       (attr & FAT_ATTR_HIDDEN) ? " HID" : "",
-			       (attr & FAT_ATTR_SYSTEM) ? " SYS" : "",
-			       (attr & FAT_ATTR_VOLUME_ID) ? " VID" : "",
-			       (attr & FAT_ATTR_DIRECTORY) ? " DIR" : "",
-			       (attr & FAT_ATTR_ARCHIVE) ? " ARC" : "",
-			       fstclus);
-		}
-	}
-	kfree(dirent, bps);
-	return rv;
+int fat_read_sector(struct fat_fs *fs, uint64_t sector, void *dst)
+{
+	int nblk = sec_bytes(fs) / fs->dev->blksiz;
+	return fat_clusop(fs->dev, sector * nblk, dst, BLKREQ_READ, nblk);
+}
+
+int fat_write_sector(struct fat_fs *fs, uint64_t sector, void *dst)
+{
+	int nblk = sec_bytes(fs) / fs->dev->blksiz;
+	return fat_clusop(fs->dev, sector * nblk, dst, BLKREQ_WRITE, nblk);
+}
+
+void *fat_read_blockpair(struct blkdev *dev, uint64_t blkno)
+{
+	void *buf = kmalloc(2 * dev->blksiz);
+	fat_clusop(dev, blkno, buf, BLKREQ_READ, 2);
+	return buf;
+}
+
+void fat_write_blockpair(struct blkdev *dev, uint64_t blkno, void *buf)
+{
+	fat_clusop(dev, blkno, buf, BLKREQ_READ, 2);
 }
 
 int fat_list_chunk(struct fat_fs *fs, struct fs_node *node,
@@ -260,32 +237,32 @@ int fat_list_chunk(struct fat_fs *fs, struct fs_node *node,
 	return 0;
 }
 
-void *fat_read_blockpair(struct blkdev *dev, uint64_t blkno)
+int fat_update_size_chunk(struct fat_fs *fs, struct fs_node *node,
+                          struct fat_dirent *dirent, unsigned int count,
+                          uint32_t size)
 {
-	struct blkreq *req = dev->ops->alloc(dev);
-	struct blkreq *req2 = dev->ops->alloc(dev);
-	void *buf = kmalloc(1024);
-	req->buf = buf;
-	req->size = 512;
-	req->type = BLKREQ_READ;
-	req->blkidx = blkno;
-	req2->buf = buf + 512;
-	req2->size = 512;
-	req2->type = BLKREQ_READ;
-	req2->blkidx = blkno + 1;
-	dev->ops->submit(dev, req);
-	dev->ops->submit(dev, req2);
-	wait_for(&req->wait);
-	wait_for(&req2->wait);
-	if (req->status != BLKREQ_OK || req2->status != BLKREQ_OK) {
-		kfree(buf, 512);
-		dev->ops->free(dev, req);
-		dev->ops->free(dev, req2);
-		return NULL;
+	char name[12];
+
+	for (uint32_t i = 0; i < count / sizeof(dirent[0]); i++) {
+		if (dirent[i].DIR_Name[0] == 0xE5) {
+			continue;
+		}
+		if (dirent[i].DIR_Name[0] == 0) {
+			return -1;
+		}
+		if ((dirent[i].DIR_Attr & FAT_ATTR_LONG_NAME_MASK) ==
+		    FAT_ATTR_LONG_NAME) {
+			// TODO: support long names
+			// printf("  [%u]: LONG_NAME\n", i);
+		} else {
+			fat_extract_shortname(dirent[i].DIR_Name, name);
+			if (strcmp(name, node->name) == 0) {
+				dirent[i].DIR_FileSize = size;
+				return 1;
+			}
+		}
 	}
-	dev->ops->free(dev, req);
-	dev->ops->free(dev, req2);
-	return buf;
+	return 0;
 }
 
 uint64_t fat12_next_cluster(struct fat_fs *fs, uint64_t cluster)
@@ -329,6 +306,87 @@ uint64_t fat12_next_cluster(struct fat_fs *fs, uint64_t cluster)
 	return rv;
 }
 
+int fat12_set_next_cluster(struct fat_fs *fs, uint64_t cluster, uint64_t next)
+{
+	uint8_t *blk = NULL;
+	uint32_t offset = (uint32_t)cluster + (uint32_t)cluster / 2;
+	uint32_t blkno =
+	        offset / fs->bpb->BPB_BytsPerSec + fs->bpb->BPB_RsvdSecCnt;
+	uint32_t byte = offset % fs->bpb->BPB_BytsPerSec;
+	uint64_t rv = 0;
+
+	blk = fat_read_blockpair(fs->dev, blkno);
+
+	uint16_t val = *(uint16_t *)&blk[byte];
+	if (cluster & 1) {
+		val &= 0x000F;
+		val |= ((uint16_t)next) << 4;
+	} else {
+		val &= 0xF000;
+		val |= (uint16_t)next;
+	}
+	*(uint16_t *)&blk[byte] = val;
+	fat_write_blockpair(fs->dev, blkno, blk);
+
+	kfree(blk, 2 * fs->bpb->BPB_BytsPerSec);
+	return rv;
+}
+
+uint64_t fat12_alloc_cluster(struct fat_fs *fs, uint64_t prev)
+{
+	uint32_t curblkno = 0; /* initial block is 0, we know FAT will be > 0 */
+	uint32_t totcluster = BPB_TotSec(fs) / fs->bpb->BPB_SecPerClus;
+	uint32_t i;
+	uint8_t *blk = NULL;
+
+	for (i = 2; i < totcluster; i++) {
+		uint32_t offset = i + i / 2;
+		uint32_t blkno = offset / fs->bpb->BPB_BytsPerSec +
+		                 fs->bpb->BPB_RsvdSecCnt;
+		uint32_t byte = offset % fs->bpb->BPB_BytsPerSec;
+
+		if (blkno > curblkno) {
+			if (blk)
+				kfree(blk, 1024);
+			blk = fat_read_blockpair(fs->dev, blkno);
+			curblkno = blkno;
+		}
+
+		uint16_t val = *(uint16_t *)&blk[byte];
+		if (i & 1) {
+			val >>= 4;
+		} else {
+			val &= 0xFFF;
+		}
+
+		if (val == 0) {
+			if (i & 1)
+				val |= 0xFFF0;
+			else
+				val |= 0x0FFF;
+			*(uint16_t *)&blk[byte] = val;
+			fat_write_blockpair(fs->dev, blkno, blk);
+			kfree(blk, 1024);
+			if (prev)
+				fat12_set_next_cluster(fs, prev, i);
+			return i;
+		}
+	}
+	kfree(blk, 1024);
+	return FAT_EOF;
+}
+
+uint64_t fat_alloc_cluster(struct fat_fs *fs, uint64_t cluster)
+{
+	switch (fs->type) {
+	case FAT12:
+		return fat12_alloc_cluster(fs, cluster);
+	default:
+		puts("unsupported fat type\n");
+		return FAT_ERR;
+	}
+}
+
 uint64_t fat_next_cluster(struct fat_fs *fs, uint64_t cluster)
 {
 	switch (fs->type) {
@@ -369,17 +427,85 @@ int fat_list_root(struct fat_fs *fs, struct fs_node *node)
 	return rv;
 }
 
+int fat_update_size_root(struct fat_fs *fs, struct fs_node *node, uint64_t size)
+{
+	const unsigned int bps = fs->bpb->BPB_BytsPerSec;
+	struct fat_dirent *dirent = kmalloc(bps);
+	uint32_t i;
+	int rv = 0;
+	for (i = 0; i < fs->bpb->BPB_RootEntCnt; i++) {
+		rv = fat_read_sector(fs, fs->RootSec + i, dirent);
+		if (rv < 0)
+			break;
+		rv = fat_update_size_chunk(fs, node, dirent, bps, size);
+		if (rv == 1) {
+			rv = fat_write_sector(fs, fs->RootSec + i, dirent);
+			break; // success
+		} else if (rv == -1) {
+			rv = -1;
+			break; // fail
+		}
+		// otherwise, continue
+	}
+	kfree(dirent, bps);
+	return rv;
+}
+
+int fat_update_size_nonroot(struct fat_fs *fs, struct fs_node *node,
+                            uint64_t size)
+{
+	struct fat_dirent *dirent = kmalloc(clus_bytes(fs));
+	int rv = 0;
+	uint64_t clus;
+
+	for (clus = node->parent->location; clus != FAT_EOF;
+	     clus = fat_next_cluster(fs, clus)) {
+		if (clus == FAT_ERR) {
+			rv = -EIO;
+			break;
+		}
+
+		rv = fat_read_cluster(fs, clus, dirent);
+		if (rv != 0)
+			break;
+		rv = fat_update_size_chunk(fs, node, dirent, clus_bytes(fs),
+		                           size);
+		if (rv == 1) {
+			rv = fat_write_cluster(fs, clus, dirent);
+			break; // success
+		} else if (rv == -1) {
+			break; // fail
+		}
+		// otherwise, continue
+	}
+	kfree(dirent, clus_bytes(fs));
+	return rv;
+}
+
+int fat_update_size(struct fat_fs *fs, struct fs_node *node, uint64_t size)
+{
+	if (node->parent == fs_root)
+		return fat_update_size_root(fs, node, size);
+	else
+		return fat_update_size_nonroot(fs, node, size);
+}
+
 int fat_read(struct file *f, void *dst, size_t amt)
 {
 	const unsigned int clusiz = clus_bytes(f->node->fs);
 	struct fat_file_private *priv = fat_priv(f);
 	struct fat_fs *fs = (struct fat_fs *)f->node->fs;
-	uint8_t *buf = kmalloc(clusiz);
+	uint8_t *buf;
 
 	uint64_t endpos = f->pos + amt;
 	int rv = 0;
 	size_t bytes = 0;
 	size_t blkstart, blkend;
+
+	if (!(f->flags & O_READ))
+		return -EINVAL;
+
+	buf = kmalloc(clusiz);
 
 	if (endpos > f->node->size) {
 		endpos = f->node->size;
@@ -405,7 +531,7 @@ int fat_read(struct file *f, void *dst, size_t amt)
 			memcpy(dst + bytes, buf + blkstart, blkend - blkstart);
 		}
 		bytes += blkend - blkstart;
-		f->pos += bytes;
+		f->pos += blkend - blkstart;
 
 		if (blkend == clusiz)
 			priv->current_cluster =
@@ -424,8 +550,66 @@ int fat_close(struct file *f)
 	return 0;
 }
 
+int fat_write(struct file *f, const uint8_t *src, size_t count)
+{
+	const unsigned int clusiz = clus_bytes(f->node->fs);
+	struct fat_file_private *priv = fat_priv(f);
+	struct fat_fs *fs = (struct fat_fs *)f->node->fs;
+	uint8_t *buf;
+	int rv = 0;
+
+	uint32_t blkstart;
+	uint32_t blkend;
+	uint32_t bufidx = 0;
+
+	if (!(f->flags & O_WRITE))
+		return -EINVAL;
+
+	buf = kmalloc(clusiz);
+
+	while (bufidx < count) {
+		blkstart = (uint32_t)f->pos % clusiz;
+		blkend = blkstart + count;
+		if (blkend > clusiz)
+			blkend = clusiz;
+
+		if (blkstart > 0 || blkend < clusiz) {
+			// if we are not writing the full cluster, we need to
+			// read it in, overwrite the necessary part, and then
+			// write it back out
+			rv = fat_read_cluster(fs, priv->current_cluster, buf);
+			if (rv < 0)
+				goto out;
+			memcpy(buf + blkstart, src + bufidx, blkend - blkstart);
+			rv = fat_write_cluster(fs, priv->current_cluster, buf);
+			if (rv < 0)
+				goto out;
+		} else {
+			// if we want to write a full cluster, it is easier
+			rv = fat_write_cluster(fs, priv->current_cluster,
+			                       src + bufidx);
+		}
+		f->pos += blkend - blkstart;
+		bufidx += blkend - blkstart;
+		if (blkend == clusiz) {
+			priv->current_cluster =
+			        fat_next_cluster(fs, priv->current_cluster);
+			if (priv->current_cluster == FAT_EOF)
+				priv->current_cluster = fat_alloc_cluster(
+				        fs, priv->current_cluster);
+		}
+	}
+
+out:
+	kfree(buf, clusiz);
+	if (f->pos > f->node->size)
+		rv = fat_update_size(fs, f->node, f->pos);
+	return rv;
+}
+
 struct file_ops fat_file_ops = {
 	.read = fat_read,
+	.write = fat_write,
 	.close = fat_close,
 };
 
@@ -461,6 +645,20 @@ int fat_list(struct fs_node *node)
 	return rv;
 }
 
+uint64_t fat_get_last_clus(struct fs *fs, uint64_t clus, uint32_t size)
+{
+
+	const unsigned int clusiz = clus_bytes(fs);
+	while (size > clusiz && clus != FAT_EOF) {
+		clus = fat_next_cluster(fs, clus);
+		size -= clusiz;
+	}
+	if (size > clusiz || clus == FAT_EOF) {
+		puts("BUG: fat_get_last_clus\n");
+	}
+	return clus;
+}
+
 struct file *fat_open(struct fs_node *node, int flags)
 {
 	struct file *file = fs_alloc_file();
@@ -469,8 +667,14 @@ struct file *fat_open(struct fs_node *node, int flags)
 	file->ops = &fat_file_ops;
 	file->node = node;
 	file->pos = 0;
+	file->flags = flags;
 	priv->first_cluster = node->location;
 	priv->current_cluster = node->location;
+	if (flags & O_APPEND) {
+		priv->current_cluster =
+		        fat_get_last_clus(node->fs, node->location, node->size);
+		file->pos = node->size;
+	}
 	return file;
 }
 

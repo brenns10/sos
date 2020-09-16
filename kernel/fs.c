@@ -159,7 +159,7 @@ static int cmd_cat(int argc, char **argv)
 	if (rv < 0) {
 		return rv;
 	}
-	f = node->fs->fs_ops->fs_open(node, 0);
+	f = node->fs->fs_ops->fs_open(node, O_RDONLY);
 	buf = kmalloc(blksize);
 	do {
 		rv = f->ops->read(f, buf, blksize);
@@ -171,9 +171,34 @@ static int cmd_cat(int argc, char **argv)
 	return rv;
 }
 
+static int cmd_addline(int argc, char **argv)
+{
+	int rv = 0;
+	struct fs_node *node;
+	struct file *f;
+	char *buf;
+	int bytes;
+
+	if (argc != 2) {
+		puts("usage: addline FILENAME contents\n");
+		return 1;
+	}
+	rv = fs_resolve(argv[0], &node);
+	if (rv < 0)
+		return rv;
+	f = node->fs->fs_ops->fs_open(node, O_WRONLY | O_APPEND);
+	buf = kmalloc(1024);
+	bytes = snprintf(buf, 1024, "%s\n", argv[1]);
+	f->ops->write(f, buf, bytes);
+	kfree(buf, 1024);
+	f->ops->close(f);
+	return rv;
+}
+
 struct ksh_cmd fs_ksh_cmds[] = {
 	KSH_CMD("ls", cmd_ls, "list directory"),
 	KSH_CMD("cat", cmd_cat, "print file contents to console"),
+	KSH_CMD("addline", cmd_addline, "add line to a file"),
 	{ 0 },
 };
 

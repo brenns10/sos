@@ -4,6 +4,18 @@
 #include "list.h"
 #include "slab.h"
 
+enum {
+	/* noformat */
+	O_READ = 1,
+	O_WRITE = 2,
+	O_CREAT = 4,
+	O_APPEND = 8,
+
+	O_RDONLY = O_READ,
+	O_WRONLY = O_WRITE,
+	O_RDWR = O_READ | O_WRITE,
+};
+
 struct fs_node;
 struct file;
 struct file_ops;
@@ -12,6 +24,7 @@ struct fs_ops;
 
 struct file_ops {
 	int (*read)(struct file *f, void *dst, size_t amt);
+	int (*write)(struct file *f, void *src, size_t amt);
 	int (*close)(struct file *f);
 };
 
@@ -20,6 +33,7 @@ struct file {
 	struct file_ops *ops;
 	struct fs_node *node;
 	uint64_t pos;
+	unsigned int flags;
 	uint8_t priv[FILE_PRIVATE_SIZE];
 };
 
