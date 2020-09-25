@@ -25,9 +25,11 @@ Some additional dependencies which get installed by the following command:
   creating your own filesystem image. However, a few dummy FS images are
   included in this repo, so it is not strictly necessary.
 
-    # Arch Linux
-    $ sudo pacman -Sy arm-none-eabi-gcc arm-none-eabi-binutils arm-none-eabi-gdb \
-          qemu qemu-arch-extra python-pytest mtools
+```
+# Arch Linux
+$ sudo pacman -Sy arm-none-eabi-gcc arm-none-eabi-binutils arm-none-eabi-gdb \
+      qemu qemu-arch-extra python-pytest mtools
+```
 
 With these dependencies satisfied, you can do the following:
 
