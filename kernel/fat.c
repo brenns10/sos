@@ -242,23 +242,24 @@ static inline uint16_t fat12_set_fat(struct fat_fs *fs, uint16_t clusno,
 static inline int fat12_write_fat(struct fat_fs *fs, uint16_t first,
                                   uint16_t last)
 {
-	uint32_t secsiz = sec_bytes(fs);
-	uint32_t first_blk = first / secsiz;
-	uint32_t last_blk = last / secsiz;
+	uint32_t blksiz = fs->dev->blksiz;
+	uint32_t blkpersec = sec_bytes(fs) / blksiz;
+	uint32_t first_blk = first / blksiz;
+	uint32_t last_blk = last / blksiz;
 	int rv = 0;
 
-	uint32_t FAT_sector = 1;
+	uint32_t FAT_block = fs->bpb->BPB_RsvdSecCnt * blkpersec;
 	printf("fat12_write_fat(): first=%d, last=%d, first_blk=%d"
 	       " last_blk=%d\n",
 	       first, last, first_blk, last_blk);
-	rv = fat_clusop(fs->dev, FAT_sector + first_blk,
-	                &fs->fat[first_blk * secsiz], BLKREQ_WRITE,
+	rv = fat_clusop(fs->dev, FAT_block + first_blk,
+	                &fs->fat[first_blk * blksiz], BLKREQ_WRITE,
 	                last_blk - first_blk + 1);
 	if (rv < 0)
 		return rv;
-	FAT_sector += BPB_FATSz(fs);
-	rv = fat_clusop(fs->dev, FAT_sector + first_blk,
-	                &fs->fat[first_blk * secsiz], BLKREQ_WRITE,
+	FAT_block += BPB_FATSz(fs) * blkpersec;
+	rv = fat_clusop(fs->dev, FAT_block + first_blk,
+	                &fs->fat[first_blk * blksiz], BLKREQ_WRITE,
 	                last_blk - first_blk + 1);
 	return rv;
 }
@@ -716,7 +717,7 @@ void fat_init(struct blkdev *dev)
 {
 	struct blkreq *req;
 	struct fat_fs *fs = kmalloc(sizeof(struct fat_fs));
-	uint32_t RootDirSectors, DataSec, CountofClusters, FATpg;
+	uint32_t RootDirSectors, DataSec, CountofClusters, FATpg, bps;
 
 	/*
 	 * TODO: check whether BPB_BytsPerSec is less than device block size
@@ -765,9 +766,14 @@ void fat_init(struct blkdev *dev)
 	fs->RootSec =
 	        fs->bpb->BPB_RsvdSecCnt + fs->bpb->BPB_NumFATs * BPB_FATSz(fs);
 
+	/* Read the file allocation table. We must convert between sectors and
+	 * bytes here, so determine bytes per sector, and compute the number of
+	 * pages necessary to hold it. */
+	bps = sec_bytes(fs) / dev->blksiz;
 	FATpg = (BPB_FATSz(fs) * sec_bytes(fs)) / 4096 + 1;
 	fs->fat = kmem_get_pages(FATpg * 4096, 0);
-	fat_clusop(dev, 1, fs->fat, BLKREQ_READ, BPB_FATSz(fs));
+	fat_clusop(dev, fs->bpb->BPB_RsvdSecCnt * bps, fs->fat, BLKREQ_READ,
+	           BPB_FATSz(fs) * bps);
 
 	printf("  OEMName: \"%s\"\n", fs->bpb->BS_OEMName);
 #define showint(name) printf("  " #name ": %u\n", fs->bpb->name)
