@@ -158,6 +158,10 @@ unittest: compile_unittests
 integrationtest: kernel/configvals.h kernel.bin mydisk
 	@QEMU_CMD="$(QEMU_CMD)" $(PYTEST) integrationtests
 
+.PHONY: integrationtestpdb
+integrationtestpdb: kernel/configvals.h kernel.bin mydisk
+	@QEMU_CMD="$(QEMU_CMD)" $(PYTEST) integrationtests --pdb
+
 .PHONY: testdebug
 testdebug:
 	@SOS_DEBUG=true QEMU_CMD="$(QEMU_CMD) $(QEMU_DBG)" $(PYTEST) integrationtests -k $(TEST) -s
