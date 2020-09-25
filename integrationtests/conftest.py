@@ -122,7 +122,7 @@ class SosVirtualMachine(object):
         self.qemu.stdin.write(command + '\r\n')
         self.qemu.stdin.flush()
 
-    def cmd(self, command, pattern=None, timeout=None):
+    def cmd(self, command, pattern=None, timeout=None, rmprompt=False):
         """
         Send a command and wait for a user or kernel shell prompt.
         """
@@ -131,11 +131,27 @@ class SosVirtualMachine(object):
         if timeout is None:
             timeout = self.timeout
         self.send_cmd(command)
-        return self.read_until(pattern, timeout=timeout)
+        res = self.read_until(pattern, timeout=timeout)
+        if rmprompt:
+            res = self.rmprompt(command, res)
+        return res
 
     def stop(self):
         self.qemu.kill()
         self.stdout_thread.join()
+
+    def rmprompt(self, command, output):
+        # ksh (well, really putc('\n') stupidly adds a second \r
+        command += '\r\r\n'
+        if command not in output:
+            raise ValueError('command not found in output')
+        # there may be whitespace from after the prompt
+        output = output.lstrip()
+        if output.startswith(command):
+            output = output[len(command):]
+        else:
+            raise ValueError('command not found in output')
+        return re.sub(r'ksh>\s*$', '', output)
 
 
 @pytest.fixture

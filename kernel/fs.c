@@ -123,8 +123,8 @@ static int cmd_ls(int argc, char **argv)
 	}
 
 	if (node->type == FSN_LAZY_DIR) {
-		printf("node is lazy dir, executing 0x%x\n",
-		       node->fs->fs_ops->fs_list);
+		/*printf("node is lazy dir, executing 0x%x\n",
+		       node->fs->fs_ops->fs_list);*/
 		node->fs->fs_ops->fs_list(node);
 	}
 	if (node->type != FSN_DIR) {
@@ -133,8 +133,8 @@ static int cmd_ls(int argc, char **argv)
 	}
 	list_for_each_entry(child, &node->children, list)
 	{
-		printf("%c %s\n", child->type == FSN_FILE ? 'f' : 'd',
-		       child->name);
+		printf("%c %s (len=%d)\n", child->type == FSN_FILE ? 'f' : 'd',
+		       child->name, (uint32_t)child->size);
 	}
 
 	return 0;

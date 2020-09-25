@@ -88,6 +88,7 @@ struct fat_fs {
 	struct fs fs;
 	struct blkdev *dev;
 	struct fat_bpb *bpb;
+	uint8_t *fat;
 	union {
 		struct fat_ebpb1216 *bpb1216;
 		struct fat_ebpb32 *bpb32;

@@ -1,4 +1,5 @@
 #include "fat.h"
+#include "alloc.h"
 #include "blk.h"
 #include "kernel.h"
 #include "ksh.h"
@@ -141,7 +142,7 @@ int fat_clusop(struct blkdev *dev, uint64_t block, void *dst, int op, int nblk)
 	for (i = 1; i < nblk; i++) {
 		req = dev->ops->alloc(dev);
 		req->blkidx = block + i;
-		req->type = BLKREQ_READ;
+		req->type = op;
 		req->buf = dst + i * dev->blksiz;
 		req->size = dev->blksiz;
 		list_insert_end(&first->reqlist, &req->reqlist);
@@ -193,6 +194,85 @@ void *fat_read_blockpair(struct blkdev *dev, uint64_t blkno)
 void fat_write_blockpair(struct blkdev *dev, uint64_t blkno, void *buf)
 {
 	fat_clusop(dev, blkno, buf, BLKREQ_READ, 2);
+}
+
+/**
+ * Read the file allocation table entry for cluster `clusno`.
+ *
+ * @param fs FAT12 filesystem to operate on
+ * @param clusno the cluster whose entry should be read (12 bits)
+ * @returns the entry for `clusno` (12 bits)
+ */
+static inline uint16_t fat12_read_fat(struct fat_fs *fs, uint16_t clusno)
+{
+	uint16_t byte = clusno + (clusno >> 1);
+	uint16_t value = *(uint16_t *)&fs->fat[byte];
+	if (clusno & 1) {
+		return value >> 4;
+	} else {
+		return value & 0xFFF;
+	}
+}
+
+/**
+ * Set the in-memory file allocation table entry for cluster `clusno`.
+ *
+ * Returns the index of the first byte of the FAT which was modified. The last
+ * byte of the FAT which was modified is the return value plus one. The caller
+ * must be sure to write all modified blocks back to the filesystem in order for
+ * the in-memory view to become consistent.
+ *
+ * @param fs FAT12 filesystem to operate on
+ * @param clusno the cluster whose entry to write (12 bits)
+ * @param value_to_write the value to write (12 bits)
+ * @returns the index of the first byte modified within the FAT
+ */
+static inline uint16_t fat12_set_fat(struct fat_fs *fs, uint16_t clusno,
+                                     uint16_t value_to_write)
+{
+	uint16_t byte = clusno + (clusno >> 1);
+	uint16_t value = *(uint16_t *)&fs->fat[byte];
+	if (clusno & 1) {
+		value &= 0x000F;
+		value |= (value_to_write << 4);
+	} else {
+		value &= 0xF000;
+		value |= value_to_write;
+	}
+	*(uint16_t *)&fs->fat[byte] = value;
+	return byte;
+}
+
+/**
+ * Write the in-memory file allocation table to disk.
+ *
+ * @param fs FAT12 filesystem to operate on
+ * @param first first byte which was modified
+ * @param last last byte which was modified
+ * @returns 0 or an error code
+ */
+static inline int fat12_write_fat(struct fat_fs *fs, uint16_t first,
+                                  uint16_t last)
+{
+	uint32_t secsiz = sec_bytes(fs);
+	uint32_t first_blk = first / secsiz;
+	uint32_t last_blk = last / secsiz;
+	int rv = 0;
+
+	uint32_t FAT_sector = 1;
+	printf("fat12_write_fat(): first=%d, last=%d, first_blk=%d"
+	       " last_blk=%d\n",
+	       first, last, first_blk, last_blk);
+	rv = fat_clusop(fs->dev, FAT_sector + first_blk,
+	                &fs->fat[first_blk * secsiz], BLKREQ_WRITE,
+	                last_blk - first_blk + 1);
+	if (rv < 0)
+		return rv;
+	FAT_sector += BPB_FATSz(fs);
+	rv = fat_clusop(fs->dev, FAT_sector + first_blk,
+	                &fs->fat[first_blk * secsiz], BLKREQ_WRITE,
+	                last_blk - first_blk + 1);
+	return rv;
 }
 
 int fat_list_chunk(struct fat_fs *fs, struct fs_node *node,
@@ -258,6 +338,7 @@ int fat_update_size_chunk(struct fat_fs *fs, struct fs_node *node,
 			fat_extract_shortname(dirent[i].DIR_Name, name);
 			if (strcmp(name, node->name) == 0) {
 				dirent[i].DIR_FileSize = size;
+				node->size = size;
 				return 1;
 			}
 		}
@@ -267,23 +348,9 @@ int fat_update_size_chunk(struct fat_fs *fs, struct fs_node *node,
 
 uint64_t fat12_next_cluster(struct fat_fs *fs, uint64_t cluster)
 {
-	uint8_t *blk = NULL;
 	uint32_t totcluster = BPB_TotSec(fs) / fs->bpb->BPB_SecPerClus;
-
-	uint32_t offset = (uint32_t)cluster + (uint32_t)cluster / 2;
-	uint32_t blkno =
-	        offset / fs->bpb->BPB_BytsPerSec + fs->bpb->BPB_RsvdSecCnt;
-	uint32_t byte = offset % fs->bpb->BPB_BytsPerSec;
 	uint64_t rv = 0;
-
-	blk = fat_read_blockpair(fs->dev, blkno);
-
-	uint16_t val = *(uint16_t *)&blk[byte];
-	if (cluster & 1) {
-		val >>= 4;
-	} else {
-		val &= 0xFFF;
-	}
+	uint16_t val = fat12_read_fat(fs, cluster);
 
 	if (val >= 2 && val < totcluster) {
 		rv = val;
@@ -302,77 +369,38 @@ uint64_t fat12_next_cluster(struct fat_fs *fs, uint64_t cluster)
 		rv = FAT_EOF;
 	}
 
-	kfree(blk, 2 * fs->bpb->BPB_BytsPerSec);
 	return rv;
 }
 
 int fat12_set_next_cluster(struct fat_fs *fs, uint64_t cluster, uint64_t next)
 {
-	uint8_t *blk = NULL;
-	uint32_t offset = (uint32_t)cluster + (uint32_t)cluster / 2;
-	uint32_t blkno =
-	        offset / fs->bpb->BPB_BytsPerSec + fs->bpb->BPB_RsvdSecCnt;
-	uint32_t byte = offset % fs->bpb->BPB_BytsPerSec;
-	uint64_t rv = 0;
-
-	blk = fat_read_blockpair(fs->dev, blkno);
-
-	uint16_t val = *(uint16_t *)&blk[byte];
-	if (cluster & 1) {
-		val &= 0x000F;
-		val |= ((uint16_t)next) << 4;
-	} else {
-		val &= 0xF000;
-		val |= (uint16_t)next;
-	}
-	*(uint16_t *)&blk[byte] = val;
-	fat_write_blockpair(fs->dev, blkno, blk);
-
-	kfree(blk, 2 * fs->bpb->BPB_BytsPerSec);
-	return rv;
+	uint16_t first = fat12_set_fat(fs, (uint16_t)cluster, (uint16_t)next);
+	return fat12_write_fat(fs, first, first + 1);
 }
 
 uint64_t fat12_alloc_cluster(struct fat_fs *fs, uint64_t prev)
 {
-	uint32_t curblkno = 0; /* initial block is 0, we know FAT will be > 0 */
 	uint32_t totcluster = BPB_TotSec(fs) / fs->bpb->BPB_SecPerClus;
 	uint32_t i;
-	uint8_t *blk = NULL;
+	uint16_t val;
+	int rv;
 
 	for (i = 2; i < totcluster; i++) {
-		uint32_t offset = i + i / 2;
-		uint32_t blkno = offset / fs->bpb->BPB_BytsPerSec +
-		                 fs->bpb->BPB_RsvdSecCnt;
-		uint32_t byte = offset % fs->bpb->BPB_BytsPerSec;
-
-		if (blkno > curblkno) {
-			if (blk)
-				kfree(blk, 1024);
-			blk = fat_read_blockpair(fs->dev, blkno);
-			curblkno = blkno;
-		}
-
-		uint16_t val = *(uint16_t *)&blk[byte];
-		if (i & 1) {
-			val >>= 4;
-		} else {
-			val &= 0xFFF;
-		}
+		val = fat12_read_fat(fs, i);
 
 		if (val == 0) {
-			if (i & 1)
-				val |= 0xFFF0;
-			else
-				val |= 0x0FFF;
-			*(uint16_t *)&blk[byte] = val;
-			fat_write_blockpair(fs->dev, blkno, blk);
-			kfree(blk, 1024);
-			if (prev)
-				fat12_set_next_cluster(fs, prev, i);
-			return i;
+			/* Mark this cluster as allocated, 0xFFF is EOF */
+			rv = fat12_set_next_cluster(fs, i, 0xFFF);
+			if (rv < 0)
+				return FAT_ERR;
+
+			/* Mark i as next sector for prev */
+			rv = fat12_set_next_cluster(fs, prev, i);
+			if (rv < 0)
+				return FAT_ERR;
+			return (uint64_t)i;
 		}
 	}
-	kfree(blk, 1024);
 	return FAT_EOF;
 }
 
@@ -514,7 +542,7 @@ int fat_read(struct file *f, void *dst, size_t amt)
 	while (f->pos < endpos) {
 		blkstart = (uint32_t)f->pos % clusiz;
 		blkend = clusiz;
-		if (endpos < (f->pos - blkstart + clusiz))
+		if (endpos < (f->pos + (blkend - blkstart)))
 			blkend = (uint32_t)endpos % clusiz;
 
 		if (blkstart == 0 && blkend == clusiz) {
@@ -533,9 +561,10 @@ int fat_read(struct file *f, void *dst, size_t amt)
 		bytes += blkend - blkstart;
 		f->pos += blkend - blkstart;
 
-		if (blkend == clusiz)
+		if (blkend == clusiz) {
 			priv->current_cluster =
 			        fat_next_cluster(fs, priv->current_cluster);
+		}
 	}
 
 	rv = bytes;
@@ -569,7 +598,7 @@ int fat_write(struct file *f, const uint8_t *src, size_t count)
 
 	while (bufidx < count) {
 		blkstart = (uint32_t)f->pos % clusiz;
-		blkend = blkstart + count;
+		blkend = blkstart + (count - bufidx);
 		if (blkend > clusiz)
 			blkend = clusiz;
 
@@ -592,11 +621,23 @@ int fat_write(struct file *f, const uint8_t *src, size_t count)
 		f->pos += blkend - blkstart;
 		bufidx += blkend - blkstart;
 		if (blkend == clusiz) {
-			priv->current_cluster =
+			uint64_t next_cluster =
 			        fat_next_cluster(fs, priv->current_cluster);
-			if (priv->current_cluster == FAT_EOF)
-				priv->current_cluster = fat_alloc_cluster(
+
+			/* Allocate a new cluster if we are at the end of file.
+			 * This routine internally updates the file allocation
+			 * table. */
+			if (next_cluster == FAT_EOF) {
+				next_cluster = fat_alloc_cluster(
 				        fs, priv->current_cluster);
+				if (next_cluster == FAT_EOF ||
+				    next_cluster == FAT_ERR) {
+					rv = -EIO;
+					goto out;
+				}
+			}
+
+			priv->current_cluster = next_cluster;
 		}
 	}
 
@@ -651,7 +692,7 @@ uint64_t fat_get_last_clus(struct fs *fs, uint64_t clus, uint32_t size)
 	const unsigned int clusiz = clus_bytes(fs);
 	while (size > clusiz && clus != FAT_EOF) {
 		clus = fat_next_cluster(fs, clus);
-		size -= clusiz;
+		size -= (size > clusiz ? clusiz : size);
 	}
 	if (size > clusiz || clus == FAT_EOF) {
 		puts("BUG: fat_get_last_clus\n");
@@ -687,7 +728,7 @@ void fat_init(struct blkdev *dev)
 {
 	struct blkreq *req;
 	struct fat_fs *fs = kmalloc(sizeof(struct fat_fs));
-	uint32_t RootDirSectors, DataSec, CountofClusters;
+	uint32_t RootDirSectors, DataSec, CountofClusters, FATpg;
 
 	/*
 	 * TODO: check whether BPB_BytsPerSec is less than device block size
@@ -735,6 +776,10 @@ void fat_init(struct blkdev *dev)
 	fs->FatSec2 = fs->FatSec2 + BPB_FATSz(fs);
 	fs->RootSec =
 	        fs->bpb->BPB_RsvdSecCnt + fs->bpb->BPB_NumFATs * BPB_FATSz(fs);
+
+	FATpg = (BPB_FATSz(fs) * sec_bytes(fs)) / 4096 + 1;
+	fs->fat = kmem_get_pages(FATpg * 4096, 0);
+	fat_clusop(dev, 1, fs->fat, BLKREQ_READ, BPB_FATSz(fs));
 
 	printf("  OEMName: \"%s\"\n", fs->bpb->BS_OEMName);
 #define showint(name) printf("  " #name ": %u\n", fs->bpb->name)
