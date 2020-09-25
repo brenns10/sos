@@ -184,18 +184,6 @@ int fat_write_sector(struct fat_fs *fs, uint64_t sector, void *dst)
 	return fat_clusop(fs->dev, sector * nblk, dst, BLKREQ_WRITE, nblk);
 }
 
-void *fat_read_blockpair(struct blkdev *dev, uint64_t blkno)
-{
-	void *buf = kmalloc(2 * dev->blksiz);
-	fat_clusop(dev, blkno, buf, BLKREQ_READ, 2);
-	return buf;
-}
-
-void fat_write_blockpair(struct blkdev *dev, uint64_t blkno, void *buf)
-{
-	fat_clusop(dev, blkno, buf, BLKREQ_READ, 2);
-}
-
 /**
  * Read the file allocation table entry for cluster `clusno`.
  *
@@ -833,30 +821,12 @@ static int cmd_fat(int argc, char **argv)
 static void fat12_iter(struct fat_fs *fs)
 {
 	int32_t freebegin = -1;
-	uint32_t curblkno = 0; /* initial block is 0, we know FAT will be > 0 */
 	uint32_t totcluster = BPB_TotSec(fs) / fs->bpb->BPB_SecPerClus;
-	uint32_t i;
-	uint8_t *blk = NULL;
+	uint16_t i;
+	uint16_t val;
 	printf("  totcluster %u\n", totcluster);
 	for (i = 0; i < totcluster; i++) {
-		uint32_t offset = i + i / 2;
-		uint32_t blkno = offset / fs->bpb->BPB_BytsPerSec +
-		                 fs->bpb->BPB_RsvdSecCnt;
-		uint32_t byte = offset % fs->bpb->BPB_BytsPerSec;
-
-		if (blkno > curblkno) {
-			if (blk)
-				kfree(blk, 1024);
-			blk = fat_read_blockpair(fs->dev, blkno);
-			curblkno = blkno;
-		}
-
-		uint16_t val = *(uint16_t *)&blk[byte];
-		if (i & 1) {
-			val >>= 4;
-		} else {
-			val &= 0xFFF;
-		}
+		val = fat12_read_fat(fs, i);
 
 		if (val == 0) {
 			if (freebegin == -1)
@@ -885,7 +855,6 @@ static void fat12_iter(struct fat_fs *fs)
 		printf("  [%u-%u]: free\n", freebegin, i - 1);
 		freebegin = -1;
 	}
-	kfree(blk, 1024);
 }
 
 static int cmd_fat_iter(int argc, char **argv)
