@@ -210,6 +210,7 @@ uint32_t virtq_alloc_desc(struct virtqueue *virtq, void *addr);
 void virtq_free_desc(struct virtqueue *virtq, uint32_t desc);
 void virtq_add_to_device(volatile virtio_regs *regs, struct virtqueue *virtq,
                          uint32_t queue_sel);
+void virtq_show(struct virtqueue *virtq);
 
 /*
  * General purpose routines for virtio drivers

@@ -102,6 +102,20 @@ void virtq_add_to_device(volatile virtio_regs *regs, struct virtqueue *virtq,
 	WRITE32(regs->QueueReady, 1);
 }
 
+void virtq_show(struct virtqueue *virtq)
+{
+	int count = 0;
+	uint32_t i = virtq->free_desc;
+	printf("Current free_desc: %u, len=%u\n", virtq->free_desc, virtq->len);
+	while (i != virtq->len && count++ <= virtq->len) {
+		printf("  next: %u -> %u\n", i, virtq->desc[i].next);
+		i = virtq->desc[i].next;
+	}
+	if (count > virtq->len) {
+		puts("Overflowed descriptors?\n");
+	}
+}
+
 void virtio_check_capabilities(virtio_regs *regs, struct virtio_cap *caps,
                                uint32_t n, char *whom)
 {

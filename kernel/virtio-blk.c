@@ -122,18 +122,19 @@ static void virtio_blk_isr(uint32_t intid, struct ctx *ctx)
 
 	WRITE32(dev->regs->InterruptACK, READ32(dev->regs->InterruptStatus));
 
-	for (i = dev->virtq->seen_used; i != dev->virtq->used->idx;
+	for (i = dev->virtq->seen_used; i != (dev->virtq->used->idx % len);
 	     i = wrap(i + 1, len)) {
 		virtio_blk_handle_used(dev, i);
 	}
-	dev->virtq->seen_used = dev->virtq->used->idx;
+	dev->virtq->seen_used = dev->virtq->used->idx % len;
 
 	gic_end_interrupt(intid);
 }
 
 static void virtio_blk_send(struct virtio_blk *blk, struct virtio_blk_req *hdr)
 {
-	blk->virtq->avail->ring[blk->virtq->avail->idx] = hdr->descriptor;
+	blk->virtq->avail->ring[blk->virtq->avail->idx % blk->virtq->len] =
+	        hdr->descriptor;
 	mb();
 	blk->virtq->avail->idx += 1;
 	mb();
@@ -157,6 +158,7 @@ static int virtio_blk_status(struct blkdev *dev)
 	WRITE32(blkdev->regs->QueueSel, 0);
 	mb();
 	printf("    ready = 0x%x\n", READ32(blkdev->regs->QueueReady));
+	virtq_show(blkdev->virtq);
 	return 0;
 }
 

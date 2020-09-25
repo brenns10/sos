@@ -160,15 +160,8 @@ def test_multi_block_file(raw_vm, f12disk):
 
     # Add contents to the file
     string = '1234567890' * 12
-    sequence = [8, 8]
-    # TODO - there is a bug somewhere in the virtio-blk driver in which the
-    # OS hangs after roughly 10 "addline" calls. Obviously I want to address
-    # this but first I would like functional FAT tests. So, work around this by
-    # rebooting a few times as we do these operations.
-    for count in sequence:
-        for _ in range(count):
-            vm.cmd(f'fs addline /EMPTY.TXT {string}')
-        boot()
+    for _ in range(16):
+        vm.cmd(f'fs addline /EMPTY.TXT {string}')
 
     # import os
     # os.system(f'cp {str(f12disk)} mydisk')
