@@ -119,7 +119,7 @@ class SosVirtualMachine(object):
         """
         Send a command, and return immediately without waiting for any output.
         """
-        self.qemu.stdin.write(command + '\r\n')
+        self.qemu.stdin.write(command + '\r')
         self.qemu.stdin.flush()
 
     def cmd(self, command, pattern=None, timeout=None, rmprompt=False):

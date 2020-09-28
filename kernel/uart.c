@@ -3,6 +3,7 @@
  */
 #include "config.h"
 #include "kernel.h"
+#include "ldisc.h"
 #include "sync.h"
 
 #define UART_INTID 33
@@ -48,9 +49,10 @@ typedef volatile struct __attribute__((packed)) {
 } pl011_registers;
 
 uint32_t uart_base = CONFIG_UART_BASE;
-struct process *waiting = NULL;
 DECLARE_SPINSEM(uart_sem, 1);
 #define base ((pl011_registers *)uart_base)
+struct ldisc_line_edit uart_lle = { 0 };
+struct file *uart_file = NULL;
 
 void putc(char c)
 {
@@ -103,55 +105,43 @@ int getc_spinning(void)
 
 int getc_blocking(void)
 {
-	int rv, flags;
-	if (waiting)
-		return -EBUSY;
+	int rv;
+	char c;
 
-	spin_acquire_irqsave(&uart_sem, &flags);
-	rv = try_getc();
-	while (rv == -1) {
-		current->flags.pr_ready = 0;
-		waiting = current;
-		spin_release_irqrestore(&uart_sem, &flags);
-		schedule();
-		spin_acquire_irqsave(&uart_sem, &flags);
-		rv = try_getc();
+	rv = uart_file->ops->read(uart_file, &c, 1);
+	if (rv == 1) {
+		return (int)c;
+	} else {
+		return rv;
 	}
-	spin_release_irqrestore(&uart_sem, &flags);
-	return rv;
 }
 
 void uart_isr(uint32_t intid, struct ctx *ctx)
 {
 	uint32_t reg;
 
-	/* Make sure that this is an RX interrupt */
 	reg = READ32(base->UARTMIS);
-
 	if (reg != UARTIMSC_UART_RXIM) {
 		puts("BAD UART INTERRUPT\n");
 		goto out;
 	}
 
-	if (!has_saved) {
-		/* Peek and see what we got to check for errors */
-		reg = READ32(base->UARTDR);
-		if (reg & UARTDR_BE) {
-			/* Break error means we should panic */
-			panic(ctx);
-		} else if (reg & UARTDR_FLAGS) {
-			/* Report other errors */
-			printf("uart: got error in rx, UARTDR=0x%x\n", reg);
-			goto out;
-		}
-		saved = reg & UARTDR_DATA;
-		has_saved = true;
+	reg = READ32(base->UARTDR);
+	if (reg & UARTDR_BE) {
+		panic(ctx);
+		goto out;
+	} else if (reg & UARTDR_FLAGS) {
+		printf("uart: got error in rx, UARTDR=0x%x\n", reg);
+		goto out;
 	}
 
-	if (waiting) {
-		/* get the getc return value and mark process for return */
-		waiting->flags.pr_ready = 1;
-		waiting = NULL;
+	/* Deliver to the line discipline */
+	lle_char(&uart_lle, reg & UARTDR_DATA);
+
+	/* Deliver any additional characters */
+	while (!(READ32(base->UARTFR) & UARTFR_RXFE)) {
+		reg = READ32(base->UARTDR);
+		lle_char(&uart_lle, reg & UARTDR_DATA);
 	}
 
 out:
@@ -184,6 +174,12 @@ void uart_init(void)
 
 void uart_init_irq(void)
 {
+	/* Initialize the UART file */
+	uart_lle.dest = flip_file_new();
+	uart_lle.fb = flip_buffer_new();
+	uart_lle.state = LS_NORMAL;
+	uart_file = uart_lle.dest;
+
 	/* Half full TX/RX interrupt */
 	WRITE32(base->UARTIFLS, 0x12);
 

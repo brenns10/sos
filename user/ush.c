@@ -196,9 +196,8 @@ static void getline(void)
 
 	do {
 		input[i++] = getchar();
-		putc(input[i - 1]);
-	} while (input[i - 1] != '\r' && i < sizeof(input));
-	putc('\n');
+	} while (input[i - 1] != '\n' && input[i - 1] != '\r' &&
+	         i < sizeof(input));
 	input[i - 1] = '\0';
 }
 

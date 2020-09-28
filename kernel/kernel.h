@@ -19,6 +19,9 @@
 /* Useful macros for the kernel to use */
 #define nelem(x) (sizeof(x) / sizeof(x[0]))
 
+#define min(x, y) ((x) < (y) ? (x) : (y))
+#define max(x, y) ((x) < (y) ? (y) : (x))
+
 #define ALIGN(x, a)           __ALIGN_MASK(x, (typeof(x))(a)-1)
 #define __ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
 

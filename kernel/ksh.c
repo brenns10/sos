@@ -148,9 +148,8 @@ static void getline(void *arg)
 			input[i++] = getc_spinning();
 		else
 			input[i++] = getc_blocking();
-		putc(input[i - 1]);
-	} while (input[i - 1] != '\r' && i < sizeof(input));
-	putc('\n');
+	} while (input[i - 1] != '\n' && input[i - 1] != '\r' &&
+	         i < sizeof(input));
 	input[i - 1] = '\0';
 }
 

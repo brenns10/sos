@@ -55,10 +55,10 @@ void main(uint32_t phys)
 	dtb_init(0x44000000); /* TODO: pass this addr from startup.s */
 	gic_init();
 	timer_init();
+	fs_init(); /* Initialize file slab before uart file is created */
 	uart_init_irq();
 	packet_init();
 	blk_init();
-	fs_init();
 	virtio_init();
 	cxtk_init();
 

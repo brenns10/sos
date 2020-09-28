@@ -28,7 +28,7 @@ struct file_ops {
 	int (*close)(struct file *f);
 };
 
-#define FILE_PRIVATE_SIZE 16
+#define FILE_PRIVATE_SIZE 64
 struct file {
 	struct file_ops *ops;
 	struct fs_node *node;
@@ -73,3 +73,5 @@ void fs_reset_dir(struct fs_node *node);
 int fs_resolve(const char *path, struct fs_node **out);
 struct file *fs_alloc_file(void);
 void fs_free_file(struct file *f);
+
+extern struct file *uart_file;
