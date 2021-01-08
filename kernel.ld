@@ -8,7 +8,7 @@
  */
 ENTRY(_start)
 SECTIONS {
-	. = 0x00000000;
+	. = 0x00008000;
 	code_start = .;
 	.startup . : {
 		kernel/startup.o(*)

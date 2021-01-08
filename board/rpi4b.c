@@ -26,14 +26,6 @@ void board_init(void)
 	uint32_t reg;
 
 	/*
-	 * Enable caches
-	 */
-	get_cpreg(reg, c1, 0, c0, 0);
-	reg |= (1 << 2);  // cache
-	reg |= (1 << 12); // icache
-	set_cpreg(reg, c1, 0, c0, 0);
-
-	/*
 	 * Invalidate TLB - this is just superstition on my part after enabling
 	 * the caches. It's all in the hopes of getting the strex instructior to
 	 * work, but so far nothing has worked.
@@ -44,6 +36,18 @@ void board_init(void)
 	mbox_remap();
 
 	led_act_on();
+
+	/*
+	 * Enable caches.
+	 *
+	 * Do this AFTER the remapping of gpio and mbox. Since I have not
+	 * properly implemented cache semantics for page table updates, any
+	 * remapping done once caches are enabled will go horribly wrong.
+	 */
+	get_cpreg(reg, c1, 0, c0, 0);
+	reg |= (1 << 2);  // cache
+	reg |= (1 << 12); // icache
+	set_cpreg(reg, c1, 0, c0, 0);
 
 	ksh(KSH_SPIN);
 }

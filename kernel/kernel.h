@@ -118,6 +118,7 @@ void kmem_map_pages(uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs);
 void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys,
                     uint32_t len, uint32_t attrs);
 uint32_t kmem_remap_periph(uint32_t addr);
+uint32_t kmem_remap_periph_attr(uint32_t addr, uint32_t attr);
 
 /*
  * Unmap memory
@@ -165,8 +166,8 @@ extern void *kern_virt_allocator;
 
 /* access control for second level */
 #define NOT_GLOBAL    (0x1 << 11)
-#define PRW_UNA       (SLD__AP0)            /* AP=0b001 */
-#define PRW_URO       (SLD__AP1)            /* AP=0b010 */
+#define PRW_UNA       (SLD__AP0) /* AP=0b001 */
+#define PRW_URO       (SLD__AP1) /* AP=0b010 */
 #define PRW_URW       (SLD__AP1 | SLD__AP0) /* AP=0b011 */
 #define PRO_UNA       (SLD__AP2 | SLD__AP0) /* AP=0b101 */
 #define PRO_URO       (SLD__AP2 | SLD__AP1) /* AP=0b110 */
@@ -180,10 +181,10 @@ extern void *kern_virt_allocator;
  *
  * Normal memory can further select cache attributes.
  */
-#define DEVICE_SHAREABLE    (SLD__B)
-#define DEVICE_NONSHAREABLE (SLD__TEX1)
-#define NORMAL_SHAREABLE    (SLD__TEX2 | SLD__S)
-#define NORMAL_NONSHAREABLE (SLD__TEX2)
+#define DEVICE_SHAREABLE    (0)
+#define DEVICE_NONSHAREABLE (0)
+#define NORMAL_SHAREABLE    (SLD__TEX0 | SLD__C | SLD__B | SLD__S)
+#define NORMAL_NONSHAREABLE (SLD__TEX0 | SLD__C | SLD__B)
 #define CACHE_INNER_NC      (0)
 #define CACHE_INNER_WBWA    (SLD__TEX0)
 #define CACHE_INNER_WT      (SLD__TEX1)
@@ -195,7 +196,7 @@ extern void *kern_virt_allocator;
 
 /* Default for kernel memory is to be shareable and non cacheable. Someday I'll
  * think about enabling the caches. */
-#define KMEM_ATTR_DEFAULT (NORMAL_SHAREABLE | CACHE_INNER_WB | CACHE_OUTER_WB)
+#define KMEM_ATTR_DEFAULT (NORMAL_SHAREABLE)
 #define KMEM_PERM_DATA    (PRW_UNA | EXECUTE_NEVER)
 #define KMEM_PERM_CODE    (PRO_UNA)
 
