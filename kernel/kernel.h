@@ -85,6 +85,7 @@ void uart_init_irq(void);
 void uart_remap(void);
 void uart_wait(struct process *p);
 void uart_isr(uint32_t intid, struct ctx *ctx);
+void uart_set_echo(bool value);
 uint32_t snprintf(char *buf, uint32_t size, const char *format, ...);
 uint32_t printf(const char *format, ...);
 

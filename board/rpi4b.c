@@ -36,6 +36,7 @@ void board_init(void)
 	mbox_remap();
 
 	led_act_on();
+	uart_set_echo(true);
 
 	/*
 	 * Enable caches.

@@ -53,6 +53,7 @@ DECLARE_SPINSEM(uart_sem, 1);
 #define base ((pl011_registers *)uart_base)
 struct ldisc_line_edit uart_lle = { 0 };
 struct file *uart_file = NULL;
+bool echo = false;
 
 void putc(char c)
 {
@@ -93,6 +94,8 @@ int getc_spinning(void)
 	do {
 		rv = try_getc();
 	} while (rv == -1);
+	if (echo)
+		putc(rv);
 	return rv;
 }
 
@@ -107,6 +110,11 @@ int getc_blocking(void)
 	} else {
 		return rv;
 	}
+}
+
+void uart_set_echo(bool value)
+{
+	echo = value;
 }
 
 void uart_isr(uint32_t intid, struct ctx *ctx)
