@@ -157,7 +157,9 @@ static void map_page(struct mem *mem, uint32_t virt, uint32_t phys,
 	if (mem->strategy == STRAT_SHADOW)
 		attrs |= SLD_NG;
 
-	second[second_idx] = (phys & 0xFFFFF000) | attrs | SLD_SMALL;
+	second = second + second_idx;
+	*second = (phys & 0xFFFFF000) | attrs | SLD_SMALL;
+	DCCIMVAC(second);
 }
 
 void umem_map_page(struct process *p, uint32_t virt, uint32_t phys,
@@ -176,6 +178,7 @@ void kmem_map_page(uint32_t virt, uint32_t phys, uint32_t attrs)
 	mem.base = first_level_table;
 	mem.strategy = STRAT_KERNEL;
 	map_page(&mem, virt, phys, attrs);
+	tlbiall(); /* invalidate tlb, way overkill but good enough */
 }
 
 /**
@@ -235,8 +238,11 @@ static bool unmap_second(uint32_t *second, uint32_t start, uint32_t len)
 	uint32_t i;
 	uint32_t base = (start >> 12) & 0xFF;
 	uint32_t num_descriptors = (len >> 12) & 0xFF;
+	uint32_t *addr;
 	for (i = base; i < base + num_descriptors; i++) {
 		second[i] = 0;
+		addr = &second[i];
+		DCCIMVAC(addr); /* invalidate cache */
 	}
 
 	/*
@@ -300,6 +306,8 @@ static void unmap_pages(struct mem *mem, uint32_t start, uint32_t len)
 			destroy_second(mem, first_idx);
 		}
 	}
+	tlbiall(); /* invalidate tlb, this is wayy overkill but good enough for
+	              now */
 }
 
 void umem_unmap_pages(struct process *p, uint32_t virt, uint32_t len)

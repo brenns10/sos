@@ -23,8 +23,8 @@ struct ctx {
 	uint32_t spsr;
 };
 
-#define get_sp(dst) __asm__ __volatile__("mov %[rd], sp" : [ rd ] "=r"(dst) : :)
-#define get_fp(dst) __asm__ __volatile__("mov %[rd], fp" : [ rd ] "=r"(dst) : :)
+#define get_sp(dst) __asm__ __volatile__("mov %[rd], sp" : [rd] "=r"(dst) : :)
+#define get_fp(dst) __asm__ __volatile__("mov %[rd], fp" : [rd] "=r"(dst) : :)
 
 #define ARM_MODE_USER 0x10U
 #define ARM_MODE_FIQ  0x11U
@@ -42,7 +42,7 @@ struct ctx {
 #define get_cpreg(dst, CRn, op1, CRm, op2)                                     \
 	__asm__ __volatile__("mrc p15, " #op1 ", %[rd], " #CRn ", " #CRm       \
 	                     ", " #op2                                         \
-	                     : [ rd ] "=r"(dst)                                \
+	                     : [rd] "=r"(dst)                                  \
 	                     :                                                 \
 	                     :)
 
@@ -52,22 +52,26 @@ struct ctx {
 #define set_cpreg(src, CRn, op1, CRm, op2)                                     \
 	__asm__ __volatile__("mcr p15, " #op1 ", %[rs], " #CRn ", " #CRm       \
 	                     ", " #op2                                         \
-	                     : [ rs ] "+r"(src)                                \
+	                     : [rs] "+r"(src)                                  \
 	                     :                                                 \
 	                     :)
+
+#define set_cpreg2(src, opc1, CRn, CRm, opc2)                                  \
+	set_cpreg(src, CRn, opc1, CRm, opc2)
+#define DCCIMVAC(src) set_cpreg2(src, 0, c7, c14, 1)
 
 /**
  * Get 64-bit cpreg
  */
 #define get_cpreg64(dstlo, dsthi, CRm, op3)                                    \
 	__asm__ __volatile__("mrrc p15, " #op3 ", %[Rt], %[Rt2], " #CRm        \
-	                     : [ Rt ] "=r"(dstlo), [ Rt2 ] "=r"(dsthi)         \
+	                     : [Rt] "=r"(dstlo), [Rt2] "=r"(dsthi)             \
 	                     :                                                 \
 	                     :)
 
 #define set_cpreg64(srclo, srchi, CRm, op3)                                    \
 	__asm__ __volatile__("mcrr p15, " #op3 ", %[Rt], %[Rt2], " #CRm        \
-	                     : [ Rt ] "+r"(srclo), [ Rt2 ] "+r"(srchi)         \
+	                     : [Rt] "+r"(srclo), [Rt2] "+r"(srchi)             \
 	                     :                                                 \
 	                     :)
 
@@ -75,17 +79,19 @@ struct ctx {
  * Load SPSR
  */
 #define get_spsr(dst)                                                          \
-	__asm__ __volatile__("mrs %[rd], spsr" : [ rd ] "=r"(dst) : :)
+	__asm__ __volatile__("mrs %[rd], spsr" : [rd] "=r"(dst) : :)
 
 /**
  * Load CPSR
  */
 #define get_cpsr(dst)                                                          \
-	__asm__ __volatile__("mrs %[rd], cpsr" : [ rd ] "=r"(dst) : :)
+	__asm__ __volatile__("mrs %[rd], cpsr" : [rd] "=r"(dst) : :)
 
 #define mb()                __asm__ __volatile__("dsb")
 #define interrupt_disable() __asm__ __volatile__("cpsid i")
 #define interrupt_enable()  __asm__ __volatile__("cpsie i")
+
+#define cpu_infinite_loop() __asm__ __volatile__("subs pc, pc, #8")
 
 #define CPSR_I (1 << 7)
 static inline bool interrupts_enabled(void)
