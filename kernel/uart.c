@@ -80,15 +80,8 @@ void nputs(char *string, int n)
 	preempt_enable();
 }
 
-uint8_t saved;
-uint8_t has_saved;
-
 int try_getc(void)
 {
-	if (has_saved) {
-		has_saved = 0;
-		return saved;
-	}
 	if (READ32(base->UARTFR) & UARTFR_RXFE)
 		return -1;
 	return READ32(base->UARTDR) & UARTDR_DATA;
