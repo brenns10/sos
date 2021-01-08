@@ -56,8 +56,8 @@ suitable serial terminal program. My picocom invocation:
 The file sometimes changes, but the baud rate is very important!
 
 
-Raspberry Pi Setup
-------------------
+Raspberry Pi SD Card & Firmware
+-------------------------------
 
 The Raspberry Pi boots (primarily) from an SD card. The SD card should be
 FAT(32) formatted and contain several important firmware and configuration
@@ -87,16 +87,55 @@ the SD card slot, let alone a bootable image. This is super useful for
 debugging: you'll know that your serial cable is working, ruling out a hardware
 issue!
 
-From there, you need to copy two SOS specific files onto the SD card:
 
-1. A config.txt file, located in this same directory `rpiconfig.txt`. Be sure to
-   rename it config.txt within the SD card. There are several very important
-   configuration values in that file, it is very much required.
-2. The kernel.bin file, produced by building `make config_rpi4b all`. I rename
-   this to `sos.bin` within the SD card.
+Bootloader
+----------
 
-At this point, you should be able to boot the OS (to whatever level of
-functionality I have implemented).
+From here, you could copy the `kernel.bin` into the sdcard (naming it
+`kernel.img`), but copying it over every time you change the code and recompile
+would be really tedious -- trust me, I've done it _a lot._
+
+Instead, I use a serial bootloader to load SOS. The original Pi bootloader is
+called raspbootin, but it was not updated with Pi 4 support. So, for the acutal
+bootloader implementation, we use [imgrecv][imgrecv]. Clone the repo and use the
+command to build it:
+
+    cd raspi
+    # may need to tweak ARM32CHAIN depending on compiler
+    make ARM32CHAIN=arm-none-eabi- rpi4_32
+
+Copied this to the sdcard named `imgrecv.bin`. Then, I put the following
+contents into `config.txt`:
+
+    kernel=imgrecv.bin
+    enable_jtag_gpio=1
+
+With the bootloader, rather than using picocom, you need to use "raspbootcom" to
+connect to the serial port. This interprets special escape sequences sent by the
+bootloader, and sends the kernel to the bootloader. Clone
+[raspbootcom][raspbootcom], and use the following:
+
+    cd raspbootcom
+    make
+
+Then, run raspbootcom, with the SD card in the Pi, and the Pi connected via
+serial.
+
+    ./raspbootcom /dev/ttyUSB0 path/to/sos/kernel.bin
+
+[imgrecv]: https://gitlab.com/brenns10/imgrecv
+[raspbootcom]: https://github.com/brenns10/raspbootin
+
+Plug the Pi into power and you should see the same bootup messages, followed by
+a sequence of imgrecv/raspbootin messages. Then SOS will boot!
+
+    Starting start4.elf @ 0xfec00200 partition 0
+
+    imgrecv: ready
+
+    ### sending kernel ../../sos/kernel.bin [122572 byte]
+    ### finished sending
+    imgrecv: launch bin
 
 
 Debugging Setup
@@ -107,40 +146,51 @@ For debugging, you'll need the following connections with your JTAG cable:
 * yellow -> pin 37 (JTAG TDI)
 * orange -> pin 22 (JTAG TCK)
 * green -> pin 18 (JTAG TDO)
-* blue -> pin 16 (JTAG RTCK)
-* grey -> pin 15 (JTAG TRST)
 * brown -> pin 13 (JTAG TMS)
+* grey -> pin 15 (JTAG TRST)
+* purple -> pin 16 (JTAG RTCK)
 
-Furthermore, you'll need to clone the latest and greatest OpenOCD (use master,
-don't try to use a versioned release). Configure and compile it. I had to use
-the following configure invocation because my compiler is newer and has more
-compiler warnings (which become errors in their build):
+Install the absolute latest version of OpenOCD you can find. I have the Arch
+`openocd-git` AUR package installed -- version 0.11.0, sha gc69b4deae.
 
-    /configure "CFLAGS=-Wno-implicit-fallthrough -Wno-tautological-compare -Wno-format-overflow -Wno-cpp" --enable-cmsis-dap
+To test it all out, use `make jtag`. If all works, you should see something like
+this:
 
-You'll need to run openocd as root (or add a udev rule, I forget tbh).
+    $ make jtag
+    Launching OpenOCD. Once this succeeds, go run "make hwgdb" in a separate
+    terminal.
+    openocd -f debug/rpi4b/c232hm.cfg -f debug/rpi4b/openocd.cfg
+    Open On-Chip Debugger 0.11.0-rc1+dev-00010-gc69b4deae-dirty (2021-01-07-21:31)
+    Licensed under GNU GPL v2
+    For bug reports, read
+            http://openocd.org/doc/doxygen/bugs.html
+    DEPRECATED! use 'adapter speed' not 'adapter_khz'
+    Warn : DEPRECATED! use '-baseaddr' not '-ctibase'
+    Warn : DEPRECATED! use '-baseaddr' not '-ctibase'
+    Warn : DEPRECATED! use '-baseaddr' not '-ctibase'
+    Warn : DEPRECATED! use '-baseaddr' not '-ctibase'
+    Info : Listening on port 6666 for tcl connections
+    Info : Listening on port 4444 for telnet connections
+    Info : clock speed 1000 kHz
+    Info : JTAG tap: bcm2711.tap tap/device found: 0x4ba00477 (mfg: 0x23b (ARM Ltd), part: 0xba00, ver: 0x4)
+    Warn : JTAG tap: bcm2711.tap       UNEXPECTED: 0x4ba00477 (mfg: 0x23b (ARM Ltd), part: 0xba00, ver: 0x4)
+    Error: JTAG tap: bcm2711.tap  expected 1 of 1: 0xf8600077 (mfg: 0x03b (Integrated CMOS (Vertex)), part: 0x8600, ver: 0xf)
+    Error: Trying to use configured scan chain anyway...
+    Warn : Bypassing JTAG setup events due to errors
+    Info : bcm2711.a72.0: hardware has 6 breakpoints, 4 watchpoints
+    Info : bcm2711.a72.1: hardware has 6 breakpoints, 4 watchpoints
+    Info : bcm2711.a72.2: hardware has 6 breakpoints, 4 watchpoints
+    Info : bcm2711.a72.3: hardware has 6 breakpoints, 4 watchpoints
+    Info : starting gdb server for bcm2711.a72.0 on 3333
+    Info : Listening on port 3333 for gdb connections
+    Info : starting gdb server for bcm2711.a72.1 on 3334
+    Info : Listening on port 3334 for gdb connections
+    Info : starting gdb server for bcm2711.a72.2 on 3335
+    Info : Listening on port 3335 for gdb connections
+    Info : starting gdb server for bcm2711.a72.3 on 3336
+    Info : Listening on port 3336 for gdb connections
 
-You'll next need my configuration file, which I've stored in the `debug/rpi4b`
-folder as well, named openocd.cfg. Then, you'll be able to run these commands:
-
-    # you can just run openocd from the build directory, no need to install
-    sudo src/openocd -f debug/rpi4b/openocd.cfg
-
-    # in another terminal
-    arm-none-eabi-gdb -x debug/rpi4b/hwgdb
-
-Some notes about JTAG debugging in this particular instance:
-
-1. It seems that anything involving a breakpoint is not supported. GDB
-   implements the break point by inserting a halt instruction, but it doesn't
-   seem to know how to remove the instruction! This is probably a bug with my
-   openocd / gdb configuration, but I don't know how to fix it.
-
-   You can work around this by sticking infinite loops into your code. It's
-   messy but it works.
-
-2. You must wait until the board finishes printing bootloader uart before
-   starting openocd.
+You can now use `make hwgdb` to connect and get started debugging.
 
 
 Documents & Resources

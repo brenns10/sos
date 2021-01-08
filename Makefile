@@ -197,3 +197,13 @@ kernel/configvals.h:
 	@echo "  make config_rpi4b"
 	@echo
 	@exit 1
+
+.PHONY: jtag
+jtag:
+	@echo Launching OpenOCD. Once this succeeds, go run \"make hwgdb\" in a separate
+	@echo terminal.
+	openocd -f debug/rpi4b/c232hm.cfg -f debug/rpi4b/openocd.cfg
+
+.PHONY: hwgdb
+hwgdb:
+	$(GDB) -x debug/rpi4b/hwgdb
