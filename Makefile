@@ -112,7 +112,7 @@ kernel/rawdata.o: user/salutations.bin user/hello.bin user/ush.bin
 
 # To build a userspace program:
 user/%.elf:
-	$(LD) -T user.ld $^ -o $@
+	$(LD) -T user.ld $^ -o $@ -M > $(patsubst %.elf,%.map,$@)
 user/%.bin: user/%.elf
 	$(OBJCOPY) -O binary $< $@
 
