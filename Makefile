@@ -198,6 +198,13 @@ kernel/configvals.h:
 	@echo
 	@exit 1
 
+TTY = /dev/ttyUSB1
+.PHONY: pi-serial
+pi-serial: kernel.bin
+	@echo Launching raspbootcom!
+	make -C submodules/raspbootin/raspbootcom
+	submodules/raspbootin/raspbootcom/raspbootcom $(TTY) kernel.bin
+
 .PHONY: jtag
 jtag:
 	@echo Launching OpenOCD. Once this succeeds, go run \"make hwgdb\" in a separate

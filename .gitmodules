@@ -1,0 +1,3 @@
+[submodule "submodules/raspbootin"]
+	path = submodules/raspbootin
+	url = git@github.com:brenns10/raspbootin
