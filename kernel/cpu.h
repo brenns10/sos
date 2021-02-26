@@ -58,8 +58,8 @@ struct ctx {
 
 #define set_cpreg2(src, opc1, CRn, CRm, opc2)                                  \
 	set_cpreg(src, CRn, opc1, CRm, opc2)
-#define DCCIMVAC(src) set_cpreg2(src, 0, c7, c14, 1)
-
+#define get_cpreg2(src, opc1, CRn, CRm, opc2)                                  \
+	get_cpreg(src, CRn, opc1, CRm, opc2)
 /**
  * Get 64-bit cpreg
  */
@@ -121,4 +121,38 @@ static inline void tlbiall(void)
 {
 	uint32_t reg = 0;
 	set_cpreg(reg, c8, 0, c7, 0);
+}
+
+static inline uint32_t get_sctlr()
+{
+	uint32_t reg;
+	get_cpreg2(reg, 0, c1, c0, 0);
+	return reg;
+}
+
+/**
+ * Data Cache Clean and Invalidate by Virtual Address
+ * -> write back and invalidate cache for src
+ */
+static inline void DCCIMVAC(void *src)
+{
+	set_cpreg2(src, 0, c7, c14, 1);
+}
+
+/**
+ * Instruction Cache Invalidate by Virtual Address
+ * -> not sure why you'd want this to be honest
+ */
+static inline void ICIMVAU(void *src)
+{
+	set_cpreg2(src, 0, c7, c5, 1);
+}
+
+/**
+ * Instruction Cache Invalidate All
+ */
+static inline void ICIALLU(void)
+{
+	uint32_t val = 1; /* don't actually care */
+	set_cpreg2(val, 0, c7, c5, 0);
 }
