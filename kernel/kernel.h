@@ -370,3 +370,32 @@ void dhcp_kthread_start(void);
 void backtrace(void);
 void backtrace_ctx(struct ctx *ctx);
 void panic(struct ctx *ctx);
+
+struct field {
+	const char *name;
+	uint32_t mask;
+	uint8_t shift;
+};
+
+#define FIELD_BIT(na, no)                                                      \
+	{                                                                      \
+		.name = na, .mask = (1 << no), .shift = no                     \
+	}
+#define FIELD_2BIT(na, no)                                                     \
+	{                                                                      \
+		.name = na, .mask = (3 << no), .shift = no                     \
+	}
+#define FIELD_3BIT(na, no)                                                     \
+	{                                                                      \
+		.name = na, .mask = (7 << no), .shift = no                     \
+	}
+#define FIELD_4BIT(na, no)                                                     \
+	{                                                                      \
+		.name = na, .mask = (15 << no), .shift = no                    \
+	}
+#define FIELD_MASK(na, msk)                                                    \
+	{                                                                      \
+		.name = na, .mask = msk, .shift = 0                            \
+	}
+
+void dissect_fields(uint32_t val, struct field *fields, int n);

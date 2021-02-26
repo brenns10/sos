@@ -75,3 +75,11 @@ void panic(struct ctx *ctx)
 	for (;;) {
 	}
 }
+
+void dissect_fields(uint32_t val, struct field *fields, int n)
+{
+	for (unsigned int i = 0; i < n; i++) {
+		printf("   %s: 0x%x\n", fields[i].name,
+		       (val & fields[i].mask) >> fields[i].shift);
+	}
+}
