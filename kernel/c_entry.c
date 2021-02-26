@@ -94,12 +94,14 @@ void fiq(struct ctx *ctx)
 	puts("FIQ!\n");
 }
 
-void undefined(struct ctx *ctx)
+int undefined(struct ctx *ctx, uint32_t *pc)
 {
-	printf("Undefined instruction at 0x%x\n", ctx->ret);
+	uint32_t mode;
+	get_spsr(mode);
+	printf("Undefined instruction, LR=0x%x, SPSR=0x%x\n", ctx->ret, mode);
+	printf("Instruction 0x%x is 0x%x\n", &pc[-1], pc[-1]);
 	cxtk_report();
 	backtrace_ctx(ctx);
 	puts("END OF FAULT REPORT\n");
-	for (;;) {
-	}
+	return 0;
 }
