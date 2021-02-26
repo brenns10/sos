@@ -133,6 +133,8 @@ void umem_unmap_pages(struct process *p, uint32_t virt, uint32_t len);
 void kmem_print(uint32_t start, uint32_t stop);
 void umem_print(struct process *p, uint32_t start, uint32_t stop);
 
+void vmem_diag(uint32_t addr);
+
 extern void *phys_allocator;
 extern void *kern_virt_allocator;
 

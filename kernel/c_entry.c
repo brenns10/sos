@@ -6,6 +6,7 @@ void print_fault(uint32_t fsr, uint32_t far, struct ctx *ctx)
 	uint32_t mode;
 	get_spsr(mode);
 	printf("Fault occurred with PSR: 0x%x\n", mode);
+	vmem_diag(far);
 	switch (fsr & 0x40F) {
 	case 0x5:
 		printf("Translation fault (section): 0x%x\n", far);

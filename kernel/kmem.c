@@ -218,11 +218,72 @@ uint32_t kmem_lookup_phys(void *virt_ptr)
 	return lookup_phys(&mem, virt_ptr);
 }
 
+static struct field sld_small_page_fields[] = {
+	FIELD_BIT("B", 2),
+	FIELD_BIT("C", 3),
+	FIELD_2BIT("AP[1:0]", 4),
+	FIELD_3BIT("TEX[2:0]", 6),
+	FIELD_BIT("AP[2]", 9),
+	FIELD_BIT("S", 10),
+	FIELD_BIT("nG", 11),
+	FIELD_MASK("S.P. Base", 0xFFFFF000),
+};
+static struct field fld_ttable_fields[] = {
+	FIELD_BIT("PXN", 2),
+	FIELD_BIT("NS", 3),
+	FIELD_BIT("RS0", 4),
+	FIELD_4BIT("Domain", 5),
+	FIELD_BIT("impl. defined", 6),
+	FIELD_MASK("Table Base", 0xFFFFFC00),
+};
+
+void vmem_diag(uint32_t addr)
+{
+	uint32_t first_idx, second_idx, *second, phys;
+	struct mem mem;
+	printf("vmem diagnostic of 0x%x:\n", addr);
+	if (addr < 0x40000000) {
+		puts("  address kind: kernel\n");
+		mem.base = first_level_table;
+		mem.strategy = STRAT_KERNEL;
+	} else {
+		puts("  address kind: process\n");
+		mem.base = current->first;
+		mem.shadow = current->shadow;
+		mem.strategy = STRAT_SHADOW;
+		printf("  shadow table: 0x%x\n", mem.shadow);
+	}
+	printf("  using first level table: 0x%x\n", mem.base);
+	first_idx = addr >> 20;
+	second_idx = (addr >> 12) & 0xFF;
+	printf("  index into first level table: 0x%x (addr >> 20)\n", first_idx);
+	printf("  index into second level table: 0x%x ((addr >> 12) & 0xFF)\n", second_idx);
+	printf("  FL table entry: 0x%x\n", mem.base[first_idx]);
+	dissect_fields(mem.base[first_idx], fld_ttable_fields, nelem(fld_ttable_fields));
+	second = get_second(&mem, first_idx);
+	if (!second) {
+		puts("  This FL entry does not point to a SL table\n");
+		return;
+	}
+	printf("  virtual address of SL: 0x%x\n", second);
+	printf("  SL table entry: 0x%x\n", *second);
+	dissect_fields(*second, sld_small_page_fields, nelem(sld_small_page_fields));
+	if (((*second) & SLD_MASK) == SLD_UNMAPPED) {
+		puts("  SL entry is unmapped\n");
+		return;
+	}
+	phys = ((second[second_idx] & top_n_bits(20)) |
+	        (addr & bot_n_bits(12)));
+	printf("  phys: 0x%x\n", phys);
+}
+
+
 void kmem_map_pages(uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs)
 {
 	uint32_t i;
 	for (i = 0; i < len; i += 4096)
 		kmem_map_page(virt + i, phys + i, attrs);
+	tlbiall();
 }
 
 void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys,
