@@ -3,6 +3,8 @@
  */
 #include "arm-mailbox.h"
 #include "kernel.h"
+#include "ksh.h"
+#include "string.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -88,3 +90,33 @@ void mbox_remap(void)
 	mbox_address = kmem_remap_periph(mbox_address);
 	mbox_vaddr = true;
 }
+
+static int cmd_led(int argc, char **argv, int led, int reverse)
+{
+	int state = 0;
+	if (argc != 1) {
+		puts("usage: led [led] [on|off]\n");
+		return 1;
+	}
+	if (strcmp(argv[0], "on") == 0)
+		state = 1;
+	mbox_set_led_state(led, state ^ reverse);
+	printf("state: %d\n", state ^ reverse);
+	return state ^ reverse;
+}
+
+static int cmd_led_pwr(int argc, char **argv)
+{
+	return cmd_led(argc, argv, LED_PWR, 1);
+}
+
+static int cmd_led_act(int argc, char **argv)
+{
+	return cmd_led(argc, argv, LED_ACT, 0);
+}
+
+struct ksh_cmd led_ksh_cmds[] = {
+	KSH_CMD("pwr", cmd_led_pwr, "control the PWR LED"),
+	KSH_CMD("act", cmd_led_act, "control the ACT LED"),
+	{ 0 },
+};
