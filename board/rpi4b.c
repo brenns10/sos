@@ -49,6 +49,11 @@ void board_init(void)
 	reg |= (1 << 2);  // cache
 	reg |= (1 << 12); // icache
 	set_cpreg(reg, c1, 0, c0, 0);
+	/*
+	 * Memory barrier was found to be required (for some reason?) between
+	 * enabling caches, and using synchronization primitives.
+	 */
+	mb();
 
 	ksh(KSH_SPIN);
 }
