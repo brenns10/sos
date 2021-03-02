@@ -34,13 +34,31 @@ bool mbox_vaddr = false;
 #define WRITE32TO(addr, val) *(volatile uint32_t *)(addr) = (val)
 #define READ32FROM(addr)     (*(volatile uint32_t *)(addr))
 
+#define MBOX_CHAN_PTAG         8
+#define PTAG_ID_SET_GPIO_STATE 0x00038041
+
 extern bool mmu_on;
+
+void mbox_log(struct arm_mbox_msg *msg, uint8_t chan, char *act)
+{
+	struct arm_mbox_ptag *ptag = msg->data;
+	printf("%s msg(0x%x) chan=%d size=0x%x code=0x%x\n", act, msg, chan,
+	       msg->size, msg->code);
+	if (chan == MBOX_CHAN_PTAG) {
+		printf("ptag size=0x%x code=0x%x\n data: ", ptag->size,
+		       ptag->code);
+		for (int i = 0; i < ptag->size; i++)
+			printf("%x ", ptag->buf[i]);
+	}
+}
+
 void write_mbox(struct arm_mbox_msg *msg, uint8_t chan)
 {
 	uint32_t val = (uint32_t)msg;
 	if ((val & 0xF) != 0)
 		printf("mbox: misaligned message 0x%x\n", msg);
 	if (mbox_vaddr) {
+		DCCIMVAC(msg);
 		val = kmem_lookup_phys(msg);
 	}
 	val += chan;
@@ -61,9 +79,6 @@ struct arm_mbox_msg *read_mbox(uint8_t chan)
 	} while ((val & 0xF) != chan);
 	return (struct arm_mbox_msg *)(val & 0xFFFFFFF0);
 }
-
-#define MBOX_CHAN_PTAG         8
-#define PTAG_ID_SET_GPIO_STATE 0x00038041
 
 void mbox_set_led_state(int pin, int state)
 {
@@ -101,7 +116,6 @@ static int cmd_led(int argc, char **argv, int led, int reverse)
 	if (strcmp(argv[0], "on") == 0)
 		state = 1;
 	mbox_set_led_state(led, state ^ reverse);
-	printf("state: %d\n", state ^ reverse);
 	return state ^ reverse;
 }
 
