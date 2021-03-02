@@ -91,7 +91,7 @@ struct ctx {
 #define interrupt_disable() __asm__ __volatile__("cpsid i")
 #define interrupt_enable()  __asm__ __volatile__("cpsie i")
 
-#define cpu_infinite_loop() __asm__ __volatile__("subs pc, pc, #8")
+#define cpu_infinite_loop() __asm__ __volatile__("sub pc, pc, #8")
 
 #define CPSR_I (1 << 7)
 static inline bool interrupts_enabled(void)
