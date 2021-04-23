@@ -84,6 +84,7 @@ def parse_ls(output):
         output = output[:-6].strip()
     print(repr(output))
     for line in output.split('\r\n')[1:]:
+        line = line.strip()
         print(line)
         typ, name, size_parens = line.split(' ', maxsplit=2)
         # (len=X)
