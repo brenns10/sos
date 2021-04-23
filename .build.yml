@@ -2,8 +2,13 @@ image: debian/bullseye
 sources:
   - https://github.com/brenns10/sos
 tasks:
- # avoid pulling in huge dependencies by using --no-install-recommends
- - packages: 'DEBIAN_FRONTEND=noninteractive sudo apt-get install -y --no-install-recommends build-essential qemu-system-arm gcc-arm-none-eabi gcovr mtools python3 python3-pytest'
+ - packages:
+   - build-essential
+   - qemu-system-arm
+   - gcc-arm-none-eabi
+   - gcovr
+   - mtools
+   - python3-pytest
  - build: |
      cd sos
      make config_qemu
