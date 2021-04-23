@@ -1,14 +1,14 @@
 image: debian/bullseye
+packages:
+ - build-essential
+ - qemu-system-arm
+ - gcc-arm-none-eabi
+ - gcovr
+ - mtools
+ - python3-pytest
 sources:
   - https://github.com/brenns10/sos
 tasks:
- - packages:
-   - build-essential
-   - qemu-system-arm
-   - gcc-arm-none-eabi
-   - gcovr
-   - mtools
-   - python3-pytest
  - build: |
      cd sos
      make config_qemu
