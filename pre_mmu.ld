@@ -9,6 +9,11 @@ SECTIONS {
 		kernel/entry.o(*)
 	}
 	ASSERT(. < code_start + 0x1000, "more than one page of memory for startup + ISR")
+	nopreempt_begin = .;
+	.nopreempt . : {
+		*(.nopreempt)
+	}
+	nopreempt_end = .;
 	.text . : {
 		*(.text)
 	}
@@ -32,7 +37,7 @@ SECTIONS {
 	data_end = .;
 
 	/* Kernel mode stack */
-	. = ALIGN(8);
+	. = ALIGN(0x1000);
 	stack_start = .;
 	. = . + 0x1000; /* 4kB stack memory */
 	stack_end = .;
@@ -41,5 +46,4 @@ SECTIONS {
 	. = ALIGN(0x4000);
 	unused_start = .;
 	dynamic_start = .;
-	first_level_table = .;
 }

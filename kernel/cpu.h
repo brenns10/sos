@@ -156,3 +156,24 @@ static inline void ICIALLU(void)
 	uint32_t val = 1; /* don't actually care */
 	set_cpreg2(val, 0, c7, c5, 0);
 }
+
+static inline void set_ttbr0(uint32_t val)
+{
+	set_cpreg2(val, 0, c2, c0, 0);
+}
+static inline void set_ttbr1(uint32_t val)
+{
+	set_cpreg2(val, 0, c2, c0, 1);
+}
+static inline void set_ttbcr(uint32_t val)
+{
+	set_cpreg2(val, 0, c2, c0, 2);
+}
+static inline void set_dacr(uint32_t val)
+{
+	set_cpreg2(val, 0, c3, c0, 0);
+}
+static inline void set_vbar(uint32_t val)
+{
+	set_cpreg2(val, 0, c12, c0, 0);
+}

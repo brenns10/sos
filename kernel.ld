@@ -8,7 +8,7 @@
  */
 ENTRY(_start)
 SECTIONS {
-	. = 0x00008000;
+	. = 0x80010000; /* CONFIG_KERNEL_START */
 	code_start = .;
 	.startup . : {
 		kernel/startup.o(*)
@@ -54,5 +54,4 @@ SECTIONS {
 	. = ALIGN(0x4000);
 	unused_start = .;
 	dynamic_start = .;
-	first_level_table = .;
 }

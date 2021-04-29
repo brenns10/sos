@@ -67,7 +67,7 @@ bool timer_can_reschedule(struct ctx *ctx)
  */
 struct process *create_process(uint32_t binary)
 {
-	uint32_t size, phys, i, *dst, *src, virt;
+	uint32_t size, i, *dst, *src;
 	struct process *p = slab_alloc(proc_slab);
 
 	/*
@@ -91,19 +91,16 @@ struct process *create_process(uint32_t binary)
 	 * Create an allocator for the user virtual memory space
 	 */
 	p->vmem_allocator = kmem_get_pages(0x1000, 0);
-	init_page_allocator(p->vmem_allocator, 0x40000000, 0xFFFFFFFF);
+	// TODO use constants for user address space
+	init_page_allocator(p->vmem_allocator, 0x00001000, 0x7FFFFFFF);
 
 	/*
 	 * Allocate the first-level table and a shadow table (for virtual
 	 * addresses of second-level tables). Since we require physical address
 	 * which is aligned (not virtual), need to do it manually.
 	 */
-	phys = alloc_pages(phys_allocator, 0x8000, 14);
-	virt = alloc_pages(kern_virt_allocator, 0x8000, 0);
-	kmem_map_pages(virt, phys, 0x8000, KMEM_ATTR_DEFAULT | KMEM_PERM_DATA);
-	p->first = (uint32_t *)virt;
-	p->shadow = (void *)p->first + 0x4000;
-	p->ttbr1 = phys;
+	p->first = kmem_get_pages(0x4000, 14);
+	p->ttbr0 = kmem_lookup_phys(p->first);
 	for (i = 0; i < 0x2000; i++) /* one day I'll implement memset() */
 		p->first[i] = 0;
 
@@ -111,31 +108,18 @@ struct process *create_process(uint32_t binary)
 	 * Allocate physical memory for the process image, and map it
 	 * temporarily into kernel memory.
 	 */
-	phys = alloc_pages(phys_allocator, size, 0);
-	virt = alloc_pages(kern_virt_allocator, size, 0);
-	kmem_map_pages(virt, phys, size, KMEM_ATTR_DEFAULT | KMEM_PERM_DATA);
+	p->image = kmem_get_pages(size, 0);
 
 	/*
 	 * Copy the "process image" over.
 	 */
-	dst = (uint32_t *)virt;
+	dst = (uint32_t *)p->image;
 	src = (uint32_t *)binaries[binary].start;
 	for (i = 0; i < (size / 4); i++)
 		dst[i] = src[i];
 
-	/*
-	 * Remove the temporary mapping from kernel virtual memory, and map the
-	 * process image into the actual process address space.
-	 */
-	kmem_unmap_pages(virt, size);
-	free_pages(kern_virt_allocator, virt, size);
-	/* Here we invalidate the TLB for the virtual address we just freed.
-	 * This fixes a bug where the virtual address gets immediately re-used
-	 * and our new mapping is ignored by the TLB. Need to do this more
-	 * generally whenever we free virtual addresses TODO. */
-	set_cpreg(virt, c8, 0, c7, 3);
 	mark_alloc(p->vmem_allocator, 0x40000000, size);
-	umem_map_pages(p, 0x40000000, phys, size, UMEM_DEFAULT);
+	umem_map_pages(p, 0x40000000, kmem_lookup_phys(p->image), size, UMEM_DEFAULT);
 
 	/*
 	 * Set up some process variables
@@ -144,12 +128,9 @@ struct process *create_process(uint32_t binary)
 	p->context.ret = 0x40000000; /* jump to process img */
 	p->id = pid++;
 	p->size = size;
-	p->phys = phys;
 	list_insert(&process_list, &p->list);
 	p->flags.pr_ready = 1;
 	p->flags.pr_kernel = 0;
-
-	/*umem_print(p, 0x40000000, 0xFFFFFFFF);*/
 
 	INIT_LIST_HEAD(p->sockets);
 	p->max_fildes = 0;
@@ -168,14 +149,13 @@ struct process *create_kthread(void (*func)(void *), void *arg)
 	struct process *p = slab_alloc(proc_slab);
 	p->id = pid++;
 	p->size = 0;
-	p->phys = 0;
 	p->flags.pr_ready = 1;
 	p->flags.pr_kernel = 1;
 	p->kstack = (void *)kmem_get_pages(4096, 0) + 4096;
 
 	/* kthread is in kernel memory space, no user memory region */
 	p->vmem_allocator = NULL;
-	p->ttbr1 = 0;
+	p->ttbr0 = 0;
 	p->first = NULL;
 	p->shadow = NULL;
 
@@ -209,7 +189,7 @@ void destroy_current_process()
 		 * Free the process image's physical memory (it's not mapped
 		 * anywhere except for the process's virtual address space)
 		 */
-		free_pages(phys_allocator, current->phys, current->size);
+		kmem_free_pages(current->image, current->size);
 
 		/*
 		 * Free the process's virtual memory allocator.
@@ -219,9 +199,13 @@ void destroy_current_process()
 		/*
 		 * Find any second-level page tables, and free them too!
 		 */
+
+		/*
+		 * TODO: Implement kmem_destroy_page_tables or something
 		for (i = 0; i < 0x1000; i++)
 			if (current->shadow[i])
 				kmem_free_pages(current->shadow[i], 0x1000);
+		*/
 
 		/*
 		 * Free the first-level table + shadow table
@@ -285,7 +269,7 @@ void __nopreempt context_switch(struct process *new_process)
 	set_cpreg(new_process->id, c13, 0, c0, 1);
 
 	/* Set ttbr */
-	set_cpreg(new_process->ttbr1, c2, 0, c0, 1);
+	set_ttbr0(new_process->ttbr0);
 
 	current = new_process;
 
@@ -364,7 +348,7 @@ void irq_schedule(struct ctx *ctx)
 	set_cpreg(new->id, c13, 0, c0, 1);
 
 	/* Set ttbr */
-	set_cpreg(new->ttbr1, c2, 0, c0, 1);
+	set_ttbr0(new->ttbr0);
 
 	/* Swap contexts! */
 	current->context = *ctx;

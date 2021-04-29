@@ -52,9 +52,6 @@ extern uint8_t stack_start[];
 extern uint8_t stack_end[];
 extern uint8_t unused_start[];
 extern uint8_t dynamic_start[];
-/* NB: this is actually a uint32_t array because it points to a table of words
- */
-extern uint32_t first_level_table[];
 
 /*
  * Address of the UART is stored as a variable.
@@ -64,8 +61,6 @@ extern uint32_t uart_base;
 /*
  * Some well-known addresses which we determine at runtime.
  */
-extern void *second_level_table;
-
 extern void *fiq_stack;
 extern void *irq_stack;
 extern void *abrt_stack;
@@ -92,7 +87,8 @@ uint32_t printf(const char *format, ...);
 /*
  * Initialize kernel memory system (see mem.c for details)
  */
-void kmem_init(uint32_t phys);
+int kmem_init2(uint32_t phys);
+int kmem_init2_postmmu();
 
 /*
  * Return pages of kernel memory, already mapped and everything!
@@ -122,20 +118,13 @@ uint32_t kmem_remap_periph(uint32_t addr);
 uint32_t kmem_remap_periph_attr(uint32_t addr, uint32_t attr);
 
 /*
- * Unmap memory
- */
-void kmem_unmap_pages(uint32_t virt, uint32_t len);
-void umem_unmap_pages(struct process *p, uint32_t virt, uint32_t len);
-
-/*
  * Print it!
  */
+void mem_print(uint32_t *base, uint32_t start, uint32_t stop);
 void kmem_print(uint32_t start, uint32_t stop);
-void umem_print(struct process *p, uint32_t start, uint32_t stop);
 
 void vmem_diag(uint32_t addr);
 
-extern void *phys_allocator;
 extern void *kern_virt_allocator;
 
 /*
@@ -150,6 +139,17 @@ extern void *kern_virt_allocator;
 #define SLD__TEX1 (1 << 7)
 #define SLD__TEX2 (1 << 8)
 #define SLD__S    (1 << 10)
+#define SLD_NG    (1 << 11)
+
+#define FLD__AP2  (1 << 15)
+#define FLD__AP1  (1 << 11)
+#define FLD__AP0  (1 << 10)
+#define FLD__C    (1 << 3)
+#define FLD__B    (1 << 2)
+#define FLD__TEX0 (1 << 12)
+#define FLD__TEX1 (1 << 13)
+#define FLD__TEX2 (1 << 14)
+#define FLD__S    (1 << 16)
 
 /* first level descriptor types */
 #define FLD_UNMAPPED 0x00
@@ -157,6 +157,8 @@ extern void *kern_virt_allocator;
 #define FLD_SECTION  0x02
 
 #define FLD_MASK 0x03
+#define FLD_PAGE_TABLE(fld)   ((fld) & ~0x3FF)
+#define FLD_SECTION_ADDR(fld) ((fld) & 0xFFF00000)
 
 /* second level descriptor types */
 #define SLD_UNMAPPED 0x00
@@ -164,17 +166,22 @@ extern void *kern_virt_allocator;
 #define SLD_SMALL    0x02
 
 #define SLD_MASK 0x03
+#define SLD_ADDR(sld) ((sld) & 0xFFFFF000)
 
-#define SLD_NG (1 << 11)
 
 /* access control for second level */
-#define NOT_GLOBAL    (0x1 << 11)
-#define PRW_UNA       (SLD__AP0) /* AP=0b001 */
-#define PRW_URO       (SLD__AP1) /* AP=0b010 */
-#define PRW_URW       (SLD__AP1 | SLD__AP0) /* AP=0b011 */
-#define PRO_UNA       (SLD__AP2 | SLD__AP0) /* AP=0b101 */
-#define PRO_URO       (SLD__AP2 | SLD__AP1) /* AP=0b110 */
-#define EXECUTE_NEVER 0x01
+#define SLD_PRW_UNA       (SLD__AP0) /* AP=0b001 */
+#define SLD_PRW_URO       (SLD__AP1) /* AP=0b010 */
+#define SLD_PRW_URW       (SLD__AP1 | SLD__AP0) /* AP=0b011 */
+#define SLD_PRO_UNA       (SLD__AP2 | SLD__AP0) /* AP=0b101 */
+#define SLD_PRO_URO       (SLD__AP2 | SLD__AP1) /* AP=0b110 */
+#define SLD_EXECUTE_NEVER 0x01
+
+#define FLD_PRW_UNA       (FLD__AP0) /* AP=0b001 */
+#define FLD_PRW_URO       (FLD__AP1) /* AP=0b010 */
+#define FLD_PRW_URW       (FLD__AP1 | FLD__AP0) /* AP=0b011 */
+#define FLD_PRO_UNA       (FLD__AP2 | FLD__AP0) /* AP=0b101 */
+#define FLD_PRO_URO       (FLD__AP2 | FLD__AP1) /* AP=0b110 */
 
 /* Memory attributes: Choose either:
  * - DEVICE_SHAREABLE
@@ -184,27 +191,34 @@ extern void *kern_virt_allocator;
  *
  * Normal memory can further select cache attributes.
  */
-#define DEVICE_SHAREABLE    (0)
-#define DEVICE_NONSHAREABLE (0)
-#define NORMAL_SHAREABLE    (SLD__TEX0 | SLD__C | SLD__B | SLD__S)
-#define NORMAL_NONSHAREABLE (SLD__TEX0 | SLD__C | SLD__B)
-#define CACHE_INNER_NC      (0)
-#define CACHE_INNER_WBWA    (SLD__TEX0)
-#define CACHE_INNER_WT      (SLD__TEX1)
-#define CACHE_INNER_WB      (SLD__TEX1 | SLD__TEX0)
-#define CACHE_OUTER_NC      (0)
-#define CACHE_OUTER_WBWA    (SLD__B)
-#define CACHE_OUTER_WT      (SLD__C)
-#define CACHE_OUTER_WB      (SLD__C | SLD__B)
+#define SLD_DEVICE_SHAREABLE    (0)
+#define SLD_DEVICE_NONSHAREABLE (0)
+#define SLD_NORMAL_SHAREABLE    (SLD__TEX0 | SLD__C | SLD__B | SLD__S)
+#define SLD_NORMAL_NONSHAREABLE (SLD__TEX0 | SLD__C | SLD__B)
+#define FLD_DEVICE_SHAREABLE    (0)
+#define FLD_DEVICE_NONSHAREABLE (0)
+#define FLD_NORMAL_SHAREABLE    (FLD__TEX0 | FLD__C | FLD__B | FLD__S)
+#define FLD_NORMAL_NONSHAREABLE (FLD__TEX0 | FLD__C | FLD__B)
+#define SLD_CACHE_INNER_NC      (0)
+#define SLD_CACHE_INNER_WBWA    (SLD__TEX0)
+#define SLD_CACHE_INNER_WT      (SLD__TEX1)
+#define SLD_CACHE_INNER_WB      (SLD__TEX1 | SLD__TEX0)
+#define SLD_CACHE_OUTER_NC      (0)
+#define SLD_CACHE_OUTER_WBWA    (SLD__B)
+#define SLD_CACHE_OUTER_WT      (SLD__C)
+#define SLD_CACHE_OUTER_WB      (SLD__C | SLD__B)
 
 /* Default for kernel memory is to be shareable and non cacheable. Someday I'll
  * think about enabling the caches. */
-#define KMEM_ATTR_DEFAULT (NORMAL_SHAREABLE)
-#define KMEM_PERM_DATA    (PRW_UNA | EXECUTE_NEVER)
-#define KMEM_PERM_CODE    (PRO_UNA)
+#define KMEM_FLD_ATTR_DEFAULT (FLD_NORMAL_SHAREABLE)
+#define KMEM_FLD_PERM_DATA    (FLD_PRW_UNA)
+#define KMEM_FLD_PERM_CODE    (FLD_PRO_UNA)
+#define KMEM_SLD_ATTR_DEFAULT (SLD_NORMAL_SHAREABLE)
+#define KMEM_SLD_PERM_DATA    (SLD_PRW_UNA)
+#define KMEM_SLD_PERM_CODE    (SLD_PRO_UNA)
 
 /* permissions and attrs for umem, default */
-#define UMEM_DEFAULT (NORMAL_SHAREABLE | PRW_URW | NOT_GLOBAL)
+#define UMEM_DEFAULT (SLD_NORMAL_SHAREABLE | SLD_PRW_URW | SLD_NG)
 
 /*
  * KMalloc
@@ -255,13 +269,13 @@ struct process {
 	uint32_t size;
 
 	/** Physical address of process image. */
-	uint32_t phys;
+	void *image;
 
 	/** Allocator for the process address space. */
 	void *vmem_allocator;
 
 	/** First-level page table and shadow page table. */
-	uint32_t ttbr1;
+	uint32_t ttbr0;
 	uint32_t *first;
 	uint32_t **shadow;
 

@@ -14,7 +14,6 @@
 struct virtqueue *virtq_create(uint32_t len)
 {
 	int i;
-	uint32_t page_phys;
 	uint32_t page_virt;
 	struct virtqueue *virtq;
 
@@ -35,13 +34,10 @@ struct virtqueue *virtq_create(uint32_t len)
 		printf("virtq_create: error, too big for a page\n");
 		return NULL;
 	}
-	page_phys = alloc_pages(phys_allocator, PAGE_SIZE, 0);
-	page_virt = alloc_pages(kern_virt_allocator, PAGE_SIZE, 0);
-	kmem_map_pages(page_virt, page_phys, PAGE_SIZE,
-	               PRW_UNA | EXECUTE_NEVER);
+	page_virt = (uint32_t)kmem_get_page();
 
 	virtq = (struct virtqueue *)page_virt;
-	virtq->phys = page_phys;
+	virtq->phys = kmem_lookup_phys((void *)page_virt);
 	virtq->len = len;
 
 	virtq->desc = (struct virtqueue_desc *)(page_virt + off_desc);
@@ -220,7 +216,7 @@ void virtio_init(void)
 	 * but we should automate that */
 	uint32_t page_virt = alloc_pages(kern_virt_allocator, 0x4000, 0);
 	kmem_map_pages(page_virt, 0x0a000000U, 0x4000,
-	               DEVICE_SHAREABLE | KMEM_PERM_DATA);
+	               SLD_DEVICE_SHAREABLE | KMEM_SLD_PERM_DATA);
 
 	for (int i = 0; i < 32; i++)
 		virtio_dev_init(page_virt + 0x200 * i, 32 + 0x10 + i);

@@ -45,6 +45,8 @@ struct fdt_reserve_entry {
 	uint32_t size_le;
 };
 
+#define FDT_MAGIC 0xD00DFEED
+
 /*********************
  * Internal Bookkeeping Declarations
  */
@@ -776,9 +778,15 @@ void dtb_init(uint32_t phys)
 {
 	uint32_t virt = alloc_pages(kern_virt_allocator, 0x4000, 0);
 	kmem_map_pages((uint32_t)virt, phys, 0x4000,
-	               KMEM_ATTR_DEFAULT | KMEM_PERM_DATA);
+	               KMEM_SLD_ATTR_DEFAULT | KMEM_SLD_PERM_DATA);
 
 	info.hdr = (struct fdt_header *)virt;
+	if (be2host(info.hdr->magic) != FDT_MAGIC) {
+		puts("dtb: Bad device tree location, magic number not valid\n");
+		// TODO unmap pages -- this can be tricky and requires good
+		// cache and tlb maintenance.
+		return;
+	}
 	info.rsv = (void *)(virt + be2host(info.hdr->off_mem_rsvmap));
 	info.tok = (void *)(virt + be2host(info.hdr->off_dt_struct));
 	info.str = (void *)(virt + be2host(info.hdr->off_dt_strings));
