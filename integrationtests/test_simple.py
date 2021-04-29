@@ -7,7 +7,7 @@ import time
 
 def test_main_runs(raw_vm):
     raw_vm.start()
-    raw_vm.read_until("SOS: starting... started!")
+    raw_vm.read_until("SOS: started!")
 
 
 def test_boots_to_user_shell(raw_vm):
