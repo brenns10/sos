@@ -19,7 +19,7 @@ uint32_t board_memory_start(void)
 
 uint32_t board_memory_size(void)
 {
-        return 0x10000000;
+        return 0x40000000;
 }
 
 #endif
