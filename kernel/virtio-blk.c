@@ -9,6 +9,7 @@
 #include "string.h"
 #include "sync.h"
 #include "virtio.h"
+#include "mm.h"
 
 struct virtio_cap blk_caps[] = {
 	{ "VIRTIO_BLK_F_SIZE_MAX", 1, false,
@@ -262,7 +263,7 @@ int virtio_blk_init(virtio_regs *regs, uint32_t intid)
 		vdev->blkdev.blkcnt = READ64(vdev->config->capacity);
 		genafter = READ32(vdev->regs->ConfigGeneration);
 	} while (genbefore != genafter);
-	snprintf(&vdev->blkdev.name, sizeof(vdev->blkdev.name), "vblk%d",
+	snprintf(vdev->blkdev.name, sizeof(vdev->blkdev.name), "vblk%d",
 	         vdev->intid);
 
 	spin_acquire_irqsave(&vdev_list_lock, &flags);

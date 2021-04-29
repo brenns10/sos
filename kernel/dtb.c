@@ -5,6 +5,7 @@
 #include "ksh.h"
 #include "string.h"
 #include "util.h"
+#include "mm.h"
 
 /*********************
  * Flattened Device Tree Declarations
@@ -776,9 +777,7 @@ bool dtb_init_interrupt_cb(const struct dtb_iter *iter, void *data)
  */
 void dtb_init(uint32_t phys)
 {
-	uint32_t virt = alloc_pages(kern_virt_allocator, 0x4000, 0);
-	kmem_map_pages((uint32_t)virt, phys, 0x4000,
-	               KMEM_SLD_ATTR_DEFAULT | KMEM_SLD_PERM_DATA);
+	uint32_t virt = kptov(phys);
 
 	info.hdr = (struct fdt_header *)virt;
 	if (be2host(info.hdr->magic) != FDT_MAGIC) {

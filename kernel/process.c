@@ -8,6 +8,8 @@
 #include "socket.h"
 #include "string.h"
 #include "wait.h"
+#include "mm.h"
+#include "config.h"
 
 struct list_head process_list;
 struct process *current = NULL;
@@ -73,7 +75,7 @@ struct process *create_process(uint32_t binary)
 	/*
 	 * Allocate a kernel stack.
 	 */
-	p->kstack = (void *)kmem_get_pages(4096, 0) + 4096;
+	p->kstack = kmem_get_pages(PAGE_SIZE, 0) + PAGE_SIZE;
 
 	/*
 	 * Determine the size of the "process image" rounded to a whole page
@@ -84,23 +86,22 @@ struct process *create_process(uint32_t binary)
 	        (uint32_t)binaries[binary].start
 	        /* object file doesn't include stack space, so we assume 8 bytes
 	         * of alignment and a page of stack */
-	        + 0x1000 + 8);
+	        + PAGE_SIZE + 8);
 	size = ((size >> PAGE_BITS) + 1) << PAGE_BITS;
 
 	/*
 	 * Create an allocator for the user virtual memory space
 	 */
-	p->vmem_allocator = kmem_get_pages(0x1000, 0);
-	// TODO use constants for user address space
-	init_page_allocator(p->vmem_allocator, 0x00001000, 0x7FFFFFFF);
+	p->vmem_allocator = kmem_get_pages(PAGE_SIZE, 0);
+	init_page_allocator(p->vmem_allocator, 0x00001000, CONFIG_KERNEL_START - 1);
 
 	/*
-	 * Allocate the first-level table and a shadow table (for virtual
-	 * addresses of second-level tables). Since we require physical address
-	 * which is aligned (not virtual), need to do it manually.
+	 * Allocate a first-level page table.
+	 * TODO: we should only need half of one, since we're only doing half of
+	 * the page table.
 	 */
 	p->first = kmem_get_pages(0x4000, 14);
-	p->ttbr0 = kmem_lookup_phys(p->first);
+	p->ttbr0 = kvtop(p->first);
 	for (i = 0; i < 0x2000; i++) /* one day I'll implement memset() */
 		p->first[i] = 0;
 
@@ -119,7 +120,7 @@ struct process *create_process(uint32_t binary)
 		dst[i] = src[i];
 
 	mark_alloc(p->vmem_allocator, 0x40000000, size);
-	umem_map_pages(p, 0x40000000, kmem_lookup_phys(p->image), size, UMEM_DEFAULT);
+	umem_map_pages(p, 0x40000000, kvtop(p->image), size, UMEM_RW);
 
 	/*
 	 * Set up some process variables
@@ -174,7 +175,6 @@ struct process *create_kthread(void (*func)(void *), void *arg)
 
 void destroy_current_process()
 {
-	uint32_t i;
 	struct socket *sock;
 	// printf("[kernel]\t\tdestroy process %u (p=0x%x)\n", proc->id, proc);
 	preempt_disable();
@@ -199,18 +199,12 @@ void destroy_current_process()
 		/*
 		 * Find any second-level page tables, and free them too!
 		 */
-
-		/*
-		 * TODO: Implement kmem_destroy_page_tables or something
-		for (i = 0; i < 0x1000; i++)
-			if (current->shadow[i])
-				kmem_free_pages(current->shadow[i], 0x1000);
-		*/
+		umem_cleanup(current);
 
 		/*
 		 * Free the first-level table + shadow table
 		 */
-		kmem_free_pages(current->first, 0x8000);
+		kmem_free_pages(current->first, 0x4000);
 	} else {
 	}
 

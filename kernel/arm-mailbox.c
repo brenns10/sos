@@ -1,12 +1,14 @@
 /*
  * Driver of the mbox communication system, primarily used for Raspberry Pi.
  */
+#include <stdbool.h>
+#include <stdint.h>
+
 #include "arm-mailbox.h"
 #include "kernel.h"
 #include "ksh.h"
 #include "string.h"
-#include <stdbool.h>
-#include <stdint.h>
+#include "mm.h"
 
 struct arm_mbox_ptag {
 	uint32_t tagid;
@@ -25,7 +27,10 @@ struct arm_mbox_msg {
 };
 
 uint8_t static_mbox_msg[32] __attribute__((aligned(16)));
-uint32_t mbox_address = 0xFE00B880;
+
+#define MBOX_BASE 0xFE00B000
+#define MBOX_OFFSET 0x880
+uint32_t mbox_address = MBOX_BASE + MBOX_OFFSET;
 bool mbox_vaddr = false;
 #define MBOX_READ   (mbox_address + 0x00)
 #define MBOX_STATUS (mbox_address + 0x18)
@@ -59,7 +64,7 @@ void write_mbox(struct arm_mbox_msg *msg, uint8_t chan)
 		printf("mbox: misaligned message 0x%x\n", msg);
 	if (mbox_vaddr) {
 		DCCIMVAC(msg);
-		val = kmem_lookup_phys(msg);
+		val = kvtop(msg);
 	}
 	val += chan;
 	while (READ32FROM(MBOX_STATUS) & 0x80000000) {
@@ -102,7 +107,7 @@ void mbox_set_led_state(int pin, int state)
 
 void mbox_remap(void)
 {
-	mbox_address = kmem_remap_periph(mbox_address);
+	mbox_address = (uint32_t)kmem_map_periph(MBOX_BASE, 0x1000) + MBOX_OFFSET;
 	mbox_vaddr = true;
 }
 

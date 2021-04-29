@@ -5,6 +5,7 @@
 #include "ksh.h"
 #include "list.h"
 #include "string.h"
+#include "mm.h"
 
 struct slab *fs_node_slab;
 struct slab *file_slab;
@@ -18,7 +19,7 @@ void fs_reset_dir(struct fs_node *node)
 	list_for_each_entry_safe(child, next, &node->children, list)
 	{
 		slab_free(fs_node_slab, child);
-		list_remove(child);
+		list_remove(&child->list);
 	}
 }
 

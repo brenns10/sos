@@ -5,6 +5,7 @@
 #include "kernel.h"
 #include "ldisc.h"
 #include "sync.h"
+#include "mm.h"
 
 #define UART_INTID 33
 
@@ -197,5 +198,5 @@ void uart_init_irq(void)
  */
 void uart_remap(void)
 {
-	uart_base = kmem_remap_periph(uart_base);
+	uart_base = (uint32_t)kmem_map_periph(uart_base, 0x1000);
 }

@@ -33,3 +33,17 @@
 #if !defined(CONFIG_UART_BASE)
 #error "CONFIG_UART_BASE is required"
 #endif
+
+/*
+ * Where is the user/kernel split? I say this is a "config" value but really
+ * it's here more for documentation. Ideally it would be configurable, and in
+ * the future maybe it can be, but right now modifying this alone will not
+ * result in a different user/kernel split.
+ */
+#define CONFIG_KERNEL_START 0x80000000
+
+/*
+ * How many megabytes at the top of the kernel address space should be reserved
+ * for vmalloc?
+ */
+#define CONFIG_VMALLOC_MBS 8

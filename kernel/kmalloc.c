@@ -10,6 +10,7 @@
 
 #include "kernel.h"
 #include "slab.h"
+#include "mm.h"
 
 struct kmalloc_size {
 	int size;

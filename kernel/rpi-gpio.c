@@ -1,5 +1,7 @@
-#include "kernel.h"
 #include <stdint.h>
+
+#include "kernel.h"
+#include "mm.h"
 
 uint32_t gpio_address = 0xFE200000;
 
@@ -42,5 +44,5 @@ void set_gpio(uint32_t pin, uint32_t val)
 
 void gpio_remap(void)
 {
-	gpio_address = kmem_remap_periph(gpio_address);
+	gpio_address = (uint32_t)kmem_map_periph(gpio_address, 0x1000);
 }

@@ -5,16 +5,12 @@
 #include "board.h"
 #include "cpu.h"
 #include "util.h"
+#include "mm.h"
+#include "arm-mmu.h"
 
-#define CONFIG_KERNEL_START 0x80000000
 #if CONFIG_KERNEL_START > 0x80000000
     #error "Kernel start > 0x80000000 is not supported by TTBR methods"
 #endif
-#define CONFIG_VMALLOC_MBS 8
-#define VMALLOC_START (0xFFFFFFFF - ((CONFIG_VMALLOC_MBS) << 20) + 1)
-
-#define KERN_START_MB (CONFIG_KERNEL_START >> 20)
-#define VMLC_START_MB (VMALLOC_START >> 20)
 
 #define top_n_bits(n) (0xFFFFFFFF << (32 - n))
 #define bot_n_bits(n) (0xFFFFFFFF >> (32 - n))
@@ -43,9 +39,6 @@ void *abrt_stack;
 void *undf_stack;
 void *svc_stack;
 
-#define fld_idx(x) (((uint32_t) x) >> 20)
-#define sld_idx(x) ((((uint32_t) x) >> 12) & 0xFF)
-
 /**
  * Initialize second level page descriptor table to an entirely empty mapping.
  */
@@ -54,16 +47,6 @@ static void init_second_level(uint32_t *second)
 	uint32_t i;
 	for (i = 0; i < 256; i++)
 		second[i] = 0;
-}
-
-static inline void *kptov(uint32_t addr)
-{
-	return (void *) (addr - phy_start + CONFIG_KERNEL_START);
-}
-
-static inline uint32_t kvtop(void *ptr)
-{
-	return ((uint32_t) ptr - CONFIG_KERNEL_START + phy_start);
 }
 
 /**
@@ -83,11 +66,26 @@ static uint32_t *create_second(uint32_t *base, uint32_t first_idx)
 	/* for user memory, we allocate a page (4KB rather than 1KB, so
 	* TODO we're wasting memory) of physical memory, map it into
 	* kernel space, and we use that as a second-level table. */
-	second = (uint32_t *)kmem_get_pages(0x1000, 0);
+	second = kmem_get_page();
 	second_phys = kvtop(second);
 	base[first_idx] = second_phys | FLD_COARSE;
 	init_second_level(second);
 	return second;
+}
+
+/**
+ * Clean up all second-level tables in a user page table
+ */
+void umem_cleanup(struct process *p)
+{
+	uint32_t i, fld, *second;
+	for (i = 0; i < CONFIG_KERNEL_START >> 20; i++) {
+		fld = p->first[i];
+		if ((fld & FLD_MASK) == FLD_COARSE) {
+			second = get_second(fld);
+			kmem_free_page(second);
+		}
+	}
 }
 
 /**
@@ -114,15 +112,24 @@ static void map_page(uint32_t *base, uint32_t virt, uint32_t phys,
 	second[sld_idx(virt)] = (phys & 0xFFFFF000) | attrs | SLD_SMALL;
 }
 
-void umem_map_page(struct process *p, uint32_t virt, uint32_t phys,
-                   uint32_t attrs)
+static void map_pages(uint32_t *base, uint32_t virt, uint32_t phys,
+                      uint32_t len, uint32_t attrs)
 {
-	map_page(p->first, virt, phys, attrs | SLD_NG);
+	uint32_t i;
+	for (i = 0; i < len; i += 4096)
+		map_page(base, virt + i, phys + i, attrs);
 }
 
-void kmem_map_page(uint32_t virt, uint32_t phys, uint32_t attrs)
+void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys,
+                    uint32_t len, enum umem_perm perm)
 {
-	map_page(first_level_table, virt, phys, attrs);
+	uint32_t attrs;
+	if (perm == UMEM_RO) {
+		attrs = UMEM_FLAGS_RO;
+	} else {
+		attrs = UMEM_FLAGS_RW;
+	}
+	map_pages(p->first, virt, phys, len, attrs);
 }
 
 /**
@@ -153,11 +160,6 @@ uint32_t umem_lookup_phys(struct process *p, void *virt_ptr)
 	return lookup_phys(p->first, virt_ptr);
 }
 
-/**
- * This will work on vmalloc() addresses as well. If you know you have a kernel
- * direct memory address, then you might as well just use kvtop() which doesn't
- * need to consult page tables.
- */
 uint32_t kmem_lookup_phys(void *virt_ptr)
 {
 	return lookup_phys(first_level_table, virt_ptr);
@@ -187,32 +189,6 @@ void vmem_diag(uint32_t addr)
 	printf("vmem diagnostic of 0x%x TODO\n", addr);
 }
 
-
-void kmem_map_pages(uint32_t virt, uint32_t phys, uint32_t len, uint32_t attrs)
-{
-	uint32_t i;
-	for (i = 0; i < len; i += 4096)
-		kmem_map_page(virt + i, phys + i, attrs);
-	tlbiall();
-}
-
-void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys,
-                    uint32_t len, uint32_t attrs)
-{
-	uint32_t i;
-	for (i = 0; i < len; i += 4096)
-		umem_map_page(p, virt + i, phys + i, attrs);
-}
-
-static void kmem_unmap_page(void *ptr)
-{
-	uint32_t fld = first_level_table[fld_idx(ptr)];
-	if ((fld & FLD_MASK) != FLD_COARSE)
-		puts("Attempt to unmap page which is not coarse");
-	uint32_t *second = get_second(fld);
-	second[sld_idx(ptr)] = 0;
-
-}
 
 /**
  * Get mapped pages. That is, allocate some physical memory, allocate some
@@ -253,20 +229,11 @@ void kmem_free_page(void *ptr)
 	kmem_free_pages(ptr, 4096);
 }
 
-uint32_t kmem_remap_periph_attr(uint32_t addr, uint32_t attr)
+void *kmem_map_periph(uint32_t phys, uint32_t len)
 {
-	uint32_t new_addr;
-	uint32_t offset = addr & 0xFFF;
-	addr &= 0xFFFFF000;
-	new_addr = alloc_pages(kern_virt_allocator, 0x1000, 0);
-	kmem_map_page(new_addr, addr, attr);
-	return new_addr | offset;
-}
-
-uint32_t kmem_remap_periph(uint32_t addr)
-{
-	return kmem_remap_periph_attr(addr, SLD_PRW_UNA | SLD_EXECUTE_NEVER |
-	                                            SLD_DEVICE_NONSHAREABLE);
+	uint32_t virt = alloc_pages(kern_virt_allocator, len, 0);
+	map_pages(first_level_table, virt, phys, len, PERIPH_DEFAULT);
+	return (void *)virt;
 }
 
 static inline uint32_t get_kern_end_mb(uint32_t memsize)
@@ -312,7 +279,7 @@ int kmem_init_page_tables(uint32_t start, uint32_t size)
 	for (i = 0; i < KERN_START_MB; i++)
 		first_level_table[i] = 0;
 	for (i = KERN_START_MB; i < end_mb; i++) {
-		first_level_table[i] = (start & 0xFFF00000) | KMEM_FLD_ATTR_DEFAULT | KMEM_FLD_PERM_DATA | FLD_SECTION;
+		first_level_table[i] = (start & 0xFFF00000) | KMEM_DEFAULT | FLD_SECTION;
 		start += 1<<20;
 	}
 	for (; i < 4096; i++)
@@ -323,7 +290,7 @@ int kmem_init_page_tables(uint32_t start, uint32_t size)
 static void map_first_page_identity(void)
 {
 	uint32_t idx = phy_start >> 20;
-	first_level_table[idx] = (phy_start & 0xFFF00000) | KMEM_FLD_ATTR_DEFAULT | KMEM_FLD_PERM_DATA | FLD_SECTION;
+	first_level_table[idx] = (phy_start & 0xFFF00000) | KMEM_DEFAULT | FLD_SECTION;
 }
 
 static void unmap_first_page_identity(void)
@@ -342,7 +309,7 @@ int kmem_init2(uint32_t phys_load)
 	size = board_memory_size();
 	phy_dynamic_start = phys_load + ((void*)unused_start - (void*) code_start);
 
-	first_level_table = (uint32_t)align(phy_dynamic_start, 12);
+	first_level_table = (uint32_t *)align(phy_dynamic_start, 12);
 
 	/* Note any oddities with phy_start / phy_code_start */
 	if (phys_load > CONFIG_KERNEL_START) {
@@ -373,7 +340,7 @@ int kmem_init2_postmmu(void)
 	void *stack;
 
 	set_ttbr0(0); /* no need for this anymore */
-	first_level_table = kptov(first_level_table);
+	first_level_table = kptov((uint32_t) first_level_table);
 
 	/*
 	 * Remove the identity mapping which helped us swich from premmu to postmmu.

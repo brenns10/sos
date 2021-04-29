@@ -3,6 +3,7 @@
  */
 #include "gic.h"
 #include "kernel.h"
+#include "mm.h"
 
 #define GIC_IF_BASE         0x08010000
 #define GIC_DIST_BASE       0x08000000
@@ -22,14 +23,10 @@ void gic_init(void)
 		gic_names[i] = NULL;
 	}
 
-	gic_dregs = (gic_distributor_registers *)alloc_pages(
-	        kern_virt_allocator, 0x1000, 0);
-	gic_ifregs = (gic_cpu_interface_registers *)alloc_pages(
-	        kern_virt_allocator, 0x1000, 0);
-	kmem_map_pages((uint32_t)gic_dregs, GIC_DIST_BASE, 0x1000,
-	               FLD_DEVICE_SHAREABLE | KMEM_SLD_PERM_DATA);
-	kmem_map_pages((uint32_t)gic_ifregs, GIC_IF_BASE, 0x1000,
-	               FLD_DEVICE_SHAREABLE | KMEM_SLD_PERM_DATA);
+	gic_dregs = (gic_distributor_registers *)kmem_map_periph(
+		GIC_DIST_BASE, 0x1000);
+	gic_ifregs = (gic_cpu_interface_registers *)kmem_map_periph(
+		GIC_IF_BASE, 0x1000);
 
 	WRITE32(gic_ifregs->CCPMR,
 	        0xFFFFu); /* enable all interrupt priorities */

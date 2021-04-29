@@ -1,9 +1,11 @@
 /* network utilities */
+#include <stdint.h>
+
 #include "kernel.h"
 #include "net.h"
 #include "slab.h"
 #include "string.h"
-#include <stdint.h>
+#include "mm.h"
 
 struct slab *pktslab = NULL;
 #define PACKET_SIZE 2048

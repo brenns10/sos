@@ -6,6 +6,7 @@
 #include "slab.h"
 #include "string.h"
 #include "virtio.h"
+#include "mm.h"
 
 struct netif nif;
 struct virtio_net netdev;

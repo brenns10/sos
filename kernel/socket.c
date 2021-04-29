@@ -2,6 +2,7 @@
 #include "kernel.h"
 #include "slab.h"
 #include "string.h"
+#include "mm.h"
 
 struct slab *socket_slab;
 
