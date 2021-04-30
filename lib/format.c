@@ -44,22 +44,19 @@ static inline void set(char *buf, uint32_t size, uint32_t *out, char val)
  * This function implements the %x format specifier.
  */
 static inline uint32_t _format_hex(char *buf, uint32_t size, uint32_t out,
-                                   uint32_t val)
+                                   uint32_t val, bool lz)
 {
 	uint32_t mask = 0xF0000000;
 	uint32_t shift = 32;
 	uint32_t digit;
-	uint32_t started = 0;
 	char c;
 
 	do {
 		shift -= 4;
 		digit = (val & mask) >> shift;
 
-		// If statement ensures we skip leading zeros.
-		// I'm still debating if this is useful.
-		if (digit || started || shift == 0) {
-			started = 1;
+		if (digit || lz || shift == 0) {
+			lz = true;
 			c = (digit >= 10 ? 'a' + digit - 10 : '0' + digit);
 			SET(buf, size, out, c);
 		}
@@ -75,7 +72,7 @@ static inline uint32_t _format_mac(char *buf, uint32_t size, uint32_t out,
 	for (i = 0; i < 6; i++) {
 		if (i > 0)
 			SET(buf, size, out, ':');
-		out = _format_hex(buf, size, out, (uint32_t)macptr[i]);
+		out = _format_hex(buf, size, out, (uint32_t)macptr[i], false);
 	}
 	return out;
 }
@@ -174,7 +171,17 @@ uint32_t vsnprintf(char *buf, uint32_t size, const char *format, va_list vl)
 			switch (format[in]) {
 			case 'x':
 				uintval = va_arg(vl, uint32_t);
-				out = _format_hex(buf, size, out, uintval);
+				out = _format_hex(buf, size, out, uintval, false);
+				break;
+			case '0':
+				if (format[in+1] != 'x') {
+					SET(buf, size, out, '%');
+					SET(buf, size, out, '0');
+				} else {
+					uintval = va_arg(vl, uint32_t);
+					out = _format_hex(buf, size, out, uintval, true);
+					in++;
+				}
 				break;
 			case 's':
 				strval = va_arg(vl, char *);
