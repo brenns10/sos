@@ -59,19 +59,25 @@ void main(uint32_t phys)
 	board_init();
 	kmalloc_init();
 	process_init();
+#if CONFIG_BOARD == BOARD_QEMU
 	dtb_init(0x44000000); /* TODO: pass this addr from startup.s */
+#endif
 	gic_init();
 	timer_init();
 	fs_init(); /* Initialize file slab before uart file is created */
 	uart_init_irq();
+#if CONFIG_BOARD == BOARD_QEMU
 	packet_init();
 	blk_init();
 	virtio_init();
+#endif
 	cxtk_init();
 
+#if CONFIG_BOARD == BOARD_QEMU
 	socket_init();
 	udp_init();
 	dhcp_kthread_start();
+#endif
 
 	start_ush();
 }
