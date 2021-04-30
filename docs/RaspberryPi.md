@@ -109,6 +109,7 @@ contents into `config.txt`:
 
     kernel=imgrecv.bin
     enable_jtag_gpio=1
+    enable_gic=1
 
 With the bootloader, rather than using picocom, you need to use "raspbootcom" to
 connect to the serial port. This interprets special escape sequences sent by the

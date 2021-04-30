@@ -4,9 +4,8 @@
 #include "gic.h"
 #include "kernel.h"
 #include "mm.h"
+#include "config.h"
 
-#define GIC_IF_BASE         0x08010000
-#define GIC_DIST_BASE       0x08000000
 #define GIC_INTERRUPT_COUNT 1024 /* a random guess lol */
 
 static gic_distributor_registers *gic_dregs;
@@ -24,9 +23,9 @@ void gic_init(void)
 	}
 
 	gic_dregs = (gic_distributor_registers *)kmem_map_periph(
-		GIC_DIST_BASE, 0x1000);
+		CONFIG_GIC_DIST_BASE, 0x1000);
 	gic_ifregs = (gic_cpu_interface_registers *)kmem_map_periph(
-		GIC_IF_BASE, 0x1000);
+		CONFIG_GIC_IF_BASE, 0x1000);
 
 	WRITE32(gic_ifregs->CCPMR,
 	        0xFFFFu); /* enable all interrupt priorities */
