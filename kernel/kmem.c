@@ -69,6 +69,7 @@ static uint32_t *create_second(uint32_t *base, uint32_t first_idx)
 	second = kmem_get_page();
 	second_phys = kvtop(second);
 	base[first_idx] = second_phys | FLD_COARSE;
+	DCCIMVAC(&base[first_idx]);
 	init_second_level(second);
 	return second;
 }
@@ -107,9 +108,11 @@ static void map_page(uint32_t *base, uint32_t virt, uint32_t phys,
 		second = create_second(base, virt >> 20);
 	} else {
 		puts("map_page: First level table entry doesn't point to table");
+		return;
 	}
 
 	second[sld_idx(virt)] = (phys & 0xFFFFF000) | attrs | SLD_SMALL;
+	DCCIMVAC(&second[sld_idx(virt)]);
 }
 
 static void map_pages(uint32_t *base, uint32_t virt, uint32_t phys,
@@ -164,31 +167,6 @@ uint32_t kmem_lookup_phys(void *virt_ptr)
 {
 	return lookup_phys(first_level_table, virt_ptr);
 }
-
-static struct field sld_small_page_fields[] = {
-	FIELD_BIT("B", 2),
-	FIELD_BIT("C", 3),
-	FIELD_2BIT("AP[1:0]", 4),
-	FIELD_3BIT("TEX[2:0]", 6),
-	FIELD_BIT("AP[2]", 9),
-	FIELD_BIT("S", 10),
-	FIELD_BIT("nG", 11),
-	FIELD_MASK("S.P. Base", 0xFFFFF000),
-};
-static struct field fld_ttable_fields[] = {
-	FIELD_BIT("PXN", 2),
-	FIELD_BIT("NS", 3),
-	FIELD_BIT("RS0", 4),
-	FIELD_4BIT("Domain", 5),
-	FIELD_BIT("impl. defined", 6),
-	FIELD_MASK("Table Base", 0xFFFFFC00),
-};
-
-void vmem_diag(uint32_t addr)
-{
-	printf("vmem diagnostic of 0x%x TODO\n", addr);
-}
-
 
 /**
  * Get mapped pages. That is, allocate some physical memory, allocate some
@@ -432,4 +410,69 @@ void mem_print(uint32_t *base, uint32_t start, uint32_t stop)
 void kmem_print(uint32_t start, uint32_t stop)
 {
 	mem_print(first_level_table, start, stop);
+}
+
+static struct field sld_small_page_fields[] = {
+	FIELD_BIT("B", 2),
+	FIELD_BIT("C", 3),
+	FIELD_2BIT("AP[1:0]", 4),
+	FIELD_3BIT("TEX[2:0]", 6),
+	FIELD_BIT("AP[2]", 9),
+	FIELD_BIT("S", 10),
+	FIELD_BIT("nG", 11),
+	FIELD_MASK("S.P. Base", 0xFFFFF000),
+};
+static struct field fld_ttable_fields[] = {
+	FIELD_BIT("PXN", 2),
+	FIELD_BIT("NS", 3),
+	FIELD_BIT("RS0", 4),
+	FIELD_4BIT("Domain", 5),
+	FIELD_BIT("impl. defined", 6),
+	FIELD_MASK("Table Base", 0xFFFFFC00),
+};
+
+void vmem_diag(uint32_t addr)
+{
+	uint32_t ttbr, fld, sld, *first, *second;
+	printf("vmem diagnostic of 0x%x TODO\n", addr);
+
+	if (addr < CONFIG_KERNEL_START)
+		ttbr = get_ttbr0();
+	else
+		ttbr = get_ttbr1();
+
+	printf("  TTBR for this address: 0x%x\n", ttbr);
+	if (ttbr & 0xFFFFFF00) {
+		first = kptov(ttbr);
+		printf("  vaddr of first level table: 0x%x\n", first);
+	} else {
+		return; /* nothing more to do */
+	}
+
+	fld = first[fld_idx(addr)];
+	printf("  fld=0x%x\n", fld);
+	if ((fld & FLD_MASK) == FLD_COARSE) {
+		puts("  ... FLD_COARSE! Dissect:\n");
+		dissect_fields(fld, fld_ttable_fields, nelem(fld_ttable_fields));
+		second = get_second(fld);
+		printf("  second vaddr=0x%x\n", second);
+		sld = second[sld_idx(addr)];
+		printf("  sld=0x%x\n", sld);
+		if ((sld & SLD_MASK) == SLD_UNMAPPED) {
+			puts("  ... unmapped SLD.\n");
+		} else if ((sld & 2) == 2) {
+			puts("  ... SLD_SMALL! Dissect:\n");
+			dissect_fields(sld, sld_small_page_fields, nelem(sld_small_page_fields));
+			printf("  TADA! phys=0x%x\n", SLD_ADDR(sld) | (0xFFF & addr));
+		} else {
+			printf("  ... unknown SLD type 0x%x\n", (sld & SLD_MASK));
+		}
+	} else if ((fld & FLD_MASK) == FLD_SECTION) {
+		puts("  ... FLD_SECTION!\n");
+		printf("  TADA! phys=0x%x\n", FLD_SECTION_ADDR(fld) | (0xFFFFF & addr));
+	} else if ((fld & FLD_MASK) == 0) {
+		puts("  ... unmapped FLD.\n");
+	} else {
+		puts("  ... unknown FLD.\n");
+	}
 }
