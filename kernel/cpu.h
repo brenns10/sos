@@ -84,7 +84,7 @@ struct ctx {
 /**
  * Load CPSR
  */
-#define get_cpsr(dst)                                                          \
+#define load_cpsr(dst)                                                          \
 	__asm__ __volatile__("mrs %[rd], cpsr" : [rd] "=r"(dst) : :)
 
 #define mb()                __asm__ __volatile__("dsb")
@@ -97,7 +97,7 @@ struct ctx {
 static inline bool interrupts_enabled(void)
 {
 	uint32_t cpsr;
-	get_cpsr(cpsr);
+	load_cpsr(cpsr);
 	return !(cpsr & CPSR_I);
 }
 
@@ -128,6 +128,13 @@ static inline uint32_t get_sctlr()
 	uint32_t reg;
 	get_cpreg2(reg, 0, c1, c0, 0);
 	return reg;
+}
+
+static inline uint32_t get_cpsr()
+{
+	uint32_t val;
+	load_cpsr(val);
+	return val;
 }
 
 /**
@@ -161,19 +168,49 @@ static inline void set_ttbr0(uint32_t val)
 {
 	set_cpreg2(val, 0, c2, c0, 0);
 }
+static inline uint32_t get_ttbr0(void)
+{
+	uint32_t val;
+	get_cpreg2(val, 0, c2, c0, 0);
+	return val;
+}
 static inline void set_ttbr1(uint32_t val)
 {
 	set_cpreg2(val, 0, c2, c0, 1);
+}
+static inline uint32_t get_ttbr1(void)
+{
+	uint32_t val;
+	get_cpreg2(val, 0, c2, c0, 1);
+	return val;
 }
 static inline void set_ttbcr(uint32_t val)
 {
 	set_cpreg2(val, 0, c2, c0, 2);
 }
+static inline uint32_t get_ttbcr(void)
+{
+	uint32_t val;
+	get_cpreg2(val, 0, c2, c0, 2);
+	return val;
+}
 static inline void set_dacr(uint32_t val)
 {
 	set_cpreg2(val, 0, c3, c0, 0);
 }
+static inline uint32_t get_dacr(void)
+{
+	uint32_t val;
+	get_cpreg2(val, 0, c3, c0, 0);
+	return val;
+}
 static inline void set_vbar(uint32_t val)
 {
 	set_cpreg2(val, 0, c12, c0, 0);
+}
+static inline uint32_t get_vbar(void)
+{
+	uint32_t val;
+	get_cpreg2(val, 0, c12, c0, 0);
+	return val;
 }

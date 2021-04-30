@@ -41,11 +41,8 @@ struct static_binary binaries[] = {
 
 bool timer_can_reschedule(struct ctx *ctx)
 {
-	uint32_t cpsr;
-	get_cpsr(cpsr);
-
 	/* Can only reschedule if we are in a timer interrupt */
-	if ((cpsr & ARM_MODE_MASK) != ARM_MODE_IRQ) {
+	if ((get_cpsr() & ARM_MODE_MASK) != ARM_MODE_IRQ) {
 		return false;
 	}
 
