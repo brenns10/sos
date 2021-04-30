@@ -43,10 +43,13 @@ void backtrace(void)
 
 void backtrace_ctx(struct ctx *ctx)
 {
-	if ((ctx->spsr & ARM_MODE_MASK) != ARM_MODE_USER)
+	if ((ctx->spsr & ARM_MODE_MASK) != ARM_MODE_USER) {
 		backtrace_internal((uint32_t *)ctx->v8);
-	else
-		puts("No backtrace for user-mode context\n");
+	} else if (current) {
+		printf("We're in user-mode, current process %u\n", current->id);
+	} else {
+		puts("No backtrace for user-mode context, and current==NULL?\n");
+	}
 }
 
 void printregs(struct ctx *ctx)
