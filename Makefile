@@ -86,6 +86,7 @@ kernel.elf: kernel/arm-mailbox.o
 kernel.elf: kernel/sync.o
 kernel.elf: kernel/fs.o
 kernel.elf: kernel/ldisc.o
+kernel.elf: kernel/setctx.o
 
 kernel.elf: lib/list.o
 kernel.elf: lib/format.o
