@@ -121,6 +121,9 @@ user/%.bin: user/%.elf
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 %.elf:
+	# Pre-process the linker scripts to include configvals
+	$(CC) -E -x c $(CFLAGS) $(patsubst %.elf,%.ld.in,$@) | grep -v '^#' >$(patsubst %.elf,%.ld,$@)
+	$(CC) -E -x c $(CFLAGS) pre_mmu.ld.in | grep -v '^#' >pre_mmu.ld
 	$(LD) -T $(patsubst %.elf,%.ld,$@) $^ -o $@ -M > $(patsubst %.elf,%.map,$@)
 	$(LD) -T pre_mmu.ld $^ -o pre_mmu.elf
 

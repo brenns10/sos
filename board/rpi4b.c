@@ -21,6 +21,16 @@ void board_premmu(void)
 	led_pwr_off();
 }
 
+uint32_t board_memory_start(void)
+{
+	return 0;
+}
+
+uint32_t board_memory_size(void)
+{
+	return 0x40000000;
+}
+
 void board_init(void)
 {
 	uint32_t reg;
