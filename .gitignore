@@ -17,3 +17,5 @@ compile_commands.json
 conf.mk
 .clangd
 kernel/configvals.h
+kernel.ld
+pre_mmu.ld
