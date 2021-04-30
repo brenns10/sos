@@ -1,5 +1,6 @@
 #include "cxtk.h"
 #include "kernel.h"
+#include "mm.h"
 
 void print_fault(uint32_t fsr, uint32_t far, struct ctx *ctx)
 {
@@ -99,7 +100,7 @@ int undefined(struct ctx *ctx, uint32_t *pc)
 {
 	uint32_t mode;
 	get_spsr(mode);
-	printf("Undefined instruction, LR=0x%x, SPSR=0x%x\n", ctx->ret, mode);
+	printf("Undefined instruction, LR=0x%x, SPSR=0x%x PC=0x%x\n", ctx->ret, mode, pc);
 	printf("Instruction 0x%x is 0x%x\n", &pc[-1], pc[-1]);
 	cxtk_report();
 	backtrace_ctx(ctx);
