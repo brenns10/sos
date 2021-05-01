@@ -124,6 +124,7 @@ struct process *create_process(uint32_t binary)
 	/*
 	 * Set up some process variables
 	 */
+	memset(&p->context, 0, sizeof(struct ctx));
 	p->context.spsr = ARM_MODE_USER;
 	p->context.ret = 0x40000000; /* jump to process img */
 	p->id = pid++;
