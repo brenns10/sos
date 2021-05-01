@@ -8,75 +8,68 @@ Important Facts
 ---------------
 
 QEMU seems to be quite insistent on loading all code at the physical address
-0x40010000, however the memory management code does not depend on this. We can
-simply use PC-relative addressing to determine what our physical address is on
-startup.
+0x40010000. The early startup code is roughly position independent, so this
+shouldn't matter for it. But the rest of the symbols expect to be present at a
+certain virtual address once we're booted, and those addresses change depending
+on our load address.
 
-Our memory management system is built on the "Short descriptor translation table
-format" described in the ARMv7 Reference, Section B3.5. We use "small pages" of
-size 4KB. While this is almost certainly not an optimal choice, it gives us lots
-of flexibility in allocations, permissions, etc.
+Here's the memory layout we currently use:
 
-Our virtual memory layout will one day be:
+    0x0000 0000 - 0x3FFF FFFF  Unused userspace memory
+    0x4000 0000 - 0x7FFF FFFF  Userspace link/load address
+    ---- user / kernel split.  TTBR0 ^     TTBR1 v
+    0x8000 0000 - 0xFF7F FFFF  Kernel direct-map memory
+    0xFF80 0000 - 0xFFFF FFFF  Kernel "vmalloc" memory
 
-    0x00000000  # interrupt vector, startup code
-      # code
-      # static
-      # kernel-mode stack
-      # first & second level translation tables (for kernel)
-      # dynamic memory for kernel
-      ...
-    0x02000000  # begin user address space
-
-We will use different translation table base addresses for user-mode memory.
+We use a 2/2 user/kernel split because that's the best that ARM gives us with
+the separate TTBR registers, and that seemed like an easy way to get started.
 
 Initialization
 --------------
 
-`startup.s` contains the first stage of MMU configuration. This stub is very
-self-contained, and does the following:
+`kernel/kmem.c` owns everything related to page table management. `kmem_init2()`
+initializes the page tables before the MMU is enabled. It creates the kernel
+direct map region, and then maps a temporary identity page in to allow the
+kernel to relocate. After the MMU is enabled, it removes this identity page, and
+initializes allocators:
 
-1. Using linker symbols, determine where the virtual address of the kernel is
-   meant to be.
-2. Using the PC, determine the physical location of the code.
-3. Map the code at an identity mapping, as well as at the expected virtual
-   address, and enable the MMU. (It also identity maps the UART for debugging).
-4. Branch to the expected virtual address, setup a C stack, and invoke main()
-   with a single argument: the physical address of the start of code.
+- `kernalloc`: allocates from the kernel direct map region, starting after the
+  kernel image ends. This is pretty much all physical memory.
+- `kern_virt_allocator`: manages the "vmalloc" region at the top of the address
+  space for dynamic mappings.
 
-Critically, it leaves the following up to C code:
+These memory allocators actually are implemented in `lib/alloc.c`, they are K&R
+style allocators which simply track ranges of free/allocatod page addresses.
 
-* Cleaning up the initial identity mapping of code and UART
-* Mapping the UART to a more convenient location
-* Determining permissions for blocks of memory
-* Allocating stacks for other processor modes
+Alternatives
+------------
 
-C Initialization
-----------------
+Prior to this simpler "direct-map" memory model, I had a fun model I used (which
+I've subsequently heard referred to as "PMM/VMM" for Physical Memory Manager /
+Virtual MM). The idea is that you have one allocator managing physical memory
+addresses, and another managing virtual addresses. When page allocations are
+requested, you allocate from each allocator and map the two together. This was a
+fun approach, but it had some difficulties:
 
-In C we have the following components that help manage memory:
+- Unmapping memory is tricky to get right. It requires proper cache and
+  TLB maintenance. The complexity was not visible on QEMU, but on real
+  hardware I have encountered countless issues. While eliminating the
+  virtual memory operations from general page management won't eliminate
+  the maintenance requirements (or bugs), it will dramatically reduce
+  their scope and make it easier to debug.
+- The virtual address space was entirely unrelated to the physical
+  address space, so converting between addresses was complex and
+  required manually consulting the page tables. Converting physical
+  addresses to virtual ones was impossible. kmem v2 allows simple vtop
+  and ptov operations for normal kernel memory without consulting page
+  tables.
+- Kernel page tables required using 2-level page tables and mapping
+  everything using small pages. Now, normal kernel pages are mapped
+  using large (1MB) section descriptors in the first-level table. We can
+  still use small pages for some kernel mappings and for userspace
+  mappings.
 
-* `lib/alloc.c` implements a general page allocator, which can be used to manage
-  memory spaces. We use a virtual and physical allocator to manage both memory
-  spaces.
-* `mem_init()` implements the final adjustments made to the page tables after
-  initialization. It allocates stacks for other processor modes, removes the old
-  identity mappings, sets permissions on memory, and more.
-* `kernel/mem.c` contains a whole host of management functions, in particular a
-  helper function `map_pages()` for creating page table mappings
-
-Ideal World
------------
-
-In an ideal world, the memory setup would look like this:
-
-1. `startup.s` creates an identity mapping using section descriptors rather than
-   small page descriptors, and then maps the code to its final destination in
-   that mapping. This is not only much simpler to implement, but it takes less
-   memory.
-2. `mem_init()` creates an entirely new translation table which is valid for
-   only the kernel space. This will have second-level descriptors and use small
-   pages. However, it will not populate all of the small pages. Instead, we'll
-   create a shadow page table which contains the virtual addresses of every
-   second-level table, and we'll only create second level tables as we need
-   them.
+The direct-map memory model is heavily inspired by Linux. Long term, I inspect
+to copy-cat a few other memory-management items from there (copy in spirit, but
+use my own implementation). Namely, page descriptors (which make slab allocators
+nice) and the buddy allocator (facilitated by page descriptors).
