@@ -87,7 +87,14 @@ struct ctx {
 #define load_cpsr(dst)                                                          \
 	__asm__ __volatile__("mrs %[rd], cpsr" : [rd] "=r"(dst) : :)
 
+/**
+ * Load CPSR
+ */
+#define clz(dst, src)                                                           \
+	__asm__ __volatile__("clz %[rd], %[rs]" : [rd] "=r"(dst), [rs] "+r" (src) : :)
+
 #define mb()                __asm__ __volatile__("dsb")
+#define isb()               __asm__ __volatile__("isb")
 #define interrupt_disable() __asm__ __volatile__("cpsid i")
 #define interrupt_enable()  __asm__ __volatile__("cpsie i")
 
@@ -144,6 +151,22 @@ static inline uint32_t get_cpsr()
 static inline void DCCIMVAC(void *src)
 {
 	set_cpreg2(src, 0, c7, c14, 1);
+}
+static inline void DCCMVAC(void *src)
+{
+	set_cpreg2(src, 0, c7, c10, 1);
+}
+static inline void DCCMVAU(void *src)
+{
+	set_cpreg2(src, 0, c7, c11, 1);
+}
+static inline void DCIMVAC(void *src)
+{
+	set_cpreg2(src, 0, c7, c6, 1);
+}
+static inline void DCISW(uint32_t val)
+{
+	set_cpreg2(val, 0, c7, c6, 2);
 }
 
 /**
@@ -214,3 +237,19 @@ static inline uint32_t get_vbar(void)
 	get_cpreg2(val, 0, c12, c0, 0);
 	return val;
 }
+
+static void set_csselr(uint32_t val)
+{
+	set_cpreg2(val, 2, c0, c0, 0);
+}
+
+static uint32_t get_ccsidr(void)
+{
+	uint32_t val;
+	get_cpreg2(val, 1, c0, c0, 0);
+	return val;
+}
+
+#define CCSIDR_last_set(val) (((val) >> 13) & 0x7FFF)
+#define CCSIDR_last_way(val) (((val) >> 3) & 0x3FF)
+#define CCSIDR_line_size(val) ((val) & 0x7)
