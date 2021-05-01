@@ -434,7 +434,6 @@ static struct field fld_ttable_fields[] = {
 void vmem_diag(uint32_t addr)
 {
 	uint32_t ttbr, fld, sld, *first, *second;
-	printf("vmem diagnostic of 0x%x TODO\n", addr);
 
 	if (addr < CONFIG_KERNEL_START)
 		ttbr = get_ttbr0();
