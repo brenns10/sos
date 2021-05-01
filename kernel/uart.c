@@ -6,8 +6,7 @@
 #include "ldisc.h"
 #include "sync.h"
 #include "mm.h"
-
-#define UART_INTID 33
+#include "config.h"
 
 typedef volatile struct __attribute__((packed)) {
 	uint32_t UARTDR;
@@ -185,8 +184,8 @@ void uart_init_irq(void)
 	/* Only interrupt for RX */
 	WRITE32(base->UARTIMSC, UARTIMSC_UART_RXIM);
 
-	gic_register_isr(UART_INTID, 1, uart_isr, "uart");
-	gic_enable_interrupt(UART_INTID);
+	gic_register_isr(CONFIG_UART_INTID, 1, uart_isr, "uart");
+	gic_enable_interrupt(CONFIG_UART_INTID);
 }
 
 /*
