@@ -31,6 +31,45 @@ uint32_t board_memory_size(void)
 	return 0x40000000;
 }
 
+/*
+ * Clear the entire L1 data cache
+ *
+ * NOTE: doing this in C means that it accesses stack variables. Which is weird
+ * because that's memory. Ideally you could do this all in assembly with no
+ * memory access (beyond instructions). But this is good enough, especially
+ * since if you do it before the cache is enabled, there's no conflict.
+ */
+void data_cache_clear_all(void)
+{
+	uint32_t ccsidr, set, way, setshift, wayshift, val;
+
+	/* show me data cache */
+	set_csselr(0);
+
+	/* Ensure cache selection is visible */
+	mb();
+
+	ccsidr = get_ccsidr();
+
+	way = CCSIDR_last_way(ccsidr);
+	set = CCSIDR_last_set(ccsidr);
+	setshift = CCSIDR_line_size(ccsidr) + 4 + 4;
+	clz(wayshift, way);
+
+	do {
+		set = CCSIDR_last_set(ccsidr);
+		do {
+			val = (way << wayshift) | (set << setshift);
+			DCISW(val);
+			set--;
+		} while (set > 0);
+		way--;
+	} while (way > 0);
+
+	/* "Commit" the cache invalidations */
+	mb();
+}
+
 void board_init(void)
 {
 	uint32_t reg;
@@ -48,6 +87,9 @@ void board_init(void)
 	led_act_on();
 	uart_set_echo(true);
 
+	ICIALLU();
+	data_cache_clear_all();
+
 	/*
 	 * Enable caches.
 	 *
@@ -60,12 +102,17 @@ void board_init(void)
 	reg |= (1 << 12); // icache
 	set_cpreg(reg, c1, 0, c0, 0);
 	/*
-	 * Memory barrier was found to be required (for some reason?) between
-	 * enabling caches, and using synchronization primitives.
+	 * Memory barrier (dsb) "commits" all these changes to the cache, i.e.
+	 * waits for the cache enablement.
 	 */
 	mb();
+	/*
+	 * Ensure all instructions after this are loaded from the newly enabled
+	 * caches.
+	 */
+	isb();
 
-	ksh(KSH_SPIN);
+	//ksh(KSH_SPIN);
 }
 
 #endif
