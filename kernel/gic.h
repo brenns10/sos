@@ -34,9 +34,7 @@ typedef volatile struct __attribute__((packed)) {
 	uint32_t
 	        DIPRIORITY[255]; /* 0x400 - 0x7F8 Interrupt priorityregisters */
 	uint32_t _reserved2;     /* 0x7FC reserved */
-	const uint32_t
-	        DITARGETSRO[8];   /* 0x800 - 0x81C Interrupt CPUtargets, RO */
-	uint32_t DITARGETSR[246]; /* 0x820 - 0xBF8 Interrupt CPUtargets */
+	uint32_t DITARGETSR[254]; /* 0x800 - 0xBF8 Interrupt CPUtargets */
 	uint32_t _reserved3;      /* 0xBFC reserved */
 	uint32_t DICFGR[64];      /* 0xC00 - 0xCFC Interrupt configregisters */
 	/* Some PPI, SPI status registers and identification registers beyond
