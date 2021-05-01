@@ -113,8 +113,10 @@ struct process *create_process(uint32_t binary)
 	 */
 	dst = (uint32_t *)p->image;
 	src = (uint32_t *)binaries[binary].start;
-	for (i = 0; i < (size / 4); i++)
+	for (i = 0; i < (size / 4); i++) {
 		dst[i] = src[i];
+		DCCMVAU(&dst[i]);
+	}
 
 	mark_alloc(p->vmem_allocator, 0x40000000, size);
 	umem_map_pages(p, 0x40000000, kvtop(p->image), size, UMEM_RW);
