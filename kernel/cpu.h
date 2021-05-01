@@ -238,12 +238,12 @@ static inline uint32_t get_vbar(void)
 	return val;
 }
 
-static void set_csselr(uint32_t val)
+static inline void set_csselr(uint32_t val)
 {
 	set_cpreg2(val, 2, c0, c0, 0);
 }
 
-static uint32_t get_ccsidr(void)
+static inline uint32_t get_ccsidr(void)
 {
 	uint32_t val;
 	get_cpreg2(val, 1, c0, c0, 0);
