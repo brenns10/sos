@@ -137,10 +137,11 @@ void lle_char(struct ldisc_line_edit *lle, char c)
 			lle->fb->pos--;
 			puts("\b \b");
 		}
-	} else if (c == '\r') {
-		putc(c);
+	} else if (c == '\r' || c == '\n') {
+		if (c == '\r')
+			putc(c);
 		c = '\n';
-		putc('\n');
+		putc(c);
 		/* deliver buf to app */
 		lle->fb->buf[lle->fb->pos++] = c;
 		lle->fb->size = lle->fb->pos;
