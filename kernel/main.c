@@ -57,6 +57,7 @@ void main(uint32_t phys)
 	uart_remap();
 	puts("SOS: started!\n");
 	board_init();
+	cxtk_init(); /* initialize before any interrupt is enabled */
 	kmalloc_init();
 	process_init();
 #if CONFIG_BOARD == BOARD_QEMU
@@ -71,7 +72,6 @@ void main(uint32_t phys)
 	blk_init();
 	virtio_init();
 #endif
-	cxtk_init();
 
 #if CONFIG_BOARD == BOARD_QEMU
 	socket_init();
