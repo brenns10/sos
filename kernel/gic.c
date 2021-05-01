@@ -27,8 +27,7 @@ void gic_init(void)
 	gic_ifregs = (gic_cpu_interface_registers *)kmem_map_periph(
 		CONFIG_GIC_IF_BASE, 0x1000);
 
-	WRITE32(gic_ifregs->CCPMR,
-	        0xFFFFu); /* enable all interrupt priorities */
+	WRITE32(gic_ifregs->CCPMR, 0xFF); /* enable all interrupt priorities */
 	WRITE32(gic_ifregs->CCTLR,
 	        3u); /* enable interrupt forwarding to this cpu */
 	WRITE32(gic_dregs->DCTLR, 3u); /* enable distributor */
@@ -36,20 +35,29 @@ void gic_init(void)
 
 void gic_enable_interrupt(uint8_t int_id)
 {
-	uint8_t reg = int_id / 32;
-	uint8_t bit = int_id % 32;
+	uint8_t reg32 = int_id >> 5;
+	uint8_t bit32 = int_id & 0x1F;
+	uint8_t reg8 = int_id >> 2;
+	uint8_t bit8 = (int_id & 0x3) << 3;
+	uint32_t reg_val;
 
-	/* Write 1 to the set-enable bit for this interrupt */
-	uint32_t reg_val = gic_dregs->DISENABLER[reg];
-	reg_val |= (1u << bit);
-	WRITE32(gic_dregs->DISENABLER[reg], reg_val);
+	/*
+	 * Write 1 to the set-enable bit for this interrupt. Note that it's a
+	 * "set-enable" so writing zeros to the other bits is not a problem.
+	 */
+	WRITE32(gic_dregs->DISENABLER[reg32], (1 << bit32));
 
-	/* Enable forwarding this interrupt to cpu 0 */
-	reg = int_id / 4;
-	bit = (int_id % 4) * 8;
-	reg_val = gic_dregs->DITARGETSR[reg];
-	reg_val |= (1u << bit);
-	WRITE32(gic_dregs->DITARGETSR[reg], reg_val);
+	/*
+	 * For SPI interrupt IDs, we further need to set the target to CPU 0.
+	 * For SGI/PPI interrupts, that's not necessary, and in fact the
+	 * register could be RO, triggering a fault.
+	 */
+	if (int_id >= 32) {
+		reg_val = READ32(gic_dregs->DITARGETSR[reg8]);
+		reg_val &= ~(0xFF << bit8);
+		reg_val |= 1 << bit8;
+		WRITE32(gic_dregs->DITARGETSR[reg8], reg_val);
+	}
 }
 
 uint32_t gic_interrupt_acknowledge(void)
