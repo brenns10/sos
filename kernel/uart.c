@@ -166,7 +166,7 @@ void uart_init(void)
 	uint32_t reg;
 
 	/* Set 8 bit words, and enable FIFO */
-	WRITE32(base->UARTLCR_H, UARTLCR_FEN | UARTLCR_8BIT);
+	WRITE32(base->UARTLCR_H, UARTLCR_8BIT);
 
 	/* Enable UART, Tx, Rx */
 	reg = READ32(base->UARTCR);
@@ -181,9 +181,6 @@ void uart_init_irq(void)
 	uart_lle.fb = flip_buffer_new();
 	uart_lle.state = LS_NORMAL;
 	uart_file = uart_lle.dest;
-
-	/* Half full TX/RX interrupt */
-	WRITE32(base->UARTIFLS, 0x12);
 
 	/* Only interrupt for RX */
 	WRITE32(base->UARTIMSC, UARTIMSC_UART_RXIM);
