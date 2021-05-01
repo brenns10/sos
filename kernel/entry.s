@@ -91,33 +91,139 @@ _swi_ret:
 
 .global undefined_impl
 undefined_impl:
+	/* Load UNDF-mode stack */
+	ldr sp, =undf_stack
+	ldr sp, [sp]
+
+	/*
+	 * The lr points at the interrupted instruction. To resume, reset it
+	 * back by one instruction.
+	 * NOTE: assumes that we don't have Thumb instructions
+	 */
+	add lr, lr, #-4
+
+        /* Dump LR and SPSR to IRQ stack */
 	srsfd sp!, #MODE_UNDF
+
+	/* Save registers in standard order */
 	push {v1-v8}
 	push {a2-a4,r12}
 	push {a1}
-	/* Push dummy values for SP and LR of interrupted mode. */
-	mov a1, #0
-	mov a2, #0
-	push {a1, a2}
+
+	/*
+	 * Save SP and LR of interrupted mode. (only really prepare for SVC/SYS/USR)
+	 */
+	mrs v1, spsr
+	and v1, v1, #MODE_MASK
+	cmp v1, #MODE_SVC
+	bne 1f
+		cps #MODE_SVC
+		b 2f
+	1:
+		cps #MODE_SYS
+	2:
+	mov v1, sp
+	mov v2, lr
+	/* Now return to UNDF mode and push those registers to the stack */
+	cps #MODE_UNDF
+	push {v1, v2}
+
+	/* Call the C undefined handler. */
 	mov a1, sp
 	bl undefined
-	nop
-	sub pc, pc, #8
+
+	/* Now restore SP and LR of interrupted mode. */
+	ldr v1, [sp, #64]  /* grab saved spsr */
+	pop {v2, v3}     /* pop saved sp / lr */
+	and v1, v1, #MODE_MASK
+	cmp v1, #MODE_SVC /* SVC */
+	bne 1f
+		cps #MODE_SVC
+		b 2f
+	1:
+		cps #MODE_SYS /* retrieve from SYS or USR modes */
+	2:
+	mov sp, v2
+	mov lr, v3
+	cps #MODE_UNDF
+
+	pop {a1}
+	pop {a2-a4,r12}
+	pop {v1-v8}
+	rfefd sp!
 
 .global prefetch_abort_impl
 prefetch_abort_impl:
+	/* Load abrt-mode stack */
+	ldr sp, =abrt_stack
+	ldr sp, [sp]
+
+	/*
+	 * The lr points at the interrupted instruction. To resume, reset it
+	 * back by one instruction.
+	 * NOTE: assumes that we don't have Thumb instructions
+	 */
+	add lr, lr, #-4
+
+        /* Dump LR and SPSR to ABRT stack */
 	srsfd sp!, #MODE_ABRT
+
+	/* Save registers in standard order */
 	push {v1-v8}
 	push {a2-a4,r12}
 	push {a1}
-	/* Push dummy values for SP and LR of interrupted mode. */
-	mov a1, #0
-	mov a2, #0
-	push {a1, a2}
+
+	/*
+	 * Save SP and LR of interrupted mode. (could be any of them)
+	 */
+	mrs v1, spsr
+	and v1, v1, #MODE_MASK
+	cmp v1, #MODE_SVC
+	bne 1f
+		cps #MODE_SVC
+		b 2f
+	1:
+	cmp v1, #MODE_IRQ
+	bne 1f
+		cps #MODE_IRQ
+		b 2f
+	1:
+	cmp v1, #MODE_UNDF
+	bne 1f
+		cps #MODE_UNDF
+		b 2f
+	1:
+		cps #MODE_SYS
+	2:
+	mov v1, sp
+	mov v2, lr
+	/* Now return to ABRT mode and push those registers to the stack */
+	cps #MODE_ABRT
+	push {v1, v2}
+
+	/* Call the C undefined handler. */
 	mov a1, sp
 	bl prefetch_abort
-	nop
-	sub pc, pc, #8
+
+	/* Now restore SP and LR of interrupted mode. */
+	ldr v1, [sp, #64]  /* grab saved spsr */
+	pop {v2, v3}     /* pop saved sp / lr */
+	and v1, v1, #MODE_MASK
+	cmp v1, #MODE_SVC /* SVC */
+	bne 1f
+		cps #MODE_SVC
+		b 2f
+	1:
+		cps #MODE_SYS /* retrieve from SYS or USR modes */
+	2:
+	mov sp, v2
+	mov lr, v3
+	cps #MODE_ABRT
+
+	pop {a1}
+	pop {a2-a4,r12}
+	pop {v1-v8}
+	rfefd sp!
 
 .global fiq_impl
 fiq_impl:
