@@ -140,3 +140,11 @@ uint32_t umem_lookup_phys(struct process *p, void *virt_ptr);
  * should handle that.
  */
 void umem_cleanup(struct process *p);
+
+/*
+ * Below are declarations of some diagnostic functions.
+ */
+
+void vmem_diag(uint32_t addr);
+void mem_print(uint32_t *base, uint32_t start, uint32_t stop);
+void kmem_print(uint32_t start, uint32_t stop);
