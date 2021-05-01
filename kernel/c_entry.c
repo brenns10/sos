@@ -2,11 +2,19 @@
 #include "kernel.h"
 #include "mm.h"
 
+void print_context(struct ctx *ctx)
+{
+	printf("PSR: 0x%0x   SP: 0x%0x   LR: 0x%0x\n", ctx->spsr, ctx->sp, ctx->lr);
+	printf(" A1: 0x%0x   A2: 0x%0x   A3: 0x%0x\n", ctx->a1, ctx->a2, ctx->a3);
+	printf(" A4: 0x%0x  R12: 0x%0x   V1: 0x%0x\n", ctx->a4, ctx->r12, ctx->v1);
+	printf(" V2: 0x%0x   V3: 0x%0x   V4: 0x%0x\n", ctx->v2, ctx->v3, ctx->v4);
+	printf(" V5: 0x%0x   V6: 0x%0x   V7: 0x%0x\n", ctx->v5, ctx->v6, ctx->v7);
+	printf(" V8: 0x%0x  RET: 0x%0x\n", ctx->v8, ctx->ret);
+}
+
 void print_fault(uint32_t fsr, uint32_t far, struct ctx *ctx)
 {
-	uint32_t mode;
-	get_spsr(mode);
-	printf("Fault occurred with PSR: 0x%x\n", mode);
+	print_context(ctx);
 	vmem_diag(far);
 	switch (fsr & 0x40F) {
 	case 0x5:
@@ -45,11 +53,9 @@ void data_abort(struct ctx *ctx)
 	uint32_t dfsr, dfar;
 	get_cpreg(dfsr, c5, 0, c0, 0);
 	get_cpreg(dfar, c6, 0, c0, 0);
-	printf("Uh-oh... data abort! DFSR=%x DFAR=%x LR=%x\n", dfsr, dfar,
-	       ctx->ret);
+	printf("ERR: Data Abort! DFSR=%x DFAR=%x\n", dfsr, dfar);
 	print_fault(dfsr, dfar, ctx);
-	for (;;) {
-	}
+	cpu_infinite_loop();
 }
 
 void prefetch_abort(struct ctx *ctx)
@@ -57,11 +63,9 @@ void prefetch_abort(struct ctx *ctx)
 	uint32_t fsr, far;
 	get_cpreg(fsr, c5, 0, c0, 1);
 	get_cpreg(far, c6, 0, c0, 2);
-	printf("Uh-oh... prefetch abort! FSR=%x IFAR=%x LR=%x\n", fsr, far,
-	       ctx->ret);
+	printf("ERR: Prefetch Abort! FSR=%x IFAR=%x\n", fsr, far);
 	print_fault(fsr, far, ctx);
-	for (;;) {
-	}
+	cpu_infinite_loop();
 }
 
 void irq(struct ctx *ctx)
@@ -96,14 +100,13 @@ void fiq(struct ctx *ctx)
 	puts("FIQ!\n");
 }
 
-int undefined(struct ctx *ctx, uint32_t *pc)
+void undefined(struct ctx *ctx, uint32_t *pc)
 {
-	uint32_t mode;
-	get_spsr(mode);
-	printf("Undefined instruction, LR=0x%x, SPSR=0x%x PC=0x%x\n", ctx->ret, mode, pc);
-	printf("Instruction 0x%x is 0x%x\n", &pc[-1], pc[-1]);
+	puts("ERR: Undefined instruction!\n");
+	print_context(ctx);
+	printf("Instruction 0x%x is 0x%x\n", ctx->ret, *(uint32_t *)ctx->ret);
 	cxtk_report();
 	backtrace_ctx(ctx);
 	puts("END OF FAULT REPORT\n");
-	return 0;
+	cpu_infinite_loop();
 }
