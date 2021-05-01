@@ -97,11 +97,13 @@ void umem_cleanup(struct process *p)
 }
 
 /**
- * Insert a mapping from a virtual to a physical page.
+ * Insert a mapping from a virtual to a physical page. This is done via small
+ * pages.
  *
- * virt: physical virtual address (should be page aligned)
- * phys: physical virtual address (should be page aligned)
- * attrs: access control attributes
+ * @param base The virtual address of the first-level page table
+ * @param virt virtual address to map (should be page aligned)
+ * @param phys physical address (should be page aligned)
+ * @param attrs second-level small page descriptor bits to include
  */
 static void map_page(uint32_t *base, uint32_t virt, uint32_t phys,
                      uint32_t attrs)
@@ -128,6 +130,7 @@ static void map_page(uint32_t *base, uint32_t virt, uint32_t phys,
 	DCCMVAC(&second[sld_idx(virt)]);
 }
 
+/* Map multiple pages in a row. This is mainly to automate map_page() */
 static void map_pages(uint32_t *base, uint32_t virt, uint32_t phys,
                       uint32_t len, uint32_t attrs)
 {
@@ -136,6 +139,9 @@ static void map_pages(uint32_t *base, uint32_t virt, uint32_t phys,
 		map_page(base, virt + i, phys + i, attrs);
 }
 
+/**
+ * Public API function, see mm.h
+ */
 void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys,
                     uint32_t len, enum umem_perm perm)
 {
@@ -184,10 +190,9 @@ uint32_t kmem_lookup_phys(void *virt_ptr)
 }
 
 /**
- * Get mapped pages. That is, allocate some physical memory, allocate some
- * virtual memory, and map the virtual to the physical and return it.
- * bytes: count of bytes to allocate (increments of 4096 bytes)
- * align: alignment (only applied to the virtual address allocation)
+ * The base page allocation routine for kernel pages. The kernel direct-map
+ * address space is managed by kernalloc. Allocate virtual addresses and return
+ * them directly. No need to do any mappings.
  */
 void *kmem_get_pages(uint32_t bytes, uint32_t align)
 {
@@ -195,7 +200,7 @@ void *kmem_get_pages(uint32_t bytes, uint32_t align)
 }
 
 /**
- * Simpler method for use with slab
+ * Allocate a single kernel page (a useful helper for the slab allocator)
  */
 void *kmem_get_page(void)
 {
@@ -203,14 +208,7 @@ void *kmem_get_page(void)
 }
 
 /**
- * Free memory which was allocated via kmem_get_pages(). This involves:
- * 1. Determine the physical address, we can do this via a software page table
- *    walk.
- * 2. Free the memory segments from the physical and virtual allocators.
- * 3. Unmap the virtual memory range.
- *
- * virt_ptr: virtual address pointer (must be page aligned)
- * len: length (must be page aligned)
+ * Free memory which was allocated via kmem_get_pages().
  */
 void kmem_free_pages(void *virt_ptr, uint32_t len)
 {
@@ -222,6 +220,9 @@ void kmem_free_page(void *ptr)
 	kmem_free_pages(ptr, 4096);
 }
 
+/**
+ * API function - see mm.h
+ */
 void *kmem_map_periph(uint32_t phys, uint32_t len)
 {
 	uint32_t virt = alloc_pages(kern_virt_allocator, len, 0);
@@ -254,6 +255,9 @@ static inline uint32_t get_kern_end_mb(uint32_t memsize)
  * extends until 2040 MiB. The remaining 8 MiB are used for "vmalloc", which
  * means that it can be used to map virtual addresses to MMIO, or to temporarily
  * map physical pages which are beyond the capacity of the kernel address space.
+ *
+ * For its part, this function simply does the direct mapping and sets
+ * everything else unmapped.
  */
 int kmem_init_page_tables(uint32_t start, uint32_t size)
 {
@@ -294,6 +298,11 @@ static void unmap_first_page_identity(void)
 	first_level_table[idx] = 0;
 }
 
+/**
+ * Initialize page tables to the point where we can return to assembly and
+ * enable the MMU. This means establishing the kernel direct mapping, and then
+ * inserting a temporary identity map at the kernel load address.
+ */
 int kmem_init2(uint32_t phys_load)
 {
 	uint32_t size;
@@ -330,6 +339,12 @@ int kmem_init2(uint32_t phys_load)
 	return 0;
 }
 
+/**
+ * Do memory initialization after MMU enabled.
+ *
+ * This is miscellaneous stuff - clean up the identity mappings, remove the page
+ * allocators, and be sure the other processor modes have a stack pointer.
+ */
 int kmem_init2_postmmu(void)
 {
 	void *stack;
