@@ -69,7 +69,14 @@ static uint32_t *create_second(uint32_t *base, uint32_t first_idx)
 	second = kmem_get_page();
 	second_phys = kvtop(second);
 	base[first_idx] = second_phys | FLD_COARSE;
-	DCCIMVAC(&base[first_idx]);
+
+	/*
+	 * TODO: The mystery is weird here. From discussions about the memory
+	 * model, it seems like I shouldn't need to clean the cache here,
+	 * because the MMU should be cache coherent. But in practice, things
+	 * crash if I don't clean the cache to PoC (PoU won't work even).
+	 */
+	DCCMVAC(&base[first_idx]);
 	init_second_level(second);
 	return second;
 }
@@ -112,7 +119,13 @@ static void map_page(uint32_t *base, uint32_t virt, uint32_t phys,
 	}
 
 	second[sld_idx(virt)] = (phys & 0xFFFFF000) | attrs | SLD_SMALL;
-	DCCIMVAC(&second[sld_idx(virt)]);
+	/*
+	 * TODO: The mystery is weird here. From discussions about the memory
+	 * model, it seems like I shouldn't need to clean the cache here,
+	 * because the MMU should be cache coherent. But in practice, things
+	 * crash if I don't clean the cache to PoC (PoU won't work even).
+	 */
+	DCCMVAC(&second[sld_idx(virt)]);
 }
 
 static void map_pages(uint32_t *base, uint32_t virt, uint32_t phys,
@@ -133,6 +146,8 @@ void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys,
 		attrs = UMEM_FLAGS_RW;
 	}
 	map_pages(p->first, virt, phys, len, attrs);
+	mb();
+	isb();
 }
 
 /**
@@ -211,6 +226,8 @@ void *kmem_map_periph(uint32_t phys, uint32_t len)
 {
 	uint32_t virt = alloc_pages(kern_virt_allocator, len, 0);
 	map_pages(first_level_table, virt, phys, len, PERIPH_DEFAULT);
+	mb();
+	isb();
 	return (void *)virt;
 }
 
