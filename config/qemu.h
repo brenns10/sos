@@ -7,3 +7,5 @@
 #define CONFIG_GIC_DIST_BASE 0x08000000
 
 #define CONFIG_UART_INTID 33
+
+#define timer_tick timer_tick_fallback

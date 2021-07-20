@@ -105,6 +105,30 @@ void mbox_set_led_state(int pin, int state)
 	read_mbox(MBOX_CHAN_PTAG);
 }
 
+void mbox_led_timer_tick(uint32_t val)
+{
+	const unsigned int TICK_SHIFT = 4;
+	static uint32_t prev_val = 0;
+	int pin, state;
+
+	val = val & (3 << TICK_SHIFT);
+	if (val == prev_val)
+		return;
+
+	prev_val = val;
+	if (val & (1 << TICK_SHIFT)) {
+		pin = LED_ACT;
+	} else {
+		pin = LED_PWR;
+	}
+	if (val & (2 << TICK_SHIFT)) {
+		state = 0;
+	} else {
+		state = 1;
+	}
+	mbox_set_led_state(pin, state);
+}
+
 void mbox_remap(void)
 {
 	mbox_address = (uint32_t)kmem_map_periph(MBOX_BASE, 0x1000) + MBOX_OFFSET;

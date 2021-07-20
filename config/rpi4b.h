@@ -13,3 +13,5 @@
 #endif
 
 #define CONFIG_UART_INTID 153
+
+#define timer_tick mbox_led_timer_tick

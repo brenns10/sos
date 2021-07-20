@@ -5,6 +5,9 @@
 #include "kernel.h"
 #include "ksh.h"
 
+#include "arm-mailbox.h"
+#include "config.h"
+
 #define TIMER_INTID 30
 
 #define GET_CNTFRQ(dst) get_cpreg(dst, c14, 0, c0, 0)
@@ -74,6 +77,13 @@ void timer_init(void)
 	gic_enable_interrupt(TIMER_INTID);
 }
 
+static uint32_t timer_count = 0;
+
+
+static void timer_tick_fallback(uint32_t arg)
+{
+}
+
 void timer_isr(uint32_t intid, struct ctx *ctx)
 {
 	uint32_t reg;
@@ -86,6 +96,9 @@ void timer_isr(uint32_t intid, struct ctx *ctx)
 	/* Ensure the timer is still on */
 	reg = 1;
 	SET_CNTP_CTL(reg);
+
+	timer_count++;
+	timer_tick(timer_count);
 
 	if (timer_can_reschedule(ctx)) {
 		/* We interrupted sys/user mode. This means we can go ahead and
