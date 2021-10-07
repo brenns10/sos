@@ -443,6 +443,12 @@ struct ksh_cmd proc_ksh_cmds[] = {
 static void idle(void *arg)
 {
 	while (1) {
+		uint32_t cpsr;
+		if (!interrupts_enabled())
+			puts("ERROR: idling with interrupts disabled\n");
+		cpsr = get_cpsr();
+		if ((cpsr & ARM_MODE_MASK) != ARM_MODE_SYS)
+			printf("ERROR: idling in non-sys mode. CPSR=0x%x\n", cpsr);
 		asm("wfi");
 	}
 }
