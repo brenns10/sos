@@ -6,6 +6,9 @@
 
 #include "kernel.h"
 #include "string.h"
+#include "cxtk.h"
+
+#ifdef CXTK
 
 struct ctxrec {
 	uint8_t type;
@@ -131,3 +134,12 @@ void cxtk_report(void)
 	puts("End of context history\n");
 	return;
 }
+
+#else
+
+void cxtk_report(void)
+{
+	puts("context tracking not enabled in this build\n");
+}
+
+#endif
