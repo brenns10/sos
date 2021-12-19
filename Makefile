@@ -7,20 +7,20 @@ QEMU_CMD = $(QEMU) -M virt -global virtio-mmio.force-legacy=false -nographic -m 
 #    trace:virtio_blk* (or really virtio*)
 QEMU_DBG = -gdb tcp::9000 -S
 TOOLCHAIN ?= arm-none-eabi-
-AS = $(TOOLCHAIN)as
-CC = $(TOOLCHAIN)gcc
-LD = $(TOOLCHAIN)ld
-OBJCOPY = $(TOOLCHAIN)objcopy
-GDB = $(TOOLCHAIN)gdb
-PYTEST = python3 -m pytest
+AS := $(TOOLCHAIN)as
+CC := $(TOOLCHAIN)gcc
+LD := $(TOOLCHAIN)ld
+OBJCOPY := $(TOOLCHAIN)objcopy
+GDB := $(TOOLCHAIN)gdb
+PYTEST := python3 -m pytest
 
 HOSTCC = gcc
 
 ARCH := armv8-a
-ASFLAGS = -g -march=$(ARCH)
-CFLAGS = -g -ffreestanding -nostdlib -fPIE -march=$(ARCH) -iquote lib \
-         -iquote include -iquote kernel -marm -Wall -Wno-address-of-packed-member
-LDFLAGS = -nostdlib -fPIE
+ASFLAGS := -g -march=$(ARCH)
+CFLAGS := -g -ffreestanding -nostdlib -fPIE -march=$(ARCH) -iquote lib \
+          -iquote include -iquote kernel -marm -Wall -Wno-address-of-packed-member
+LDFLAGS := -nostdlib -fPIE
 
 TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g -DTEST_PREFIX
 

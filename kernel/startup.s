@@ -26,50 +26,170 @@
 .equ MODE_MASK, 0x1F
 .text
 
-/*
- * Hey look, it's an interrupt vector! Have some commentary about it:
- *
- * Code from startup.s resides at the beginning of the code section, on a page
- * boundary. We map this page to address 0x00 (in addition to the normal address
- * for this code) so that it can also serve as the interrupt vector.
- *
- * Code from entry.s resides directly after. It contains the _impls for these
- * branches, which are the Interrupt Service Routines. The linker will ensure
- * our ISRs reside completely within this first page.
- *
- * We should never really use the "reset" vector. I suspect this code might
- * break if it was used diretly.
- */
 .globl _start
-_start: b start_impl
-_undefined: ldr pc, =undefined_impl
-_swi: ldr pc, =swi_impl
-_prefetch_abort: ldr pc, =prefetch_abort_impl
-_data_abort: ldr pc, =data_abort_impl
-_undefined_interrupt: ldr pc, =undefined_impl
-_irq: ldr pc, =irq_impl
-_fiq: ldr pc, =fiq_impl
+_start:
+        nop // 0x000
+        nop // 0x004
+        nop // 0x008
+        nop // 0x00c
+        nop // 0x010
+        nop // 0x014
+        nop // 0x018
+        nop // 0x01c
+        nop // 0x020
+        nop // 0x024
+        nop // 0x028
+        nop // 0x02c
+        nop // 0x030
+        nop // 0x034
+        nop // 0x038
+        nop // 0x03c
+        nop // 0x040
+        nop // 0x044
+        nop // 0x048
+        nop // 0x04c
+        nop // 0x050
+        nop // 0x054
+        nop // 0x058
+        nop // 0x05c
+        nop // 0x060
+        nop // 0x064
+        nop // 0x068
+        nop // 0x06c
+        nop // 0x070
+        nop // 0x074
+        nop // 0x078
+        nop // 0x07c
+_irq:
+        nop // 0x080
+        nop // 0x084
+        nop // 0x088
+        nop // 0x08c
+        nop // 0x090
+        nop // 0x094
+        nop // 0x098
+        nop // 0x09c
+        nop // 0x0a0
+        nop // 0x0a4
+        nop // 0x0a8
+        nop // 0x0ac
+        nop // 0x0b0
+        nop // 0x0b4
+        nop // 0x0b8
+        nop // 0x0bc
+        nop // 0x0c0
+        nop // 0x0c4
+        nop // 0x0c8
+        nop // 0x0cc
+        nop // 0x0d0
+        nop // 0x0d4
+        nop // 0x0d8
+        nop // 0x0dc
+        nop // 0x0e0
+        nop // 0x0e4
+        nop // 0x0e8
+        nop // 0x0ec
+        nop // 0x0f0
+        nop // 0x0f4
+        nop // 0x0f8
+        nop // 0x0fc
+_fiq:
+        nop // 0x100
+        nop // 0x104
+        nop // 0x108
+        nop // 0x10c
+        nop // 0x110
+        nop // 0x114
+        nop // 0x118
+        nop // 0x11c
+        nop // 0x120
+        nop // 0x124
+        nop // 0x128
+        nop // 0x12c
+        nop // 0x130
+        nop // 0x134
+        nop // 0x138
+        nop // 0x13c
+        nop // 0x140
+        nop // 0x144
+        nop // 0x148
+        nop // 0x14c
+        nop // 0x150
+        nop // 0x154
+        nop // 0x158
+        nop // 0x15c
+        nop // 0x160
+        nop // 0x164
+        nop // 0x168
+        nop // 0x16c
+        nop // 0x170
+        nop // 0x174
+        nop // 0x178
+        nop // 0x17c
+_serror:
+        nop // 0x180
+        nop // 0x184
+        nop // 0x188
+        nop // 0x18c
+        nop // 0x190
+        nop // 0x194
+        nop // 0x198
+        nop // 0x19c
+        nop // 0x1a0
+        nop // 0x1a4
+        nop // 0x1a8
+        nop // 0x1ac
+        nop // 0x1b0
+        nop // 0x1b4
+        nop // 0x1b8
+        nop // 0x1bc
+        nop // 0x1c0
+        nop // 0x1c4
+        nop // 0x1c8
+        nop // 0x1cc
+        nop // 0x1d0
+        nop // 0x1d4
+        nop // 0x1d8
+        nop // 0x1dc
+        nop // 0x1e0
+        nop // 0x1e4
+        nop // 0x1e8
+        nop // 0x1ec
+        nop // 0x1f0
+        nop // 0x1f4
+        nop // 0x1f8
+        nop // 0x1fc
 
 start_impl:
 	/* Are we in HYP mode? If so, get out of there */
-	mrs r0, cpsr
-	and r1, r0, #MODE_MASK
-	cmp r1, #MODE_HYP
-	bne out_of_hyp
+	mrs x0, CurrentEL
+        cmp x0, #0b1100
+        b.ne not_el3
 
-	/* Set spsr to SVC mode */
-	bic r0, #MODE_MASK
-	orr r0, #MODE_SVC
-	msr spsr_cxsf, r0
-	/* Set HVBAR to our interrupt vector */
-	mov r0, #0x8000
-	mcr p15, 4, r0, c12, c0, 0
-	/* Set LR to the next instructions */
-	add r0, pc, #4
-	msr ELR_hyp, r0
-	eret
+        ldr x0, =continue
+        msr ELR_EL3, x0
 
-out_of_hyp:
+not_el3:
+        cmp x0, #0b1000
+        b.ne not_el2
+
+        ldr x0, =continue
+        msr ELR_EL2, x0
+        // Mask FIQ, IRQ, Async Abort. Go to EL1h mode.
+        mov x0, #0b111000101
+
+not_el2:
+        cmp x0, #0b0100
+        b.ne el0
+
+        // We're in EL1. This is the mode we want to be in!
+        b continue
+
+el0:
+        // THIS IS AN ERROR, SHOULD NEVER HAPPEN
+
+
+continue:
 	/* Trap cores which arent core 0 */
 	mrc p15, 0, r0, c0, c0, 5
 	and r0, #0xFF
