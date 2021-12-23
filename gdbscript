@@ -8,7 +8,7 @@ file pre_mmu.elf
 #file user/salutations.elf
 
 ## May not be necessary?
-set architecture arm
+set architecture aarch64
 
 ## Connect to qemu remotely on port 9000
 target remote localhost:9000
