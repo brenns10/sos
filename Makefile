@@ -1,13 +1,14 @@
-QEMU = qemu-system-aarch64
-QEMU_CMD = $(QEMU) -M virt -nographic -m size=1G -d guest_errors -cpu max
-#-global virtio-mmio.force-legacy=false -nographic -m size=1G \
-#       -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd \
-#       -netdev user,id=u1 -device virtio-net-device,netdev=u1 -object filter-dump,id=f1,netdev=u1,file=dump.pcap \
-#       -d guest_errors
-# Consider adding to -d when debugging:
-#    trace:virtio_blk* (or really virtio*)
-QEMU_DBG = -gdb tcp::9000 -S
-TOOLCHAIN ?= aarch64-linux-gnu-
+ASFLAGS := -g
+CFLAGS := -g -ffreestanding -nostdlib -fPIE -iquote lib \
+          -iquote include -iquote kernel -Wall -Wno-address-of-packed-member
+LDFLAGS := -nostdlib -fPIE
+
+TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g -DTEST_PREFIX
+HOSTCC := gcc
+
+include ./arch/config.mk
+include ./config/config.mk
+
 AS := $(TOOLCHAIN)as
 CC := $(TOOLCHAIN)gcc
 LD := $(TOOLCHAIN)ld
@@ -15,41 +16,11 @@ OBJCOPY := $(TOOLCHAIN)objcopy
 GDB := $(TOOLCHAIN)gdb
 PYTEST := python3 -m pytest
 
-HOSTCC = gcc
-
-ARCH := armv8-a
-ASFLAGS := -g -march=$(ARCH)
-CFLAGS := -g -ffreestanding -nostdlib -fPIE -march=$(ARCH) -iquote lib \
-          -iquote include -iquote kernel -Wall -Wno-address-of-packed-member
-LDFLAGS := -nostdlib -fPIE
-
-TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g -DTEST_PREFIX
-
-# Include here to allow overriding settings via a more permanent conf.mk
+# User configuration overrides
 -include conf.mk
 
-.PHONY: run
-run: kernel/configvals.h kernel.bin mydisk
-	@echo Running. Exit with Ctrl-A X
-	@echo
-	$(QEMU_CMD) -kernel kernel.bin
-
 .PHONY: all
-all: kernel/configvals.h kernel.bin compile_unittests
-
-.PHONY: debug
-debug: kernel.bin mydisk
-	@echo Entering debug mode. Go run \"make gdb\" in another terminal.
-	@echo You can terminate the qemu process with Ctrl-A X
-	@echo
-	$(QEMU_CMD) $(QEMU_DBG) -kernel kernel.bin
-
-.PHONY: gdb
-gdb:
-	$(GDB) -x gdbscript
-
-mydisk:
-	dd if=/dev/zero of=mydisk bs=1M count=1
+all: kernel.bin compile_unittests
 
 # Object files going into the kernel:
 kernel.elf: kernel/uart.o
@@ -91,7 +62,7 @@ kernel.elf: kernel/smain.o
 #kernel.elf: kernel/setctx.o
 #
 #kernel.elf: lib/list.o
-#kernel.elf: lib/format.o
+kernel.elf: lib/format.o
 #kernel.elf: lib/alloc.o
 #kernel.elf: lib/string.o
 #kernel.elf: lib/util.o
@@ -122,8 +93,10 @@ user/%.bin: user/%.elf
 # To build the kernel
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
+
+# Builds kernel.elf, also preprocesses the linker based on config/arch specific
+# changes.
 %.elf:
-	# Pre-process the linker scripts to include configvals
 	$(CC) -E -x c $(CFLAGS) $(patsubst %.elf,%.ld.in,$@) | grep -v '^#' >$(patsubst %.elf,%.ld,$@)
 	$(CC) -E -x c $(CFLAGS) pre_mmu.ld.in | grep -v '^#' >pre_mmu.ld
 	$(LD) -T $(patsubst %.elf,%.ld,$@) $^ -o $@ -M > $(patsubst %.elf,%.map,$@)
@@ -161,62 +134,17 @@ unittest: compile_unittests
 	@unittests/inet.test
 	gcovr -r . --html --html-details -o cov.html lib/ unittests/
 
-.PHONY: integrationtest
-integrationtest: kernel/configvals.h kernel.bin mydisk
-	@QEMU_CMD="$(QEMU_CMD)" $(PYTEST) integrationtests
-
-.PHONY: integrationtestpdb
-integrationtestpdb: kernel/configvals.h kernel.bin mydisk
-	@QEMU_CMD="$(QEMU_CMD)" $(PYTEST) integrationtests --pdb
-
-.PHONY: testdebug
-testdebug:
-	@SOS_DEBUG=true QEMU_CMD="$(QEMU_CMD) $(QEMU_DBG)" $(PYTEST) integrationtests -k $(TEST) -s
-
 .PHONY: test
-test: kernel/configvals.h unittest integrationtest
+test: unittest
 
 .PHONY: clean
 clean:
 	rm -f *.elf *.bin
 	rm -f kernel/*.o
-	rm -f kernel/configvals.h
+	rm -f kernel/configvals.h arch/config.mk config/config.mk
 	rm -f board/*.o
 	rm -f lib/*.o unittests/*.to lib/*.to
 	rm -f user/*.o user/*.elf user/*.bin
 	rm -f unittests/*.gcda unittests/*.gcno unittests/*.to unittests/*.test
 	rm -f cov.*.html
 	rm -f dump.pcap
-
-.PHONY: config_qemu config_rpi4b
-config_qemu: clean
-	cp config/qemu.h kernel/configvals.h
-config_rpi4b: clean
-	cp config/rpi4b.h kernel/configvals.h
-
-kernel/configvals.h:
-	@echo You have not configured the kernel. Please read through kernel/config.h
-	@echo and create a file kernel/configvals.h which specifies each option.
-	@echo Alternatively, select one of the following premade configurations:
-	@echo
-	@echo "  make config_qemu"
-	@echo "  make config_rpi4b"
-	@echo
-	@exit 1
-
-TTY = /dev/ttyUSB1
-.PHONY: pi-serial
-pi-serial: kernel.bin
-	@echo Launching raspbootcom!
-	make -C submodules/raspbootin/raspbootcom
-	submodules/raspbootin/raspbootcom/raspbootcom $(TTY) kernel.bin
-
-.PHONY: jtag
-jtag:
-	@echo Launching OpenOCD. Once this succeeds, go run \"make hwgdb\" in a separate
-	@echo terminal.
-	openocd -f debug/rpi4b/c232hm.cfg -f debug/rpi4b/openocd.cfg
-
-.PHONY: hwgdb
-hwgdb:
-	$(GDB) -x debug/rpi4b/hwgdb

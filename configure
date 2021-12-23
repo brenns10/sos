@@ -1,0 +1,36 @@
+#!/bin/sh
+
+qemu() {
+    cp config/qemu/configvals.h kernel/configvals.h
+    ln -s qemu/config.mk config/config.mk
+}
+
+rpi4b() {
+    cp config/rpi4b/configvals.h kernel/configvals.h
+    ln -s rpi4b/config.mk config/config.mk
+}
+
+arm() {
+    ln -s arm/config.mk arch/config.mk
+}
+aarch64() {
+    ln -s aarch64/config.mk arch/config.mk
+}
+
+make clean
+if [ "$1" = "qemu" ]; then
+    qemu
+    arm
+elif [ "$1" = "qemu64" ]; then
+    qemu
+    aarch64
+elif [ "$1" = "rpi4b" ]; then
+    rpi4b
+    arm
+elif [ "$1" = "rpi4b64" ]; then
+    rpi4b
+    aarch64
+else
+    echo error: choose configuration from: {qemu,rpi4b}{,64}
+    exit 1
+fi

@@ -89,6 +89,7 @@ continue:
 	ldr x3, =stack_end
 	sub x3, x3, x2
 	add sp, x1, x3
+        mov x0, x1
 	bl pre_mmu
 1:
         b 1b

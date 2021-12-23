@@ -19,3 +19,5 @@ conf.mk
 kernel/configvals.h
 kernel.ld
 pre_mmu.ld
+arch/config.mk
+config/config.mk
