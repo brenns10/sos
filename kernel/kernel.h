@@ -56,7 +56,7 @@ extern uint8_t dynamic_start[];
 /*
  * Address of the UART is stored as a variable.
  */
-extern uint32_t uart_base;
+extern uintptr_t uart_base;
 
 /*
  * Some well-known addresses which we determine at runtime.

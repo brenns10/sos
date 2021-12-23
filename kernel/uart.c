@@ -48,11 +48,13 @@ typedef volatile struct __attribute__((packed)) {
 	uint32_t UARTDMACR;
 } pl011_registers;
 
-uint32_t uart_base = CONFIG_UART_BASE;
+uintptr_t uart_base = CONFIG_UART_BASE;
 DECLARE_SPINSEM(uart_sem, 1);
 #define base ((pl011_registers *)uart_base)
+#ifdef CONFIG_LLE
 struct ldisc_line_edit uart_lle = { 0 };
 struct file *uart_file = NULL;
+#endif
 bool echo = false;
 
 void putc(char c)
@@ -66,19 +68,19 @@ void putc(char c)
 
 void puts(char *string)
 {
-	preempt_disable();
+	//preempt_disable();
 	while (*string)
 		putc(*(string++));
-	preempt_enable();
+	//preempt_enable();
 }
 
 void nputs(char *string, int n)
 {
 	int i;
-	preempt_disable();
+	//preempt_disable();
 	for (i = 0; i < n; i++)
 		putc(string[i]);
-	preempt_enable();
+	//preempt_enable();
 }
 
 int try_getc(void)
@@ -99,6 +101,7 @@ int getc_spinning(void)
 	return rv;
 }
 
+#ifdef CONFIG_LLE
 int getc_blocking(void)
 {
 	int rv;
@@ -111,12 +114,14 @@ int getc_blocking(void)
 		return rv;
 	}
 }
+#endif
 
 void uart_set_echo(bool value)
 {
 	echo = value;
 }
 
+#ifdef CONFIG_LLE
 void uart_isr(uint32_t intid, struct ctx *ctx)
 {
 	uint32_t reg;
@@ -151,6 +156,7 @@ out:
 	WRITE32(base->UARTICR, reg);
 	gic_end_interrupt(intid);
 }
+#endif
 
 /**
  * Initialize the UART.
@@ -173,6 +179,7 @@ void uart_init(void)
 	WRITE32(base->UARTCR, reg);
 }
 
+#ifdef CONFIG_LLE
 void uart_init_irq(void)
 {
 	/* Initialize the UART file */
@@ -196,3 +203,5 @@ void uart_remap(void)
 {
 	uart_base = (uint32_t)kmem_map_periph(uart_base, 0x1000);
 }
+
+#endif

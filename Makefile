@@ -1,12 +1,13 @@
-QEMU = qemu-system-arm
-QEMU_CMD = $(QEMU) -M virt -global virtio-mmio.force-legacy=false -nographic -m size=1G \
-       -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd \
-       -netdev user,id=u1 -device virtio-net-device,netdev=u1 -object filter-dump,id=f1,netdev=u1,file=dump.pcap \
-       -d guest_errors
+QEMU = qemu-system-aarch64
+QEMU_CMD = $(QEMU) -M virt -nographic -m size=1G -d guest_errors -cpu max
+#-global virtio-mmio.force-legacy=false -nographic -m size=1G \
+#       -drive file=mydisk,if=none,format=raw,id=hd -device virtio-blk-device,drive=hd \
+#       -netdev user,id=u1 -device virtio-net-device,netdev=u1 -object filter-dump,id=f1,netdev=u1,file=dump.pcap \
+#       -d guest_errors
 # Consider adding to -d when debugging:
 #    trace:virtio_blk* (or really virtio*)
 QEMU_DBG = -gdb tcp::9000 -S
-TOOLCHAIN ?= arm-none-eabi-
+TOOLCHAIN ?= aarch64-linux-gnu-
 AS := $(TOOLCHAIN)as
 CC := $(TOOLCHAIN)gcc
 LD := $(TOOLCHAIN)ld
@@ -19,7 +20,7 @@ HOSTCC = gcc
 ARCH := armv8-a
 ASFLAGS := -g -march=$(ARCH)
 CFLAGS := -g -ffreestanding -nostdlib -fPIE -march=$(ARCH) -iquote lib \
-          -iquote include -iquote kernel -marm -Wall -Wno-address-of-packed-member
+          -iquote include -iquote kernel -Wall -Wno-address-of-packed-member
 LDFLAGS := -nostdlib -fPIE
 
 TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g -DTEST_PREFIX
@@ -53,54 +54,55 @@ mydisk:
 # Object files going into the kernel:
 kernel.elf: kernel/uart.o
 kernel.elf: kernel/startup.o
-kernel.elf: kernel/main.o
-kernel.elf: kernel/kmem.o
-kernel.elf: kernel/sysinfo.o
-kernel.elf: kernel/entry.o
-kernel.elf: kernel/c_entry.o
-kernel.elf: kernel/process.o
-kernel.elf: kernel/rawdata.o
-kernel.elf: kernel/dtb.o
-kernel.elf: kernel/ksh.o
-kernel.elf: kernel/timer.o
-kernel.elf: kernel/gic.o
-kernel.elf: kernel/syscall.o
-kernel.elf: kernel/virtio.o
-kernel.elf: kernel/virtio-blk.o
-kernel.elf: kernel/virtio-net.o
-kernel.elf: kernel/eth.o
-kernel.elf: kernel/ip.o
-kernel.elf: kernel/udp.o
-kernel.elf: kernel/netutils.o
-kernel.elf: kernel/dhcp.o
-kernel.elf: kernel/kmalloc.o
-kernel.elf: kernel/socket.o
-kernel.elf: kernel/user.o
-kernel.elf: kernel/wait.o
-kernel.elf: kernel/cxtk.o
-kernel.elf: kernel/debug.o
-kernel.elf: kernel/blk.o
-kernel.elf: kernel/fat.o
-kernel.elf: kernel/rpi-gpio.o
-kernel.elf: kernel/arm-mailbox.o
-kernel.elf: kernel/sync.o
-kernel.elf: kernel/fs.o
-kernel.elf: kernel/ldisc.o
-kernel.elf: kernel/setctx.o
-
-kernel.elf: lib/list.o
-kernel.elf: lib/format.o
-kernel.elf: lib/alloc.o
-kernel.elf: lib/string.o
-kernel.elf: lib/util.o
-kernel.elf: lib/slab.o
-kernel.elf: lib/math.o
-kernel.elf: lib/inet.o
-
-kernel.elf: board/qemu.o
-kernel.elf: board/rpi4b.o
-
-kernel/ksh.o: kernel/ksh_commands.h
+kernel.elf: kernel/smain.o
+#kernel.elf: kernel/main.o
+#kernel.elf: kernel/kmem.o
+#kernel.elf: kernel/sysinfo.o
+#kernel.elf: kernel/entry.o
+#kernel.elf: kernel/c_entry.o
+#kernel.elf: kernel/process.o
+#kernel.elf: kernel/rawdata.o
+#kernel.elf: kernel/dtb.o
+#kernel.elf: kernel/ksh.o
+#kernel.elf: kernel/timer.o
+#kernel.elf: kernel/gic.o
+#kernel.elf: kernel/syscall.o
+#kernel.elf: kernel/virtio.o
+#kernel.elf: kernel/virtio-blk.o
+#kernel.elf: kernel/virtio-net.o
+#kernel.elf: kernel/eth.o
+#kernel.elf: kernel/ip.o
+#kernel.elf: kernel/udp.o
+#kernel.elf: kernel/netutils.o
+#kernel.elf: kernel/dhcp.o
+#kernel.elf: kernel/kmalloc.o
+#kernel.elf: kernel/socket.o
+#kernel.elf: kernel/user.o
+#kernel.elf: kernel/wait.o
+#kernel.elf: kernel/cxtk.o
+#kernel.elf: kernel/debug.o
+#kernel.elf: kernel/blk.o
+#kernel.elf: kernel/fat.o
+#kernel.elf: kernel/rpi-gpio.o
+#kernel.elf: kernel/arm-mailbox.o
+#kernel.elf: kernel/sync.o
+#kernel.elf: kernel/fs.o
+#kernel.elf: kernel/ldisc.o
+#kernel.elf: kernel/setctx.o
+#
+#kernel.elf: lib/list.o
+#kernel.elf: lib/format.o
+#kernel.elf: lib/alloc.o
+#kernel.elf: lib/string.o
+#kernel.elf: lib/util.o
+#kernel.elf: lib/slab.o
+#kernel.elf: lib/math.o
+#kernel.elf: lib/inet.o
+#
+#kernel.elf: board/qemu.o
+#kernel.elf: board/rpi4b.o
+#
+#kernel/ksh.o: kernel/ksh_commands.h
 
 # Object files going into each userspace program:
 USER_BASIC = user/syscall.o user/startup.o

@@ -3,8 +3,8 @@
 ## Gives GDB info about where symbols are!
 ##   use kernel.elf for debugging post-MMU code
 ##   use pre_mmu.elf for debugging pre-MMU code
-file kernel.elf
-#file pre_mmu.elf
+#file kernel.elf
+file pre_mmu.elf
 #file user/salutations.elf
 
 ## May not be necessary?
@@ -22,5 +22,5 @@ layout regs
 ## out and do 4 stepi instructions (to get past some firmware instructions). If
 ## you want to debug processes, uncomment "break *0x20000000".
 #break *0x20000000
-break main
-continue
+#break main
+#continue
