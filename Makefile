@@ -29,6 +29,7 @@ all: kernel.bin compile_unittests
 kernel.elf: kernel/uart.o
 kernel.elf: kernel/startup.o
 kernel.elf: kernel/smain.o
+kernel.elf: arch/aarch64/kmem.o
 #kernel.elf: kernel/main.o
 #kernel.elf: kernel/kmem.o
 #kernel.elf: kernel/sysinfo.o
@@ -66,8 +67,8 @@ kernel.elf: kernel/smain.o
 #
 #kernel.elf: lib/list.o
 kernel.elf: lib/format.o
-#kernel.elf: lib/alloc.o
-#kernel.elf: lib/string.o
+kernel.elf: lib/alloc.o
+kernel.elf: lib/string.o
 #kernel.elf: lib/util.o
 #kernel.elf: lib/slab.o
 #kernel.elf: lib/math.o
