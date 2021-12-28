@@ -6,25 +6,37 @@
  */
 #pragma once
 
-#include "alloc.h"
+#include "arch.h"
 
-#define MAX_DESCRIPTORS 1023
+#include "alloc.h"
 
 /**
  * Zone descriptors manage zones of memory. The minimum zone that can be managed
  * by this mechanism is one 4096-byte page.
  *
  * Zone descriptors are kept in a sorted array (the zonelist), which may
- * dynamically expand and contract as needed. Each entry in the array is 4
- * bytes, containing the start address of the zone.
+ * dynamically expand and contract as needed. Each entry in the array is
+ * (sizeof(void*)) bytes, containing the start address of the zone.
  */
 struct zone {
+#if defined(ARCH_32BIT)
 	unsigned int addr : 20;         /* last 12 bits do not matter */
+#elif defined(ARCH_64BIT)
+	unsigned long long int addr : 52;
+#else
+	#error Need 64 or 32 bit kernel
+#endif
 	unsigned int _unallocated : 11; /* reserved for other uses */
 	unsigned int free : 1;          /* boolean */
 };
 struct zonehdr {
-	unsigned int next : 22;  /* last 10 bits do not matter */
+#if defined(ARCH_32BIT)
+	unsigned int next : 22;         /* last 10 bits do not matter */
+#elif defined(ARCH_64BIT)
+	unsigned long long next : 54;
+#else
+	#error Need 64 or 32 bit kernel
+#endif
 	unsigned int count : 10; /* number of zone structs */
 	struct zone zones[];     /* array of zones */
 };

@@ -1,10 +1,12 @@
 /**
  * alloc.c: allocates pages of memory, physical or virtual
  */
+#include "arch.h"
+
 #include "alloc.h"
 #include "alloc_private.h"
 
-#define MAX_DESCRIPTORS 1023
+#define MAX_DESCRIPTORS ((PAGE_SIZE / sizeof(struct zonehdr)) - 1)
 
 /**
  * Declare this so we don't depend on any particular library providing printf,
@@ -12,7 +14,7 @@
  */
 extern int printf(const char *fmt, ...);
 
-void init_page_allocator(void *allocator, uint32_t start, uint32_t end)
+void init_page_allocator(void *allocator, uintptr_t start, uintptr_t end)
 {
 	/*
 	 * We assume there are 3GB of available memory, starting at 0x40000000.
@@ -74,10 +76,10 @@ static void shift_zones_down(struct zonehdr *hdr, int dst, int to_shift)
  * Change the allocation status of region `exact` of length `count` within the
  * (potentially larger) region `region`.
  */
-static bool change_status(struct zonehdr *hdr, uint32_t exact, uint32_t count,
-                          uint32_t region, uint32_t index, int status)
+static bool change_status(struct zonehdr *hdr, uintptr_t exact, uintptr_t count,
+                          uintptr_t region, uintptr_t index, int status)
 {
-	uint32_t next = 0;
+	uintptr_t next = 0;
 
 	bool have_left_zone = (index > 0);
 	bool have_right_zone = (index < hdr->count - 1);
@@ -173,18 +175,18 @@ static bool change_status(struct zonehdr *hdr, uint32_t exact, uint32_t count,
  * return: physical pointer to contiguous pages
  *   NULL if the memory could not be allocated
  */
-uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align)
+uintptr_t alloc_pages(void *allocator, uintptr_t count, uintptr_t align)
 {
-	uint32_t i, align_mask, zone, alignzone, next;
+	uintptr_t i, align_mask, zone, alignzone, next;
 	struct zonehdr *hdr = (struct zonehdr *)allocator;
 	bool result = false;
 
-	/* threshold alignment between PAGE_BITS <= align <= 32 */
+	/* threshold alignment between PAGE_BITS <= align <= ARCH_BITS */
 	align = (align < PAGE_BITS ? PAGE_BITS : align);
-	align = (align > 32 ? 32 : align);
+	align = (align > ARCH_BITS ? ARCH_BITS : align);
 
 	/* align mask has the N least significant bits set */
-	align_mask = 0xFFFFFFFF >> (32 - align);
+	align_mask = (1 << align) - 1;
 
 	for (i = 0; i < hdr->count; i++) {
 		if (!hdr->zones[i].free)
@@ -211,9 +213,9 @@ uint32_t alloc_pages(void *allocator, uint32_t count, uint32_t align)
 	return 0;
 }
 
-bool free_pages(void *allocator, uint32_t start, uint32_t count)
+bool free_pages(void *allocator, uintptr_t start, uintptr_t count)
 {
-	uint32_t i, addr, next;
+	uintptr_t i, addr, next;
 	bool has_next;
 	struct zonehdr *hdr = (struct zonehdr *)allocator;
 
@@ -243,9 +245,9 @@ bool free_pages(void *allocator, uint32_t start, uint32_t count)
 	return false;
 }
 
-bool mark_alloc(void *allocator, uint32_t start, uint32_t count)
+bool mark_alloc(void *allocator, uintptr_t start, uintptr_t count)
 {
-	uint32_t i, addr, next;
+	uintptr_t i, addr, next;
 	bool has_next;
 	struct zonehdr *hdr = (struct zonehdr *)allocator;
 
