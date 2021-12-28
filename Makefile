@@ -1,6 +1,8 @@
 ASFLAGS := -g
-CFLAGS := -g -ffreestanding -nostdlib -fPIE -iquote lib \
-          -iquote include -iquote kernel -Wall -Wno-address-of-packed-member
+CFLAGS := -g -ffreestanding -nostdlib -fPIE  -Wall -Wno-address-of-packed-member
+CPPFLAGS := -iquote lib \
+            -iquote include \
+            -iquote kernel
 LDFLAGS := -nostdlib -fPIE
 
 TEST_CFLAGS = -fprofile-arcs -ftest-coverage -lgcov -g -DTEST_PREFIX
@@ -9,6 +11,7 @@ HOSTCC := gcc
 include ./arch/config.mk
 include ./config/config.mk
 
+CPPFLAGS += -iquote arch/$(ARCH)/include
 AS := $(TOOLCHAIN)as
 CC := $(TOOLCHAIN)gcc
 LD := $(TOOLCHAIN)ld
@@ -97,8 +100,8 @@ user/%.bin: user/%.elf
 # Builds kernel.elf, also preprocesses the linker based on config/arch specific
 # changes.
 %.elf:
-	$(CC) -E -x c $(CFLAGS) $(patsubst %.elf,%.ld.in,$@) | grep -v '^#' >$(patsubst %.elf,%.ld,$@)
-	$(CC) -E -x c $(CFLAGS) pre_mmu.ld.in | grep -v '^#' >pre_mmu.ld
+	$(CC) -E -x c $(CPPFLAGS) $(patsubst %.elf,%.ld.in,$@) | grep -v '^#' >$(patsubst %.elf,%.ld,$@)
+	$(CC) -E -x c $(CPPFLAGS) pre_mmu.ld.in | grep -v '^#' >pre_mmu.ld
 	$(LD) -T $(patsubst %.elf,%.ld,$@) $^ -o $@ -M > $(patsubst %.elf,%.map,$@)
 	$(LD) -T pre_mmu.ld $^ -o pre_mmu.elf
 
@@ -106,20 +109,20 @@ user/%.bin: user/%.elf
 # Unit tests
 #
 lib/%.to: lib/%.c
-	$(HOSTCC) $(TEST_CFLAGS) -g -c $< -o $@ -iquote lib/
+	$(HOSTCC) $(CPPFLAGS) $(TEST_CFLAGS) -g -c $< -o $@ -iquote lib/
 unittests/%.to: unittests/%.c
-	$(HOSTCC) $(TEST_CFLAGS) -g -c $< -o $@ -iquote lib/
+	$(HOSTCC) $(CPPFLAGS) $(TEST_CFLAGS) -g -c $< -o $@ -iquote lib/
 
 unittests/list.test: unittests/test_list.to lib/list.to lib/unittest.to
-	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
+	$(HOSTCC) $(CPPFLAGS) $(TEST_CFLAGS) -o $@ $^
 unittests/alloc.test: unittests/test_alloc.to lib/alloc.to lib/unittest.to
-	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
+	$(HOSTCC) $(CPPFLAGS) $(TEST_CFLAGS) -o $@ $^
 unittests/slab.test: unittests/test_slab.to lib/slab.to lib/unittest.to lib/list.to
-	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
+	$(HOSTCC) $(CPPFLAGS) $(TEST_CFLAGS) -o $@ $^
 unittests/format.test: unittests/test_format.to lib/format.to lib/unittest.to
-	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
+	$(HOSTCC) $(CPPFLAGS) $(TEST_CFLAGS) -o $@ $^
 unittests/inet.test: unittests/test_inet.to lib/inet.to lib/unittest.to
-	$(HOSTCC) $(TEST_CFLAGS) -o $@ $^
+	$(HOSTCC) $(CPPFLAGS) $(TEST_CFLAGS) -o $@ $^
 
 .PHONY: compile_unittests
 compile_unittests: unittests/list.test unittests/alloc.test unittests/slab.test unittests/format.test unittests/inet.test
