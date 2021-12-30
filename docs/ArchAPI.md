@@ -42,7 +42,7 @@ elsewhere, the memory layout should include a few components:
 4. Optionally, a region where the code and static data sections are directly
    mapped, near the top of the address space. This would allow to compile the
    kernel once and load it from any load address.
-   
+
 Memory addresses from the physical direct mapping are considered "canonical
 addresses". Core kernel code cannot assume that code or static data structures
 are canonical addresses.
