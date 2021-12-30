@@ -1,7 +1,7 @@
 /**
  * alloc.c: allocates pages of memory, physical or virtual
  */
-#include "arch.h"
+#include <arch/arch.h>
 
 #include "alloc.h"
 #include "alloc_private.h"
@@ -30,6 +30,8 @@ void init_page_allocator(void *allocator, uintptr_t start, uintptr_t end)
 	zonehdr->zones[1].free = 0;
 }
 
+#define zone_addr(hdr, i) (((uintptr_t)(hdr)->zones[i].addr) << PAGE_BITS)
+
 void show_pages(void *allocator)
 {
 	struct zonehdr *hdr = (struct zonehdr *)allocator;
@@ -37,7 +39,7 @@ void show_pages(void *allocator)
 
 	printf("BEGIN MEMORY ZONES (%u)\n", hdr->count);
 	for (i = 0; i < hdr->count; i++)
-		printf(" 0x%x: %s\n", hdr->zones[i].addr << PAGE_BITS,
+		printf(" 0x%x: %s\n", zone_addr(hdr, i),
 		       hdr->zones[i].free ? "FREE" : "ALLOCATED");
 	printf("END MEMORY ZONES\n");
 }
@@ -86,7 +88,7 @@ static bool change_status(struct zonehdr *hdr, uintptr_t exact, uintptr_t count,
 	bool exact_on_left = false, exact_on_right = false;
 
 	if (have_right_zone) {
-		next = hdr->zones[index + 1].addr << PAGE_BITS;
+		next = zone_addr(hdr, index + 1);
 		exact_on_right = (exact + count == next);
 	}
 	exact_on_left = (region == exact);
@@ -191,14 +193,14 @@ uintptr_t alloc_pages(void *allocator, uintptr_t count, uintptr_t align)
 	for (i = 0; i < hdr->count; i++) {
 		if (!hdr->zones[i].free)
 			continue;
-		alignzone = zone = hdr->zones[i].addr << PAGE_BITS;
+		alignzone = zone = zone_addr(hdr, i);
 
 		/* align memory if necessary */
 		if (zone & align_mask) {
 			alignzone = ((zone >> align) + 1) << align;
 		}
 
-		next = hdr->zones[i + 1].addr << PAGE_BITS;
+		next = zone_addr(hdr, i + 1);
 		if (alignzone + count > next) {
 			/* can't satisfy alignment and/or size in zone */
 			continue;
@@ -220,7 +222,7 @@ bool free_pages(void *allocator, uintptr_t start, uintptr_t count)
 	struct zonehdr *hdr = (struct zonehdr *)allocator;
 
 	for (i = 0; i < hdr->count; i++) {
-		addr = hdr->zones[i].addr << PAGE_BITS;
+		addr = zone_addr(hdr, i);
 		has_next = i + 1 < hdr->count;
 
 		/* Trying to free a region from before the allocator's memory.
@@ -230,7 +232,7 @@ bool free_pages(void *allocator, uintptr_t start, uintptr_t count)
 
 		/* Compute next */
 		if (has_next)
-			next = hdr->zones[i + 1].addr << PAGE_BITS;
+			next = zone_addr(hdr, i + 1);
 
 		/* If the zone doesn't fit within this block, continue */
 		if (has_next && start + count > next)
@@ -252,7 +254,7 @@ bool mark_alloc(void *allocator, uintptr_t start, uintptr_t count)
 	struct zonehdr *hdr = (struct zonehdr *)allocator;
 
 	for (i = 0; i < hdr->count; i++) {
-		addr = hdr->zones[i].addr << PAGE_BITS;
+		addr = zone_addr(hdr, i);
 		has_next = i + 1 < hdr->count;
 
 		/* Trying to free a region from before the allocator's memory.
@@ -262,7 +264,7 @@ bool mark_alloc(void *allocator, uintptr_t start, uintptr_t count)
 
 		/* Compute next */
 		if (has_next)
-			next = hdr->zones[i + 1].addr << PAGE_BITS;
+			next = zone_addr(hdr, i + 1);
 
 		/* If the zone doesn't fit within this block, continue */
 		if (has_next && start + count > next)
