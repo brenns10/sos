@@ -21,3 +21,4 @@ kernel.ld
 pre_mmu.ld
 arch/config.mk
 config/config.mk
+arch/*/*.ld

@@ -26,10 +26,10 @@ PYTEST := python3 -m pytest
 all: kernel.bin compile_unittests
 
 # Object files going into the kernel:
-kernel.elf: kernel/uart.o
-kernel.elf: kernel/startup.o
-kernel.elf: kernel/smain.o
 kernel.elf: arch/$(ARCH)/mmu.o
+kernel.elf: arch/$(ARCH)/startup.o
+kernel.elf: kernel/uart.o
+kernel.elf: kernel/smain.o
 #kernel.elf: kernel/main.o
 kernel.elf: kernel/kmem.o
 #kernel.elf: kernel/sysinfo.o
@@ -101,10 +101,10 @@ user/%.bin: user/%.elf
 # Builds kernel.elf, also preprocesses the linker based on config/arch specific
 # changes.
 %.elf:
-	$(CC) -E -x c $(CPPFLAGS) $(patsubst %.elf,%.ld.in,$@) | grep -v '^#' >$(patsubst %.elf,%.ld,$@)
-	$(CC) -E -x c $(CPPFLAGS) pre_mmu.ld.in | grep -v '^#' >pre_mmu.ld
-	$(LD) -T $(patsubst %.elf,%.ld,$@) $^ -o $@ -M > $(patsubst %.elf,%.map,$@)
-	$(LD) -T pre_mmu.ld $^ -o pre_mmu.elf
+	$(CC) -E -x c $(CPPFLAGS) $(patsubst %.elf,arch/$(ARCH)/%.ld.in,$@) | grep -v '^#' >$(patsubst %.elf,arch/$(ARCH)/%.ld,$@)
+	$(CC) -E -D PREMMU -x c $(CPPFLAGS) $(patsubst %.elf,arch/$(ARCH)/%.ld.in,$@) | grep -v '^#' >$(patsubst %.elf,arch/$(ARCH)/%.pre_mmu.ld,$@)
+	$(LD) -T $(patsubst %.elf,arch/$(ARCH)/%.ld,$@) $^ -o $@ -M > $(patsubst %.elf,%.map,$@)
+	$(LD) -T $(patsubst %.elf,arch/$(ARCH)/%.pre_mmu.ld,$@) $^ -o pre_mmu.elf
 
 #
 # Unit tests
