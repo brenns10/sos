@@ -7,8 +7,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <arch/cpu.h>
+
 #include "alloc.h"
-#include "cpu.h"
 #include "errno.h"
 #include "format.h"
 #include "list.h"

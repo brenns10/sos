@@ -4,8 +4,6 @@
 #pragma once
 #include <stdint.h>
 
-#include "cpu.h"
-
 typedef uint32_t spinsem_t;
 
 /*

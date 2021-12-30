@@ -1,9 +1,9 @@
 /*
  *
  */
+#include <arch/cpu.h>
 #include "kernel.h"
 #include "board.h"
-#include "cpu.h"
 #include "util.h"
 #include "mm.h"
 #include "arm-mmu.h"
