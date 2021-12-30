@@ -11,7 +11,7 @@ HOSTCC := gcc
 include ./arch/config.mk
 include ./config/config.mk
 
-CPPFLAGS += -iquote arch/$(ARCH)/include
+CPPFLAGS += -isystem arch/$(ARCH)/include
 AS := $(TOOLCHAIN)as
 CC := $(TOOLCHAIN)gcc
 LD := $(TOOLCHAIN)ld

@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "config.h"
+#include <arch/mmu.h>
 
 
 #define VMALLOC_START (0xFFFFFFFF - ((CONFIG_VMALLOC_MBS) << 20) + 1)

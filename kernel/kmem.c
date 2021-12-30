@@ -1,6 +1,8 @@
 /*
  * Memory routines and initialization
  */
+#include <arch/mmu.h>
+
 #include "kernel.h"
 #include "board.h"
 #include "cpu.h"

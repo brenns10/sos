@@ -1,5 +1,6 @@
+#include <arch/arch.h>
+
 #include "kernel.h"
-#include "arch.h"
 
 void pre_mmu(uintptr_t load_addr)
 {

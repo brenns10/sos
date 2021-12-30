@@ -6,7 +6,7 @@
  */
 #pragma once
 
-#include "arch.h"
+#include <arch/arch.h>
 
 #include "alloc.h"
 
