@@ -104,7 +104,7 @@ user/%.bin: user/%.elf
 	$(CC) -E -x c $(CPPFLAGS) $(patsubst %.elf,arch/$(ARCH)/%.ld.in,$@) | grep -v '^#' >$(patsubst %.elf,arch/$(ARCH)/%.ld,$@)
 	$(CC) -E -D PREMMU -x c $(CPPFLAGS) $(patsubst %.elf,arch/$(ARCH)/%.ld.in,$@) | grep -v '^#' >$(patsubst %.elf,arch/$(ARCH)/%.pre_mmu.ld,$@)
 	$(LD) -T $(patsubst %.elf,arch/$(ARCH)/%.ld,$@) $^ -o $@ -M > $(patsubst %.elf,%.map,$@)
-	$(LD) -T $(patsubst %.elf,arch/$(ARCH)/%.pre_mmu.ld,$@) $^ -o pre_mmu.elf
+	$(LD) -T $(patsubst %.elf,arch/$(ARCH)/%.pre_mmu.ld,$@) $^ -o $(patsubst %.elf,%.pre_mmu.elf,$@)
 
 #
 # Unit tests
