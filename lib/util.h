@@ -6,6 +6,6 @@
 
 #include <stdint.h>
 
-uint32_t align(uint32_t n, uint32_t b);
+uintptr_t align(uintptr_t n, uintptr_t b);
 
 #endif
