@@ -4,7 +4,7 @@ SECTIONS {
 	. = CONFIG_LINK_ADDR_PREMMU;
 	code_start = .;
 	.startup . : {
-		kernel/startup.o(*)
+		kernel/startup.o(.text)
 	}
 	/*.entry . : {
 		kernel/entry.o(*)

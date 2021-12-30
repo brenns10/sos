@@ -12,7 +12,7 @@ SECTIONS {
 	. = CONFIG_LINK_ADDR;
 	code_start = .;
 	.startup . : {
-		kernel/startup.o(*)
+		kernel/startup.o(.text)
 	}
 	/*.entry . : {
 		kernel/entry.o(*)
