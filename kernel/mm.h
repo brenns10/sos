@@ -5,34 +5,7 @@
 #include "config.h"
 #include <arch/mmu.h>
 
-
-#define VMALLOC_START (0xFFFFFFFF - ((CONFIG_VMALLOC_MBS) << 20) + 1)
-
-#define KERN_START_MB (CONFIG_KERNEL_START >> 20)
-#define VMLC_START_MB (VMALLOC_START >> 20)
-
-
-/**
- * Not to be directly accessed, it is declared here to enable some inline
- * function declarations. This marks the beginning of the physical memory.
- */
-extern uint32_t phy_start;
-
-/**
- * Initialize the kernel memory subsystems before the MMU is initialized. This
- * will initialize page tables and return so that we can re-enter the kernel
- * with MMU enabled.
- * @param phys Physical address of the code_start symbol where we were loaded
- */
-int kmem_init2(uint32_t phys);
-
-/**
- * Finish initializing the kernel memory subsystems after the MMU has been
- * enabled. Only after this function returns can we use:
- * - page allocation
- * - vmalloc page mapping
- */
- int kmem_init2_postmmu(void);
+ int kmem_init(void);
 
 /**
  * Allocate a single page of kernel memory, returning its virtual address.
@@ -45,7 +18,7 @@ void *kmem_get_page(void);
  * @param align The alignment requirement (number of least significint bits that
  * are zero)
  */
-void *kmem_get_pages(uint32_t bytes, uint32_t align);
+void *kmem_get_pages(uintptr_t bytes, uintptr_t align);
 
 /**
  * Free a single page.
@@ -58,14 +31,14 @@ void kmem_free_page(void *ptr);
  * @param virt_ptr Pointer to the first page
  * @param len Amount of memory to free (multiple of PAGE_SIZE)
  */
-void kmem_free_pages(void *virt_ptr, uint32_t len);
+void kmem_free_pages(void *virt_ptr, uintptr_t len);
 
 /**
  * Convert a normal kernel virtual address (non-MMIO) to physical.
  */
-static inline uint32_t kvtop(void *ptr)
+static inline uintptr_t kvtop(void *ptr)
 {
-	return ((uint32_t) ptr - CONFIG_KERNEL_START + phy_start);
+	return ((uintptr_t) ptr - arch_direct_map_offset);
 }
 
 /**
@@ -73,9 +46,9 @@ static inline uint32_t kvtop(void *ptr)
  * must be a physical memory address, not a memory mapped peripheral address or
  * something else.
  */
-static inline void *kptov(uint32_t addr)
+static inline void *kptov(uintptr_t addr)
 {
-	return (void *) (addr - phy_start + CONFIG_KERNEL_START);
+	return (void *) (addr + arch_direct_map_offset);
 }
 
 /**
@@ -84,7 +57,7 @@ static inline void *kptov(uint32_t addr)
  * kvtop() to directly compute the address. Currently, this is really only
  * useful for memory addresses which were returned by kmem_map_periph().
  */
-uint32_t kmem_lookup_phys(void *virt_ptr);
+uintptr_t kmem_lookup_phys(void *virt_ptr);
 
 /**
  * Map an MMIO peripheral's page range into the kernel address space. Takes the
@@ -98,7 +71,7 @@ uint32_t kmem_lookup_phys(void *virt_ptr);
  * @param size Number of pages, in increments of PAGE_SIZE
  * @return Virtual base address of the peripheral
  */
-void *kmem_map_periph(uint32_t phys_addr, uint32_t size);
+void *kmem_map_periph(uintptr_t phys_addr, uintptr_t size);
 
 
 struct process;
@@ -125,14 +98,14 @@ enum umem_perm {
  * @param size Number of bytes to map (increments of PAGE_SIZE)
  * @param perm Permissions of this mapping (RW or RO)
  */
-void umem_map_pages(struct process *p, uint32_t virt, uint32_t phys, uint32_t size, enum umem_perm perm);
+void umem_map_pages(struct process *p, uintptr_t virt, uintptr_t phys, uintptr_t size, enum umem_perm perm);
 
 /**
  * Lookup the mapping for a user virtual address.
  * @param p Process page tables to use
  * @param virt_ptr Virtual address to lookup
  */
-uint32_t umem_lookup_phys(struct process *p, void *virt_ptr);
+uintptr_t umem_lookup_phys(struct process *p, void *virt_ptr);
 
 /**
  * Destroy all memory mappings within the process address space. Note that this
@@ -146,6 +119,6 @@ void umem_cleanup(struct process *p);
  * Below are declarations of some diagnostic functions.
  */
 
-void vmem_diag(uint32_t addr);
-void mem_print(uint32_t *base, uint32_t start, uint32_t stop);
-void kmem_print(uint32_t start, uint32_t stop);
+void vmem_diag(uintptr_t addr);
+void mem_print(uintptr_t *base, uintptr_t start, uintptr_t stop);
+void kmem_print(uintptr_t start, uintptr_t stop);

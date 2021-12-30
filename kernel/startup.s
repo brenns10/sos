@@ -91,5 +91,17 @@ continue:
 	add sp, x1, x3
         mov x0, x1
 	bl pre_mmu
+
+        // Now the TTBR0 and TTBR1 are set. We have an identity mapping. Just
+	// now need to enable the MMU and branch into C code again.
+        mrs x0, SCTLR_EL1
+        orr x0, x0, 1
+        msr SCTLR_EL1, x0
+
+        ldr x1, =stack_end
+        mov sp, x1
+        ldr x1, =main
+        blr x1
+
 1:
         b 1b

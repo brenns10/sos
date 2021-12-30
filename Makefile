@@ -29,9 +29,9 @@ all: kernel.bin compile_unittests
 kernel.elf: kernel/uart.o
 kernel.elf: kernel/startup.o
 kernel.elf: kernel/smain.o
-kernel.elf: arch/aarch64/kmem.o
+kernel.elf: arch/$(ARCH)/mmu.o
 #kernel.elf: kernel/main.o
-#kernel.elf: kernel/kmem.o
+kernel.elf: kernel/kmem.o
 #kernel.elf: kernel/sysinfo.o
 #kernel.elf: kernel/entry.o
 #kernel.elf: kernel/c_entry.o

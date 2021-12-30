@@ -3,8 +3,8 @@
 ## Gives GDB info about where symbols are!
 ##   use kernel.elf for debugging post-MMU code
 ##   use pre_mmu.elf for debugging pre-MMU code
-#file kernel.elf
-file pre_mmu.elf
+file kernel.elf
+#file pre_mmu.elf
 #file user/salutations.elf
 
 ## May not be necessary?

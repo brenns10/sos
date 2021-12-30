@@ -1,5 +1,5 @@
 /*
- * aarch64 - kmem.c
+ * aarch64 - mmu.c
  *
  * Implementation of page table management routines for aarch64 architecture.
  * This implementation is specific to a 4KiB memory granule and 48-bit input
@@ -35,7 +35,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <arch/aarch64_cpreg.h>
+
 #include "kernel.h"
+#include "mm.h"
 #include "alloc.h"
 #include "string.h"
 
@@ -78,8 +81,7 @@
 #define PT3_INVALID 0ULL
 #define PT3_PAGE    3ULL
 
-#define NEXT_TABLE_PREMMU(x) ((uintptr_t *)((x) & ADDR_MASK))
-#define NEXT_TABLE(x) ((uintptr_t *)(((x) & ADDR_MASK) + phys_offset))
+#define NEXT_TABLE(x, mmu) ((uintptr_t *)(((x) & ADDR_MASK) + (mmu ? arch_direct_map_offset : 0)))
 
 #define ADDR_MASK 0x0000FFFFFFFFF000ULL
 #define PT3_ADDR(x) ((x) & ADDR_MASK)
@@ -90,16 +92,26 @@
 #define AP_SY 0ULL
 
 #define ATTR_NG (1 << 11)
+#define ATTR_AF (1 << 10)
 
-void *phys_alloc;
+// Publicly visible arch-maintained values
+void *arch_phys_allocator;
+uintptr_t arch_direct_map_offset;
+const uintptr_t ARCH_DIRECTMAP = 0xFFFF000000000000;
+
+// Private
 uintptr_t *pgtable;
 uintptr_t *tmppgt0;
 
-uintptr_t phys_offset;
 
 static inline bool aligned(uintptr_t num, unsigned int num_zero)
 {
 	return !(num & ((1ULL << num_zero) - 1));
+}
+
+static inline uintptr_t alloc_page_table(void)
+{
+	return alloc_pages(arch_phys_allocator, PAGE_SIZE, 12);
 }
 
 /**
@@ -123,14 +135,21 @@ static inline bool aligned(uintptr_t num, unsigned int num_zero)
 static void map_blocks(uintptr_t *pgt, uintptr_t virt, uintptr_t phy, uintptr_t len, uintptr_t attrs)
 {
 	uintptr_t *p1, *p2, *p3;
+
+	// Has the MMU been enabled yet? We can tell by the value of the pgt
+	// pointer. If it points to an address under the kernel start
+	// (0xFFFF...) then we know it is a physical address, and so we're
+	// operating with MMU disabled. If it points to an address under the
+	bool mmu = (uintptr_t)pgt >= ARCH_DIRECTMAP;
+
 	for (unsigned int idx0 = L0_IDX(virt); idx0 < NUM_PTES && len; idx0++) {
 		// 512 GiB blocks are not supported, we must always create (or
 		// use an existing) L1 table.
 		if (PTE_TYPE(pgt[idx0]) != PTE_TABLE) {
-			pgt[idx0] = alloc_pages(phys_alloc, PAGE_SIZE, 12) | PTE_TABLE;
-			memset(NEXT_TABLE_PREMMU(pgt[idx0]), PAGE_SIZE, (char)0);
+			pgt[idx0] = alloc_page_table() | PTE_TABLE;
+			memset(NEXT_TABLE(pgt[idx0], mmu), PAGE_SIZE, (char)0);
 		}
-		p1 = NEXT_TABLE_PREMMU(pgt[idx0]);
+		p1 = NEXT_TABLE(pgt[idx0], mmu);
 
 		for (unsigned int idx1 = L1_IDX(virt); idx1 < NUM_PTES && len; idx1++) {
 			// See if we can do a 1GiB block: Both virt and phy must
@@ -148,10 +167,10 @@ static void map_blocks(uintptr_t *pgt, uintptr_t virt, uintptr_t phy, uintptr_t 
 			}
 			// We must create an (or use an existing) L2 table.
 			if (PTE_TYPE(p1[idx1]) != PTE_TABLE) {
-				p1[idx1] = alloc_pages(phys_alloc, PAGE_SIZE, 12) | PTE_TABLE;
-				memset(NEXT_TABLE_PREMMU(p1[idx1]), PAGE_SIZE, (char)0);
+				p1[idx1] = alloc_page_table() | PTE_TABLE;
+				memset(NEXT_TABLE(p1[idx1], mmu), PAGE_SIZE, (char)0);
 			}
-			p2 = NEXT_TABLE_PREMMU(p1[idx1]);
+			p2 = NEXT_TABLE(p1[idx1], mmu);
 
 			for (unsigned int idx2 = L2_IDX(virt); idx2 < NUM_PTES && len; idx2++) {
 				// See if we can do a 2MiB block: Both virt and phy must
@@ -170,10 +189,10 @@ static void map_blocks(uintptr_t *pgt, uintptr_t virt, uintptr_t phy, uintptr_t 
 
 				// We must create an (or use an existing) L3 table.
 				if (PTE_TYPE(p2[idx2] != PTE_TABLE)) {
-					p2[idx2] = alloc_pages(phys_alloc, PAGE_SIZE, 12) | PTE_TABLE;
-					memset(NEXT_TABLE_PREMMU(p2[idx2]), PAGE_SIZE, (char)0);
+					p2[idx2] = alloc_page_table() | PTE_TABLE;
+					memset(NEXT_TABLE(p2[idx2], mmu), PAGE_SIZE, (char)0);
 				}
-				p3 = NEXT_TABLE_PREMMU(p2[idx2]);
+				p3 = NEXT_TABLE(p2[idx2], mmu);
 
 				for (unsigned int idx3 = L3_IDX(virt); idx3 < NUM_PTES && len; idx3++) {
 					p3[idx3] = phy | attrs | PT3_PAGE;
@@ -186,25 +205,75 @@ static void map_blocks(uintptr_t *pgt, uintptr_t virt, uintptr_t phy, uintptr_t 
 	}
 }
 
+void show_pgt(uintptr_t *pgt, uintptr_t virt, uintptr_t len)
+{
+	uintptr_t *p1, *p2, *p3;
+	bool mmu = (uintptr_t)pgt >= ARCH_DIRECTMAP;
+	printf("L0 PGT @ 0x%0X\n", pgt);
+	for (unsigned int idx0 = L0_IDX(virt); idx0 < NUM_PTES && len; idx0++) {
+		if (PTE_TYPE(pgt[idx0]) != PTE_TABLE) {
+			virt += L0_SIZE;
+			len -= L0_SIZE;
+			continue;
+		}
+		p1 = NEXT_TABLE(pgt[idx0], mmu);
+		printf("  L1 PGT @ 0x%0X\n", p1);
+
+		for (unsigned int idx1 = L1_IDX(virt); idx1 < NUM_PTES && len; idx1++) {
+			if (PTE_TYPE(p1[idx1]) == PTE_BLOCK)
+				printf("  0x%X: 0x%0X (1 GiB Block)\n",
+				       virt, PT3_ADDR(p1[idx1]));
+			if (PTE_TYPE(p1[idx1]) != PTE_TABLE) {
+				virt += L1_SIZE;
+				len -= L1_SIZE;
+				continue;
+			}
+			p2 = NEXT_TABLE(p1[idx1], mmu);
+			printf("    L2 PGT @ 0x%0X\n", p2);
+
+			for (unsigned int idx2 = L2_IDX(virt); idx2 < NUM_PTES && len; idx2++) {
+				if (PTE_TYPE(p2[idx2]) == PTE_BLOCK)
+					printf("    0x%X: 0x%0X (2 MiB Block)\n",
+					       virt, PT3_ADDR(p2[idx2]));
+				if (PTE_TYPE(p2[idx2]) != PTE_TABLE) {
+					virt += L2_SIZE;
+					len -= L2_SIZE;
+					continue;
+				}
+				p3 = NEXT_TABLE(p2[idx2], mmu);
+				printf("      L3 PGT @ 0x%0X\n", p3);
+
+				for (unsigned int idx3 = L3_IDX(virt); idx3 < NUM_PTES && len; idx3++) {
+					if (PTE_TYPE(p3[idx3]) == PT3_PAGE)
+						printf("        0x%0X: 0x%0X (Page)\n",
+						       virt, PT3_ADDR(p3[idx3]));
+					virt += L3_SIZE;
+					len -= L3_SIZE;
+				}
+			}
+		}
+	}
+}
+
 void arch_premmu(uintptr_t phy_start, uintptr_t memsize, uintptr_t phy_code_start)
 {
-	phys_offset = 0xFFFF000000000000 - phy_start;
-	phys_alloc = (void *)phy_code_start + ((void *)&unused_start - (void *) code_start);
-	init_page_allocator(phys_alloc, phy_start, phy_start + memsize);
-	show_pages(phys_alloc);
+	arch_direct_map_offset = ARCH_DIRECTMAP - phy_start;
+	arch_phys_allocator = (void *)phy_code_start + ((void *)&unused_start - (void *) code_start);
+	init_page_allocator(arch_phys_allocator, phy_start, phy_start + memsize);
 
 	// Mark the code, data, and allocator itself as allocated.
-	mark_alloc(phys_alloc, phy_code_start,
+	mark_alloc(arch_phys_allocator, phy_code_start,
 	           (uintptr_t)&unused_start - (uintptr_t)&code_start + PAGE_SIZE);
 
-	show_pages(phys_alloc);
 	// Create an empty kernel page table
-	pgtable = (void *)alloc_pages(phys_alloc, PAGE_SIZE, 12);
+	pgtable = (void *)alloc_pages(arch_phys_allocator, PAGE_SIZE, 12);
 	memset(pgtable, PAGE_SIZE, (char)0);
 
 	// Map all of physical memory at the beginning.
-	map_blocks(pgtable, 0xFFFF000000000000, phy_start, memsize, AP_RW | AP_SY);
-	show_pages(phys_alloc);
+	map_blocks(pgtable, ARCH_DIRECTMAP, phy_start, memsize,
+	           AP_RW | AP_SY | ATTR_AF);
+	_msr(TTBR1_EL1, pgtable);
+	show_pgt(pgtable, ARCH_DIRECTMAP, 0x0001000000000000ULL);
 
 	// Create a temporary TTBR0 table. Normally these are for addresses
 	// starting with 0x0000, i.e. userspace. However, at boot we are running
@@ -214,11 +283,16 @@ void arch_premmu(uintptr_t phy_start, uintptr_t memsize, uintptr_t phy_code_star
 	// unused right now. So we can setup our temporary table, use it for the
 	// identity mapping, and clean it up once we jump into the kernel
 	// address space.
-	tmppgt0 = (void *)alloc_pages(phys_alloc, PAGE_SIZE, 12);
+	tmppgt0 = (void *)alloc_pages(arch_phys_allocator, PAGE_SIZE, 12);
 	memset(tmppgt0, PAGE_SIZE, (char)0);
 	map_blocks(tmppgt0, phy_code_start, phy_code_start,
 	           (uintptr_t)&unused_start - (uintptr_t)&code_start + PAGE_SIZE,
-	           AP_RW | AP_SY);
+	           AP_RW | AP_SY | ATTR_AF);
+	_msr(TTBR0_EL1, tmppgt0);
+	show_pgt(tmppgt0, 0ULL, 0x0001000000000000ULL);
+
+	uint64_t x = 0x980000000;
+	_msr(TCR_EL1, x);
 }
 
 static void free_pgt(uintptr_t *pgt)
@@ -226,27 +300,32 @@ static void free_pgt(uintptr_t *pgt)
 	for (unsigned int idx0 = 0; idx0 < NUM_PTES; idx0++) {
 		if (PTE_TYPE(pgt[idx0]) != PTE_TABLE)
 			continue;
-		uintptr_t *p1 = NEXT_TABLE(pgt[idx0]);
+		uintptr_t *p1 = NEXT_TABLE(pgt[idx0], true);
 		for (unsigned int idx1 = 0; idx1 < NUM_PTES; idx1++) {
 			if (PTE_TYPE(p1[idx1]) != PTE_TABLE)
 				continue;
-			uintptr_t *p2 = NEXT_TABLE(p1[idx1]);
+			uintptr_t *p2 = NEXT_TABLE(p1[idx1], true);
 			for (unsigned int idx2 = 0; idx2 < NUM_PTES; idx2++) {
 				if (PTE_TYPE(p2[idx2]) != PTE_TABLE)
 					continue;
-				free_pages(phys_alloc, (uintptr_t)NEXT_TABLE(p2[idx2]), 1);
+				free_pages(arch_phys_allocator, (uintptr_t)NEXT_TABLE(p2[idx2], true), 1);
 			}
-			free_pages(phys_alloc, (uintptr_t)p2, 1);
+			free_pages(arch_phys_allocator, (uintptr_t)p2, 1);
 		}
-		free_pages(phys_alloc, (uintptr_t)p1, 1);
+		free_pages(arch_phys_allocator, (uintptr_t)p1, 1);
 	}
-	free_pages(phys_alloc, (uintptr_t)pgt, 1);
+	free_pages(arch_phys_allocator, (uintptr_t)pgt, 1);
 }
 
 void arch_postmmu(void)
 {
-	phys_alloc = (void *)((uintptr_t)phys_alloc + phys_offset);
-	pgtable = (void *)((uintptr_t)pgtable + phys_offset);
-	tmppgt0 = (void *)((uintptr_t)tmppgt0 + phys_offset);
+	arch_phys_allocator = (void *)((uintptr_t)arch_phys_allocator + arch_direct_map_offset);
+	pgtable = (void *)((uintptr_t)pgtable + arch_direct_map_offset);
+	tmppgt0 = (void *)((uintptr_t)tmppgt0 + arch_direct_map_offset);
 	free_pgt(tmppgt0);
+}
+
+void *arch_devmap(uintptr_t virt_addr, uintptr_t phys_addr, uintptr_t size)
+{
+	map_blocks(pgtable, virt_addr, phys_addr, size, AP_RW | AP_SY | ATTR_AF);
 }

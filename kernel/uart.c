@@ -194,6 +194,7 @@ void uart_init_irq(void)
 	gic_register_isr(CONFIG_UART_INTID, 1, uart_isr, "uart");
 	gic_enable_interrupt(CONFIG_UART_INTID);
 }
+#endif
 
 /*
  * Remap the UART base. This should be called after MMU is enabled, and we need
@@ -201,7 +202,5 @@ void uart_init_irq(void)
  */
 void uart_remap(void)
 {
-	uart_base = (uint32_t)kmem_map_periph(uart_base, 0x1000);
+	uart_base = (uintptr_t)kmem_map_periph(uart_base, 0x1000);
 }
-
-#endif
