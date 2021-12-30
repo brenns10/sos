@@ -44,15 +44,19 @@ static inline void set(char *buf, uint32_t size, uint32_t *out, char val)
  * This function implements the %x format specifier.
  */
 static inline uint32_t _format_hex(char *buf, uint32_t size, uint32_t out,
-                                   uint32_t val, bool lz)
+                                   uint64_t val, bool lz, bool big)
 {
-	uint32_t mask = 0xF0000000;
+	uint64_t mask;
 	uint32_t shift = 32;
-	uint32_t digit;
+	uint64_t digit;
 	char c;
+
+	if (big)
+		shift = 64;
 
 	do {
 		shift -= 4;
+		mask = 0xFULL << shift;
 		digit = (val & mask) >> shift;
 
 		if (digit || lz || shift == 0) {
@@ -60,7 +64,6 @@ static inline uint32_t _format_hex(char *buf, uint32_t size, uint32_t out,
 			c = (digit >= 10 ? 'a' + digit - 10 : '0' + digit);
 			SET(buf, size, out, c);
 		}
-		mask >>= 4;
 	} while (shift > 0);
 	return out;
 }
@@ -72,7 +75,7 @@ static inline uint32_t _format_mac(char *buf, uint32_t size, uint32_t out,
 	for (i = 0; i < 6; i++) {
 		if (i > 0)
 			SET(buf, size, out, ':');
-		out = _format_hex(buf, size, out, (uint32_t)macptr[i], false);
+		out = _format_hex(buf, size, out, (uint32_t)macptr[i], false, false);
 	}
 	return out;
 }
@@ -153,6 +156,7 @@ uint32_t vsnprintf(char *buf, uint32_t size, const char *format, va_list vl)
 {
 	uint32_t out = 0;
 	uint32_t uintval;
+	uint64_t u64val;
 	char *strval;
 	uint8_t *macptr;
 	char charval;
@@ -169,17 +173,26 @@ uint32_t vsnprintf(char *buf, uint32_t size, const char *format, va_list vl)
 
 			// otherwise, handle format specifiers
 			switch (format[in]) {
+			case 'X':
+				u64val = va_arg(vl, uint64_t);
+				out = _format_hex(buf, size, out, u64val, false, true);
+				break;
 			case 'x':
 				uintval = va_arg(vl, uint32_t);
-				out = _format_hex(buf, size, out, uintval, false);
+				out = _format_hex(buf, size, out, (uint64_t)uintval, false, false);
 				break;
 			case '0':
-				if (format[in+1] != 'x') {
+				if (format[in+1] == 'x') {
+					uintval = va_arg(vl, uint32_t);
+					out = _format_hex(buf, size, out, uintval, true, false);
+					in++;
+				} else if (format[in+1] == 'X') {
+					u64val = va_arg(vl, uint64_t);
+					out = _format_hex(buf, size, out, u64val, true, true);
+					in++;
+				} else {
 					SET(buf, size, out, '%');
 					SET(buf, size, out, '0');
-				} else {
-					uintval = va_arg(vl, uint32_t);
-					out = _format_hex(buf, size, out, uintval, true);
 					in++;
 				}
 				break;
