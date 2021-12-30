@@ -10,13 +10,13 @@
 ENTRY(_start)
 SECTIONS {
 #ifdef PREMMU
-	. = CONFIG_LINK_ADDR_PREMMU
+	. = CONFIG_LINK_ADDR_PREMMU;
 #else
 	. = CONFIG_LINK_ADDR;
 #endif
 	code_start = .;
 	.startup . : {
-		arch/aarch64/startup.o(.text)
+		arch/arm/startup.o(.text)
 	}
 	/*.entry . : {
 		kernel/entry.o(*)

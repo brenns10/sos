@@ -1,11 +1,14 @@
+#include <arch/config.h>
 #define CONFIG_BOARD     BOARD_QEMU
 #define CONFIG_UART_BASE 0x09000000
-#if ARCH == aarch64
+#if defined(ARCH_AARCH64)
 #define CONFIG_LINK_ADDR 0xFFFF000000080000
 #define CONFIG_LINK_ADDR_PREMMU 0x40080000
-#elif ARCH == arm
+#elif defined(ARCH_ARM)
 #define CONFIG_LINK_ADDR 0x80010000
 #define CONFIG_LINK_ADDR_PREMMU 0x40010000
+#else
+#error "Unsupported architecture for qemu config"
 #endif
 
 #define CONFIG_GIC_IF_BASE   0x08010000
