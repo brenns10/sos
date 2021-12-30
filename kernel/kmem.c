@@ -18,6 +18,7 @@ void *kern_virt_allocator;
  */
 void umem_cleanup(struct process *p)
 {
+	arch_umem_free(p->first);
 }
 
 /**
@@ -26,16 +27,17 @@ void umem_cleanup(struct process *p)
 void umem_map_pages(struct process *p, uintptr_t virt, uintptr_t phys,
                     uintptr_t len, enum umem_perm perm)
 {
+	arch_umem_map(p->first, virt, phys, len, perm);
 }
 
 uintptr_t umem_lookup_phys(struct process *p, void *virt_ptr)
 {
-	return 0;
+	return arch_umem_lookup(p->first, virt_ptr);
 }
 
 uintptr_t kmem_lookup_phys(void *virt_ptr)
 {
-	return 0;
+	return kvtop(virt_ptr);
 }
 
 /**

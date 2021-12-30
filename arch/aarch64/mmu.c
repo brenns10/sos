@@ -325,7 +325,23 @@ void arch_postmmu(void)
 	free_pgt(tmppgt0);
 }
 
-void *arch_devmap(uintptr_t virt_addr, uintptr_t phys_addr, uintptr_t size)
-{
+void arch_devmap(uintptr_t virt_addr, uintptr_t phys_addr, uintptr_t size)
+ {
 	map_blocks(pgtable, virt_addr, phys_addr, size, AP_RW | AP_SY | ATTR_AF);
+}
+
+void arch_umem_free(void *as)
+{
+	// TODO
+}
+
+void arch_umem_map(void *as, uintptr_t virt, uintptr_t phys,
+                   uintptr_t len, enum umem_perm perm)
+{
+	// TODO
+}
+
+uintptr_t arch_umem_lookup(void *as, void *virt_ptr)
+{
+	// TODO
 }

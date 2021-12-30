@@ -69,7 +69,7 @@ kernel.elf: kernel/kmem.o
 kernel.elf: lib/format.o
 kernel.elf: lib/alloc.o
 kernel.elf: lib/string.o
-#kernel.elf: lib/util.o
+kernel.elf: lib/util.o
 #kernel.elf: lib/slab.o
 #kernel.elf: lib/math.o
 #kernel.elf: lib/inet.o

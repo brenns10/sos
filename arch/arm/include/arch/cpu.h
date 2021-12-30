@@ -187,23 +187,23 @@ static inline void ICIALLU(void)
 	set_cpreg2(val, 0, c7, c5, 0);
 }
 
-static inline void set_ttbr0(uint32_t val)
+static inline void set_ttbr0(uintptr_t val)
 {
 	set_cpreg2(val, 0, c2, c0, 0);
 }
-static inline uint32_t get_ttbr0(void)
+static inline uintptr_t get_ttbr0(void)
 {
-	uint32_t val;
+	uintptr_t val;
 	get_cpreg2(val, 0, c2, c0, 0);
 	return val;
 }
-static inline void set_ttbr1(uint32_t val)
+static inline void set_ttbr1(uintptr_t val)
 {
 	set_cpreg2(val, 0, c2, c0, 1);
 }
-static inline uint32_t get_ttbr1(void)
+static inline uintptr_t get_ttbr1(void)
 {
-	uint32_t val;
+	uintptr_t val;
 	get_cpreg2(val, 0, c2, c0, 1);
 	return val;
 }
