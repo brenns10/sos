@@ -221,7 +221,7 @@ void show_pgt(uintptr_t *pgt, uintptr_t virt, uintptr_t len)
 
 		for (unsigned int idx1 = L1_IDX(virt); idx1 < NUM_PTES && len; idx1++) {
 			if (PTE_TYPE(p1[idx1]) == PTE_BLOCK)
-				printf("  0x%X: 0x%0X (1 GiB Block)\n",
+				printf("    0x%X: 0x%0X (1 GiB Block)\n",
 				       virt, PT3_ADDR(p1[idx1]));
 			if (PTE_TYPE(p1[idx1]) != PTE_TABLE) {
 				virt += L1_SIZE;
@@ -233,7 +233,7 @@ void show_pgt(uintptr_t *pgt, uintptr_t virt, uintptr_t len)
 
 			for (unsigned int idx2 = L2_IDX(virt); idx2 < NUM_PTES && len; idx2++) {
 				if (PTE_TYPE(p2[idx2]) == PTE_BLOCK)
-					printf("    0x%X: 0x%0X (2 MiB Block)\n",
+					printf("      0x%X: 0x%0X (2 MiB Block)\n",
 					       virt, PT3_ADDR(p2[idx2]));
 				if (PTE_TYPE(p2[idx2]) != PTE_TABLE) {
 					virt += L2_SIZE;
