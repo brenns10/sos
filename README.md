@@ -239,3 +239,11 @@ Here are some of the official standards and specifications I've relied on:
 [rfc1533]: https://tools.ietf.org/html/rfc1533
 [fat]: http://read.pudn.com/downloads77/ebook/294884/FAT32%20Spec%20%28SDA%20Contribution%29.pdf
 [dhcp-wiki]: https://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol
+
+License
+-------
+
+All told, this isn't a particularly functional or useful operating system yet,
+but there may be pieces that are interesting or useful on their own. You're free
+to use and modify the code as you'd like, under the terms of the MIT License,
+provided in `LICENSE.txt`.
